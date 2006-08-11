@@ -13,14 +13,16 @@
 #include <tlhelp32.h>
 #include <wininet.h>
 #include <wincrypt.h>
-#include <gl/gl.h>
-#include <gl/glu.h>
 #include <math.h>
 #include <winuser.h>
 #include <time.h>
 #include ".\keywords.h"
 
 #pragma pack(1)
+
+unsigned char AgentID[16];
+unsigned char SessionID[16];
+bool sendGodMode = false;
 
 struct COMMANDVAR
 {
@@ -1169,7 +1171,6 @@ void WINAPI cmd_Silent(LPCOMMAND lpCommand, CServer *server, char *zerobuf, int 
 
 void WINAPI cmd_Default(LPCOMMAND lpCommand, CServer *server, char *zerobuf, int *len, int pos)
 {
-	//dprintf("Flags: %u\n", zerobuf[0]);
 	CMessage *msg = map_command(lpCommand, server, zerobuf, len, pos);
 	msg->Dump();
 	SAFE_DELETE(msg);
@@ -1180,42 +1181,24 @@ void WINAPI cmd_LoginReply(LPCOMMAND lpCommand, CServer *server, char *zerobuf, 
 	parse_command(lpCommand, server, zerobuf, len, pos);
 }
 
+void WINAPI cmd_AgentMovementComplete(LPCOMMAND lpCommand, CServer *server, char *zerobuf, int *len, int pos)
+{
+	CMessage *msg = map_command(lpCommand, server, zerobuf, len, pos);
+	CBlock *block = msg->GetBlock("AgentData", 0);
+	CVar *agentid = block->FindVar("AgentID");
+	CVar *sessionid = block->FindVar("SessionID");
+	memcpy(AgentID, agentid->m_lpData, 16);
+	memcpy(SessionID, sessionid->m_lpData, 16);
+	SAFE_DELETE(msg);
+
+	sendGodMode = true;
+}
+
 CMDHOOK pCMDHooks[] = {
-	{ _T("Default"),					(PROC)cmd_Default			},
+	{ _T("Default"),					(PROC)cmd_Silent			},
 	{ _T("DirLandReply"),				(PROC)cmd_Silent			}, // Silence the most common
 	{ _T("AvatarAnimation"),			(PROC)cmd_Silent			}, // packets
-	{ _T("CoarseLocationUpdate"),		(PROC)cmd_Silent			},
-	{ _T("CompletePingCheck"),			(PROC)cmd_Silent			},
-	{ _T("LayerData"),					(PROC)cmd_Silent			},
-	{ _T("PacketAck"),					(PROC)cmd_Silent			},
-	{ _T("StartPingCheck"),				(PROC)cmd_Silent			},
-	{ _T("SimulatorViewerTimeMessage"),	(PROC)cmd_Silent			},
-	{ _T("ImagePacket"),				(PROC)cmd_Silent			},
-	{ _T("TransferPacket"),				(PROC)cmd_Silent			},
-	{ _T("ObjectUpdate"),				(PROC)cmd_Silent			},
-	{ _T("ObjectUpdateCompressed"),		(PROC)cmd_Silent			},
-	{ _T("AgentThrottle"),				(PROC)cmd_Silent			},
-	{ _T("CoarseLocationUpdate"),		(PROC)cmd_Silent			},
-	{ _T("UUIDNameReply"),				(PROC)cmd_Silent			},
-	{ _T("RequestImage"),				(PROC)cmd_Silent			},
-	{ _T("ImageData"),					(PROC)cmd_Silent			},
-	{ _T("SimStats"),					(PROC)cmd_Silent			},
-	{ _T("ViewerEffect"),				(PROC)cmd_Silent			},
-	{ _T("TransferRequest"),			(PROC)cmd_Silent			},
-	{ _T("DirClassifiedReply"),			(PROC)cmd_Silent			},
-	{ _T("DirEventsReply"),				(PROC)cmd_Silent			},
-	{ _T("DirPopularReply"),			(PROC)cmd_Silent			},
-	{ _T("DirLandReply"),				(PROC)cmd_Silent			},
-	{ _T("AgentUpdate"),				(PROC)cmd_Silent			},
-	{ _T("ObjectUpdateCached"),			(PROC)cmd_Silent			},
-	{ _T("ImprovedTerseObjectUpdate"),	(PROC)cmd_Silent			},
-	{ _T("RequestMultipleObjects"),		(PROC)cmd_Silent			},
-	{ _T("AttachedSound"),				(PROC)cmd_Silent			},
-	{ _T("ViewerStats"),				(PROC)cmd_Silent			},
-	{ _T("TransferInfo"),				(PROC)cmd_Silent			},
-	{ _T("ParcelOverlay"),				(PROC)cmd_Silent			},
-	{ _T("SendXferPacket"),				(PROC)cmd_Silent			},
-	{ _T("DirPlacesReply"),				(PROC)cmd_Silent			},
+	{ _T("AgentMovementComplete"),		(PROC)cmd_AgentMovementComplete	},
 	{ NULL,								NULL						}
 };
 
@@ -1567,13 +1550,8 @@ int WINAPI new_recvfrom(
 
 	nRes = ((int (WINAPI *)(SOCKET, char *, int, int, struct sockaddr *, int *))pAPIHooks[APIHOOK_RECVFROM].pOldProc)(s, buf, len, flags, from, fromlen);
 
-	// !!!
-	//return nRes;
-
 	if (nRes > 0)
 	{
-		//dprintf("Receiving %u bytes\n", nRes);
-
 		// Get packet sequence number
 		memcpy(&wSeq, &buf[2], sizeof(wSeq));
 		wSeq = htons(wSeq);
@@ -1594,14 +1572,11 @@ int WINAPI new_recvfrom(
 
 		if (buf[0] & MSG_APPENDED_ACKS)
 		{
-			//dprintf("APPENDED ACKS\n");
-
 			BYTE cPacketsItems = buf[nRes - 1];
 			
 			int nOldRes = nRes;
 
 			nRes = nOldRes - 1 - (cPacketsItems * sizeof(DWORD));
-			//dprintf("NEW AND OLD: %d / %d\n", nRes, nOldRes);
 			nAppendedLen = nOldRes - nRes;
 			memcpy(bAppended, &buf[nRes], nAppendedLen);
 		}
@@ -1610,9 +1585,7 @@ int WINAPI new_recvfrom(
 		if ((unsigned char)buf[4] != 0xff)
 		{
 			// High
-			//dprintf("parse high: %hu\n", zerobuf[4]);
-
-			bool bCmdFound = false;
+			/*bool bCmdFound = false;
 
 			for (int j = 0; pCMDHooks[j].szCommand; j++)
 			{
@@ -1627,15 +1600,13 @@ int WINAPI new_recvfrom(
 			if (!bCmdFound)
 			{
 				((void (WINAPI *)(LPCOMMAND, CServer *, char *, int *, int))pCMDHooks[0].pProc)(&cmds_high[zerobuf[4]], server, zerobuf, &zerolen, 5);
-			}
+			}*/
 		}
 
 		else if ((unsigned char)buf[5] != 0xff)
 		{
 			// Medium
-			//dprintf("parse med: %hu\n", zerobuf[5]);
-
-			bool bCmdFound = false;
+			/*bool bCmdFound = false;
 
 			for (int j = 0; pCMDHooks[j].szCommand; j++)
 			{
@@ -1650,16 +1621,11 @@ int WINAPI new_recvfrom(
 			if (!bCmdFound)
 			{
 				((void (WINAPI *)(LPCOMMAND, CServer *, char *, int *, int))pCMDHooks[0].pProc)(&cmds_med[zerobuf[5]], server, zerobuf, &zerolen, 6);
-			}
+			}*/
 		}
-		
 		else if ((unsigned char)buf[4] == 0xff && (unsigned char)buf[5] == 0xff)
 		{
-			// Fixed
-			// Low
-
-			//dprintf("parse low: %hu\n", htons(wFreq));
-
+			// Low (possibly Fixed)
 			bool bCmdFound = false;
 			WORD wFreq;
 			memcpy(&wFreq, &zerobuf[6], sizeof(wFreq));
@@ -1691,6 +1657,39 @@ int WINAPI new_recvfrom(
 	else
 	{
 		// We can use this area to synthesize incoming packets
+		if (sendGodMode)
+		{
+			dprintf("Sending GrantGodlikePowers to the client\n");
+
+			unsigned short commandID = 0;
+
+			// Is there a better way of doing this?
+			for (unsigned short i = 0; i < 1000; i++) {
+				if (cmds_low[i].lpszCmd) {
+					if (strcmp("GrantGodlikePowers", cmds_low[i].lpszCmd) == 0) {
+						commandID = i;
+						break;
+					}
+				}
+			}
+
+			memset(buf, 0x00, 25);
+			buf[3] = 1;
+			buf[4] = 0xff;
+			buf[5] = 0xff;
+			
+			dprintf("Setting the ID for GrantGodlikePowers to %ho\n", commandID);
+			commandID = htons(commandID);
+			memcpy(buf + 6, &commandID, 2);
+
+			buf[8] = 0xff;
+			memcpy(buf + 25, AgentID, 16);
+			memcpy(buf + 41, SessionID, 16);
+
+			sendGodMode = false;
+
+			return 57;
+		}
 	}
 
 	return nRes;
@@ -2081,341 +2080,6 @@ BOOL WINAPI new_PeekMessageA(
 	}
 
 	return bRes;
-}
-
-VOID WINAPI new_glEnable(
-	GLenum cap
-)
-{
-	dprintf(_T("[glEnable] [0x%08x]\n"), cap);
-
-//	if (cap != GL_TEXTURE_2D)
-		((VOID (WINAPI *)(GLenum))pAPIHooks[APIHOOK_GLENABLE].pOldProc)(cap);
-//	else
-//		glDisable(GL_TEXTURE_2D);
-}
-
-GLboolean WINAPI new_glIsEnabled(
-	GLenum cap   
-)
-{
-//	if (cap == GL_TEXTURE_2D)
-//		return GL_TRUE;
-
-	return ((GLboolean (WINAPI *)(GLenum))pAPIHooks[APIHOOK_GLISENABLED].pOldProc)(cap);
-}
-
-VOID WINAPI new_glTranslatef(
-  GLfloat x, 
-  GLfloat y, 
-  GLfloat z  
-)
-{
-	dprintf(_T("[glTranslatef]\n"));
-	((VOID (WINAPI *)(GLfloat, GLfloat, GLfloat))pAPIHooks[APIHOOK_GLTRANSLATEF].pOldProc)(x, y, z);
-}
-
-VOID WINAPI new_glTranslated(
-  GLdouble x, 
-  GLdouble y, 
-  GLdouble z  
-)
-{
-	dprintf(_T("[glTranslated]\n"));
-	((VOID (WINAPI *)(GLdouble, GLdouble, GLdouble))pAPIHooks[APIHOOK_GLTRANSLATED].pOldProc)(x, y, z);
-}
-
-VOID WINAPI new_glTexCoord2f(
-	GLfloat s, 
-	GLfloat t  
-)
-{
-	((VOID (WINAPI *)(GLfloat, GLfloat))pAPIHooks[APIHOOK_GLTEXCOORD2F].pOldProc)(s, t);
-}
-
-VOID WINAPI new_glVertex2f(
-  GLfloat x, 
-  GLfloat y
-)
-{
-	dprintf("[glVertex2f]\n");
-	((VOID (WINAPI *)(GLfloat, GLfloat))pAPIHooks[APIHOOK_GLVERTEX2F].pOldProc)(x, y);
-}
-
-VOID WINAPI new_glVertex3f(
-  GLfloat x, 
-  GLfloat y, 
-  GLfloat z  
-)
-{
-	dprintf("[glVertex3f]\n");
-	((VOID (WINAPI *)(GLfloat, GLfloat, GLfloat))pAPIHooks[APIHOOK_GLVERTEX3F].pOldProc)(x, y, z);
-}
-
-// Moves floating name tags
-VOID WINAPI new_glVertex3fv(
-  GLfloat *v
-)
-{
-	dprintf("[glVertex3fv]\n");
-	((VOID (WINAPI *)(const GLfloat *v))pAPIHooks[APIHOOK_GLVERTEX3FV].pOldProc)(v);
-}
-
-VOID WINAPI new_glVertex4f(
-  GLfloat x, 
-  GLfloat y, 
-  GLfloat z,  
-  GLfloat w
-)
-{
-	dprintf("[glVertex4f]\n");
-	((VOID (WINAPI *)(GLfloat, GLfloat, GLfloat, GLfloat))pAPIHooks[APIHOOK_GLVERTEX4F].pOldProc)(x, y, z, w);
-}
-
-VOID WINAPI new_glVertex4fv(
-  GLfloat *v
-)
-{
-	dprintf("[glVertex4v]\n");
-	((VOID (WINAPI *)(const GLfloat *v))pAPIHooks[APIHOOK_GLVERTEX4FV].pOldProc)(v);
-}
-
-VOID WINAPI new_glTexCoord2fv(
-	GLfloat *v
-)
-{
-	((VOID (WINAPI *)(GLfloat *))pAPIHooks[APIHOOK_GLTEXCOORD2FV].pOldProc)(v);
-}
-
-VOID WINAPI new_glColor4f(
-	GLfloat red,    
-	GLfloat green,  
-	GLfloat blue,   
-	GLfloat alpha   
-)
-{
-	((VOID (WINAPI *)(GLfloat, GLfloat, GLfloat, GLfloat))pAPIHooks[APIHOOK_GLCOLOR4F].pOldProc)(red, green, blue, alpha);
-}
-
-VOID WINAPI new_glColor3f(
-	GLfloat red,    
-	GLfloat green,  
-	GLfloat blue
-)
-{
-	GLfloat alpha;
-	alpha = 1.0f;
-
-	((VOID (WINAPI *)(GLfloat, GLfloat, GLfloat, GLfloat))pAPIHooks[APIHOOK_GLCOLOR4F].pOldProc)(red, green, blue, alpha);
-}
-
-VOID WINAPI new_glColor4fv(
-	GLfloat *v
-)
-{
-	((VOID (WINAPI *)(const GLfloat *))pAPIHooks[APIHOOK_GLCOLOR4FV].pOldProc)(v);
-}
-
-VOID WINAPI new_glColor4ubv(
-	GLubyte *v
-)
-{
-	((VOID (WINAPI *)(const GLubyte *))pAPIHooks[APIHOOK_GLCOLOR4UBV].pOldProc)(v);
-}
-
-VOID WINAPI new_glColor3fv(
-	GLfloat *v
-)
-{
-	GLfloat n[4];
-	n[0] = v[0];
-	n[1] = v[1];
-	n[2] = v[2];
-	n[3] = 1.0;
-
-	((VOID (WINAPI *)(const GLfloat *))pAPIHooks[APIHOOK_GLCOLOR4FV].pOldProc)(n);
-}
-
-GLenum WINAPI new_glGetError(
-	void
-)
-{
-	dprintf("[glGetError] ");
-	GLenum error = ((GLenum (WINAPI *)(void))pAPIHooks[APIHOOK_GLGETERROR].pOldProc)();
-
-	dprintf("0x%x\n", error);
-	if (error == GL_INVALID_OPERATION)
-		return GL_NO_ERROR;
-	else return error;
-}
-
-VOID WINAPI new_glColorPointer(
-	GLint size,             
-	GLenum type,            
-	GLsizei stride,         
-	const GLvoid *pointer   
-)
-{
-	dprintf("[glColorPointer]\n");
-	((VOID (WINAPI *)(GLint, GLenum, GLsizei, const GLvoid *))pAPIHooks[APIHOOK_GLCOLORPOINTER].pOldProc)(size, type, stride, pointer);
-}
-
-// Used to render avatars and trees
-VOID WINAPI new_glDrawElements(
-	GLenum mode,
-	GLsizei count,
-	GLenum type,
-	const GLvoid *indices
-)
-{
-	//glColor4f(1.0, 1.0, 1.0, 0.2);
-	/*glBegin(GL_QUADS);
-	for (int i = 0; i < 10; i++)
-	{
-		GLfloat fPosX;
-		GLfloat fPosY;
-		GLfloat fPosZ;
-
-		fPosX = (float)(rand() % 300) - 150.0f;
-		fPosY = -10;//(float)(rand() % 200) - 10.0f;
-		fPosZ = (float)(rand() % 300) - 150.0f;
-
-		glTexCoord2f(0.0, 1.0);
-		glVertex3f(fPosX - 4.0f, fPosY + 1.0f, fPosZ - 4.0f);
-
-		glTexCoord2f(0.0, 0.0);
-		glVertex3f(fPosX - 4.0f, fPosY + 1.0f, fPosZ + 4.0f);
-
-		glTexCoord2f(1.0, 0.0);
-		glVertex3f(fPosX + 4.0f, fPosY + 1.0f, fPosZ + 4.0f);
-
-		glTexCoord2f(1.0, 1.0);
-		glVertex3f(fPosX + 4.0f, fPosY + 1.0f, fPosZ - 4.0f);
-
-	}
-	glEnd();*/
-
-	dprintf("[glDrawElements] %d\n", count);
-	((VOID (WINAPI *)(GLenum, GLsizei, GLenum, const GLvoid *))pAPIHooks[APIHOOK_GLDRAWELEMENTS].pOldProc)(mode, count, type, indices);
-}
-
-VOID WINAPI new_glDrawArrays(
-	GLenum mode,   
-	GLint first,   
-	GLsizei count  
-)
-{
-	dprintf("[glDrawArrays] %d\n", count);
-	((VOID (WINAPI *)(GLenum, GLint, GLsizei))pAPIHooks[APIHOOK_GLDRAWARRAYS].pOldProc)(mode, first, count);
-}
-
-VOID WINAPI new_glDrawPixels(
-	GLsizei width,         
-	GLsizei height,        
-	GLenum format,         
-	GLenum type,           
-	const GLvoid *pixels   
-)
-{
-	dprintf("[glDrawPixels]\n");
-	((VOID (WINAPI *)(GLsizei, GLsizei, GLenum, GLenum, const GLvoid))pAPIHooks[APIHOOK_GLDRAWPIXELS].pOldProc)(width, height, format, type, pixels);
-}
-
-VOID WINAPI new_glVertexPointer(
-	GLint size,             
-	GLenum type,            
-	GLsizei stride,         
-	const GLvoid *pointer   
-)
-{
-	((VOID (WINAPI *)(GLint, GLenum, GLsizei, const GLvoid *))pAPIHooks[APIHOOK_GLVERTEXPOINTER].pOldProc)(size, type, stride, pointer);
-}
-
-VOID WINAPI new_glNormalPointer(
-	GLenum type,            
-	GLsizei stride,         
-	const GLvoid *pointer   
-)
-{
-	dprintf("[glNormalPointer]\n");
-	((VOID (WINAPI *)(GLenum, GLsizei, const GLvoid *))pAPIHooks[APIHOOK_GLNORMALPOINTER].pOldProc)(type, stride, pointer);
-}
-
-VOID WINAPI new_glTexCoordPointer(
-	GLint size,             
-	GLenum type,            
-	GLsizei stride,         
-	const GLvoid *pointer   
-)
-{
-	((VOID (WINAPI *)(GLint, GLenum, GLsizei, const GLvoid *))pAPIHooks[APIHOOK_GLTEXCOORDPOINTER].pOldProc)(size, type, stride, pointer);
-}
-
-VOID WINAPI new_glViewport(
-	GLint x,        
-	GLint y,        
-	GLsizei width,  
-	GLsizei height  
-)
-{
-	((VOID (WINAPI *)(GLint, GLint, GLsizei, GLsizei))pAPIHooks[APIHOOK_GLVIEWPORT].pOldProc)(x, y, width, height);
-}
-
-VOID WINAPI new_glTexImage2D(
-	GLenum target,        
-	GLint level,          
-	GLint components,     
-	GLsizei width,        
-	GLsizei height,       
-	GLint border,         
-	GLenum format,        
-	GLenum type,          
-	const GLvoid *pixels  
-)
-{
-	((VOID (WINAPI *)(GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const GLvoid *))pAPIHooks[APIHOOK_GLTEXIMAGE2D].pOldProc)(target, level, components, width, height, border, format, type, pixels);
-}
-
-VOID WINAPI new_gluPerspective(
-  GLdouble fovy,    
-  GLdouble aspect,  
-  GLdouble zNear,   
-  GLdouble zFar     
-)
-{
-	((VOID (WINAPI *)(GLdouble, GLdouble, GLdouble, GLdouble))pAPIHooks[APIHOOK_GLUPERSPECTIVE].pOldProc)(fovy, aspect, zNear, zFar);
-}
-
-VOID WINAPI new_glBegin(
-	GLenum mode
-)
-{
-	((VOID (WINAPI *)(GLenum))pAPIHooks[APIHOOK_GLBEGIN].pOldProc)(mode);
-}
-
-VOID WINAPI new_glFlush(
-	void
-)
-{
-	((VOID (WINAPI *)(void))pAPIHooks[APIHOOK_GLFLUSH].pOldProc)();
-}
-
-VOID WINAPI new_gluQuadricDrawStyle(
-	GLUquadricObj * qobj,   
-	GLenum drawStyle        
-	)
-{
-	((VOID (WINAPI *)(GLUquadricObj *, GLenum))pAPIHooks[APIHOOK_GLUQUADRICDRAWSTYLE].pOldProc)(qobj, drawStyle);
-}
-
-VOID WINAPI new_gluTessVertex(
-	GLUtesselator * tess,   
-	GLdouble coords[3],     
-	void * data             
-)
-{
-	dprintf("[gluTessVertex]\n");
-	((VOID (WINAPI *)(GLUtesselator *, GLdouble[3], void *))pAPIHooks[APIHOOK_GLUTESSVERTEX].pOldProc)(tess, coords, data);
 }
 
 BOOL WINAPI new_WriteFileA(

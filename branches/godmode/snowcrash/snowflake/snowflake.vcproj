@@ -69,6 +69,7 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="C:\wtl75\include"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;SNOWFLAKE_EXPORTS"
 				RuntimeLibrary="0"
 				UsePrecompiledHeader="3"
