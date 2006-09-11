@@ -574,26 +574,14 @@ namespace libsecondlife
 										case FieldType.U8:
 											byteArray[length++] = (byte)field;
 											break;
-										case FieldType.U16:
-											ushort fieldUShort = (ushort)field;
-											byteArray[length++] = (byte)(fieldUShort % 256);
-											fieldUShort >>= 8;
-											byteArray[length++] = (byte)(fieldUShort % 256);
+										case FieldType.U16: 
+											Array.Copy(DataConvert.from((ushort)field), 0, byteArray, length+=2, 2);
 											break;
 										case FieldType.U32:
-											uint fieldUInt = (uint)field;
-											byteArray[length++] = (byte)(fieldUInt % 256);
-											fieldUInt >>= 8;
-											byteArray[length++] = (byte)(fieldUInt % 256);
-											fieldUInt >>= 8;
-											byteArray[length++] = (byte)(fieldUInt % 256);
-											fieldUInt >>= 8;
-											byteArray[length++] = (byte)(fieldUInt % 256);
+											Array.Copy(DataConvert.from((uint)field), 0, byteArray, length+=4, 4);
 											break;
 										case FieldType.U64:
-											// FIXME: Apply endianness patch
-											Array.Copy(((U64)field).GetBytes(), 0, byteArray, length, 8);
-											length += 8;
+											Array.Copy(DataConvert.from((ulong)field), 0, byteArray, length+=8, 8);
 											break;
 										case FieldType.S8:
 											byteArray[length++] = (byte)((sbyte)field);

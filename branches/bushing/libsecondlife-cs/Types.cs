@@ -40,6 +40,13 @@ namespace libsecondlife
 			Data[1] = 1;
 		}
 
+		public U64(ulong value)
+		{
+			Data = new uint[2];
+			Data[0] = (uint) (value&0xFFFFFFFF);
+			Data[1] = (uint) (value >> 32);
+		}
+
 		public U64(uint left, uint right)
 		{
 			Data = new uint[2];
@@ -596,7 +603,15 @@ namespace libsecondlife
 			return new byte[1]{data};
 		}
 
+		public static byte[] from(sbyte data) {
+			return new byte[1]{(byte)data};
+		}
+
 		public static byte[] from(ushort data) {
+			return new byte[2]{(byte)(data%256),(byte)(data>>8)};
+		}
+
+		public static byte[] from(short data) {
 			return new byte[2]{(byte)(data%256),(byte)(data>>8)};
 		}
 
@@ -604,7 +619,26 @@ namespace libsecondlife
 			return new byte[4] {(byte)      (data%256),(byte)((data>> 8)%256),
 					    (byte)((data>>16)%256),(byte)((data>>24)%256)};
 		}
+
+		public static byte[] from(int data) {
+			return new byte[4] {(byte)      (data%256),(byte)((data>> 8)%256),
+					    (byte)((data>>16)%256),(byte)((data>>24)%256)};
+		}
 			
+		public static byte[] from(ulong data) {
+			return new byte[8] {(byte)      (data%256),(byte)((data>> 8)%256),
+					    (byte)((data>>16)%256),(byte)((data>>24)%256),
+					    (byte)((data>>32)%256),(byte)((data>>40)%256),
+					    (byte)((data>>48)%256),(byte)((data>>56)%256)};
+		}
+
+		public static byte[] from(long data) {
+			return new byte[8] {(byte)      (data%256),(byte)((data>> 8)%256),
+					    (byte)((data>>16)%256),(byte)((data>>24)%256),
+					    (byte)((data>>32)%256),(byte)((data>>40)%256),
+					    (byte)((data>>48)%256),(byte)((data>>56)%256)};
+		}
+
 		public static byte[] from(float data) 
 		{
 			ba = BitConverter.GetBytes(data);
