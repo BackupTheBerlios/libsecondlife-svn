@@ -59,18 +59,16 @@ namespace libsecondlife
 		public U64(byte[] bA, int pos)
 		{
 			Data = new uint[2];
-			Data[0] = (uint)(bA[pos]   + (bA[pos+1]<<8) + (bA[pos+2]<<16) + (bA[pos+3]<<24));
-			Data[1] = (uint)(bA[pos+4] + (bA[pos+5]<<8) + (bA[pos+6]<<16) + (bA[pos+7]<<24));
+			Data[0] = DataConvert.toU32(bA,0);
+			Data[1] = DataConvert.toU32(bA,4);
 		}
 
 		public byte[] GetBytes()
 		{
 			byte[] bA = new byte[8];
 
-			bA[0]=(byte)((Data[0])    %256); bA[1]=(byte)((Data[0]>>8) %256); 
-			bA[2]=(byte)((Data[0]>>16)%256); bA[3]=(byte)((Data[0]>>24)%256); 
-			bA[4]=(byte)((Data[1])    %256); bA[5]=(byte)((Data[1]>>8) %256);
-			bA[6]=(byte)((Data[1]>>16)%256); bA[7]=(byte)((Data[1]>>24)%256); 
+			Array.Copy(DataConvert.from(Data[0]), 0, bA, 0, 4);
+			Array.Copy(DataConvert.from(Data[1]), 0, bA, 4, 4);
 
 			return bA;
 		}
@@ -171,11 +169,10 @@ namespace libsecondlife
 		public uint CRC() 
 		{
 			uint retval = 0;
-
-			retval += (uint)((Data[3] << 24) + (Data[2] << 16) + (Data[1] << 8) + Data[0]);
-			retval += (uint)((Data[7] << 24) + (Data[6] << 16) + (Data[5] << 8) + Data[4]);
-			retval += (uint)((Data[11] << 24) + (Data[10] << 16) + (Data[9] << 8) + Data[8]);
-			retval += (uint)((Data[15] << 24) + (Data[14] << 16) + (Data[13] << 8) + Data[12]);
+			retval += DataConvert.toU32(Data,0);
+			retval += DataConvert.toU32(Data,4);
+			retval += DataConvert.toU32(Data,8);
+			retval += DataConvert.toU32(Data,12);
 
 			return retval;
 		}
@@ -562,7 +559,7 @@ namespace libsecondlife
 
 		public static ushort toU16(object Data, int offset)
 		{
-			return (ushort)(toU8(Data,0) | (ushort)toU8(Data,1) << 8);
+			return (ushort)(toU8(Data,offset) | (ushort)toU8(Data,offset+1) << 8);
 		}
 
 		public static ushort toU16(object Data)
@@ -572,12 +569,22 @@ namespace libsecondlife
 
 		public static uint toU32(object Data, int offset)
 		{
-			return ((uint)(toU16(Data,0)) | ((uint)(toU16(Data,2) << 16))); 
+			return ((uint)(toU16(Data,offset)) | ((uint)(toU16(Data,offset+2) << 16))); 
 		}
 
 		public static uint toU32(object Data)
 		{
 			return toU32(Data, 0);
+		}
+
+		public static ulong toU64(object Data, int offset)
+		{
+			return ((ulong)toU32(Data, offset)) | (((ulong)(toU32(Data, offset+4)))<<32);
+		}
+
+		public static ulong toU64(object Data)
+		{
+			return toU64(Data, 0);
 		}
 
 		public static String toChoppedString(object Data)

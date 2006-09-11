@@ -118,7 +118,7 @@ namespace libsecondlife
 			{
 				// The sequence number is the third and fourth bytes of the packet, stored 
 				// in network order
-				return (ushort)(Data[2] * 256 + Data[3]);
+                                return (ushort)(Data[2] * 256 + Data[3]);
 			}
 
 			set
@@ -407,32 +407,26 @@ namespace libsecondlife
 		{
 			switch (type)
 			{
-				case FieldType.U8:
-					return byteArray[pos];
+				case FieldType.U8: return byteArray[pos];
 				case FieldType.U16:
 				case FieldType.IPPORT:
-                    return (ushort)(byteArray[pos] + (byteArray[pos + 1] << 8));
+                    			return DataConvert.toU16(byteArray,pos);
 				case FieldType.U32:
-					return (uint)(byteArray[pos] + (byteArray[pos + 1] << 8) +
-						(byteArray[pos + 2] << 16) + (byteArray[pos + 3] << 24));
+					return DataConvert.toU32(byteArray,pos);
 				case FieldType.U64:
-					return new U64(byteArray, pos);
+					return DataConvert.toU64(byteArray,pos);
 				case FieldType.S8:
 					return (sbyte)byteArray[pos];
 				case FieldType.S16:
-					return (short)(byteArray[pos] + (byteArray[pos + 1] << 8));
+					return (short)DataConvert.toU16(byteArray,pos);
 				case FieldType.S32:
-					return byteArray[pos] + (byteArray[pos + 1] << 8) +
-						(byteArray[pos + 2] << 16) + (byteArray[pos + 3] << 24);
+					return (int)DataConvert.toU32(byteArray,pos);
 				case FieldType.S64:
-					return (long)(byteArray[pos] + (byteArray[pos + 1] << 8) +
-						(byteArray[pos + 2] << 16) + (byteArray[pos + 3] << 24) +
-						(byteArray[pos + 4] << 32) + (byteArray[pos + 5] << 40) +
-						(byteArray[pos + 6] << 48) + (byteArray[pos + 7] << 56));
+					return (long)DataConvert.toU64(byteArray,pos);
 				case FieldType.F32:
-					return BitConverter.ToSingle(byteArray, pos); // FIXME
+					return DataConvert.toFloat(byteArray, pos);
 				case FieldType.F64:
-					return BitConverter.ToDouble(byteArray, pos); // FIXME
+					return DataConvert.toDouble(byteArray, pos);
 				case FieldType.LLUUID:
 					return new LLUUID(byteArray, pos);
 				case FieldType.BOOL:
@@ -446,9 +440,7 @@ namespace libsecondlife
 				case FieldType.LLQuaternion:
 					return new LLQuaternion(byteArray, pos);
 				case FieldType.IPADDR:
-					uint address = (uint)(byteArray[pos] + (byteArray[pos + 1] << 8) +
-						(byteArray[pos + 2] << 16) + (byteArray[pos + 3] << 24));
-					return new IPAddress(address);
+					return new IPAddress(DataConvert.toU32(byteArray,pos));
 				case FieldType.Variable:
 				case FieldType.Fixed:
 					byte[] bytes = new byte[fieldSize];
