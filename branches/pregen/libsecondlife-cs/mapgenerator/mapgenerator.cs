@@ -236,7 +236,7 @@ namespace mapgenerator
 
         static void WritePacketClass(MapPacket packet)
         {
-            Console.WriteLine("    class " + packet.Name + "Packet\n    {");
+            Console.WriteLine("    public class " + packet.Name + "Packet : Packet\n    {");
 
             // Write out each block class
             foreach (MapBlock block in packet.Blocks)
@@ -248,7 +248,8 @@ namespace mapgenerator
             Console.WriteLine("        public " + packet.Frequency.ToString() + "Header Header;");
 
             // PacketType member
-            Console.WriteLine("        public PacketType Type { get { return Type; } set { Type = value; } }");
+            Console.WriteLine("        public override PacketType Type { get { return PacketType." + 
+                packet.Name + ";  } }");
 
             // Block members
             foreach (MapBlock block in packet.Blocks)
@@ -260,8 +261,7 @@ namespace mapgenerator
             Console.WriteLine("");
 
             // Default constructor
-            Console.WriteLine("        " + packet.Name + "Packet()\n        {");
-            Console.WriteLine("            Type = PacketType." + packet.Name + ";");
+            Console.WriteLine("        public " + packet.Name + "Packet()\n        {");
             Console.WriteLine("            Header = new " + packet.Frequency.ToString() + "Header();");
             foreach (MapBlock block in packet.Blocks)
             {
@@ -286,8 +286,7 @@ namespace mapgenerator
 
             // Constructor that takes a byte array and beginning position only (no prebuilt header)
             bool seenVariable = false;
-            Console.WriteLine("        " + packet.Name + "Packet(byte[] bytes, ref int i)\n        {");
-            Console.WriteLine("            Type = PacketType." + packet.Name + ";");
+            Console.WriteLine("        public " + packet.Name + "Packet(byte[] bytes, ref int i)\n        {");
             Console.WriteLine("            int packetEnd = bytes.Length - 1;");
             Console.WriteLine("            Header = new " + packet.Frequency.ToString() + 
                 "Header(bytes, ref i, ref packetEnd);");
@@ -310,6 +309,7 @@ namespace mapgenerator
                     {
                         Console.WriteLine("            count = (int)bytes[i++];");
                     }
+                    Console.WriteLine("            " + block.Name + " = new " + block.Name + "Block[count];");
                     Console.WriteLine("            for (int j = 0; j < count; j++)");
                     Console.WriteLine("            { " + block.Name + "[j] = new " +
                         block.Name + "Block(bytes, ref i); }");
@@ -317,6 +317,8 @@ namespace mapgenerator
                 else
                 {
                     // Multiple count block
+                    Console.WriteLine("            " + block.Name + " = new " + block.Name + 
+                        "Block[" + block.Count + "];");
                     Console.WriteLine("            for (int j = 0; j < " + block.Count + "; j++)");
                     Console.WriteLine("            { " + block.Name + "[j] = new " + 
                         block.Name + "Block(bytes, ref i); }");
@@ -324,12 +326,47 @@ namespace mapgenerator
             }
             Console.WriteLine("        }\n");
 
+            seenVariable = false;
+
             // Constructor that takes a byte array and a prebuilt header
-            Console.WriteLine("        " + packet.Name + "Packet(" + packet.Frequency.ToString() + 
+            Console.WriteLine("        public " + packet.Name + "Packet(" + packet.Frequency.ToString() + 
                 "Header header, byte[] bytes, ref int i)\n        {");
-            Console.WriteLine("            Type = PacketType." + packet.Name + ";");
             Console.WriteLine("            Header = header;");
-            Console.WriteLine("            //FIXME");
+            Console.WriteLine("            int packetEnd = bytes.Length - 1;");
+            foreach (MapBlock block in packet.Blocks)
+            {
+                if (block.Count == 1)
+                {
+                    // Single count block
+                    Console.WriteLine("            " + block.Name + " = new " + block.Name + "Block(bytes, ref i);");
+                }
+                else if (block.Count == -1)
+                {
+                    // Variable count block
+                    if (!seenVariable)
+                    {
+                        Console.WriteLine("            int count = (int)bytes[i++];");
+                        seenVariable = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine("            count = (int)bytes[i++];");
+                    }
+                    Console.WriteLine("            " + block.Name + " = new " + block.Name + "Block[count];");
+                    Console.WriteLine("            for (int j = 0; j < count; j++)");
+                    Console.WriteLine("            { " + block.Name + "[j] = new " +
+                        block.Name + "Block(bytes, ref i); }");
+                }
+                else
+                {
+                    // Multiple count block
+                    Console.WriteLine("            " + block.Name + " = new " + block.Name +
+                        "Block[" + block.Count + "];");
+                    Console.WriteLine("            for (int j = 0; j < " + block.Count + "; j++)");
+                    Console.WriteLine("            { " + block.Name + "[j] = new " +
+                        block.Name + "Block(bytes, ref i); }");
+                }
+            }
             Console.WriteLine("        }\n");
 
             // ToBytes() function
@@ -347,6 +384,7 @@ namespace mapgenerator
             Console.WriteLine(reader.ReadToEnd());
             reader.Close();
 
+            // Write the PacketType enum
             Console.WriteLine("    public enum PacketType\n    {");
             foreach (MapPacket packet in libsl.Protocol.LowMaps)
             {
@@ -371,6 +409,59 @@ namespace mapgenerator
             }
             Console.WriteLine("    }\n");
 
+            // Write the base Packet class
+            Console.WriteLine("    public abstract class Packet\n    {\n" + 
+                "        public abstract PacketType Type { get; }\n\n" +
+                "        public static Packet BuildPacket(byte[] bytes, ref int packetEnd)\n" +
+                "        {\n            ushort id;\n            int i = 0;\n" +
+                "            Header header = Header.BuildHeader(bytes, ref i, ref packetEnd);\n" +
+                "            if ((bytes[0] & Helpers.MSG_ZEROCODED) != 0)\n            {\n" +
+                "                byte[] zeroBuffer = new byte[4096];\n" +
+                "                packetEnd = Helpers.ZeroDecode(bytes, packetEnd + 1, zeroBuffer) - 1;\n" +
+                "                bytes = zeroBuffer;\n            }\n\n" + 
+                "            if (bytes[4] == 0xFF)\n            {\n" +
+                "                if (bytes[5] == 0xFF)\n                {\n" +
+                "                    id = (ushort)((bytes[6] << 8) + bytes[7]);\n" +
+                "                    switch (id)\n                    {");
+            foreach (MapPacket packet in libsl.Protocol.LowMaps)
+            {
+                if (packet != null)
+                {
+                    Console.WriteLine("                        case " + packet.ID + ":");
+                    Console.WriteLine("                            return new " + packet.Name +
+                        "Packet((LowHeader)header, bytes, ref i);");
+                }
+            }
+            Console.WriteLine("                    }\n                }\n                else\n" +
+                "                {\n                    id = (ushort)bytes[5];\n" +
+                "                    switch (id)\n                    {");
+            foreach (MapPacket packet in libsl.Protocol.MediumMaps)
+            {
+                if (packet != null)
+                {
+                    Console.WriteLine("                        case " + packet.ID + ":");
+                    Console.WriteLine("                            return new " + packet.Name +
+                        "Packet((MediumHeader)header, bytes, ref i);");
+                }
+            }
+            Console.WriteLine("                    }\n                }\n            }\n" + 
+                "            else\n            {\n" + 
+                "                id = (ushort)bytes[4];\n" + 
+                "                switch (id)\n                    {");
+            foreach (MapPacket packet in libsl.Protocol.HighMaps)
+            {
+                if (packet != null)
+                {
+                    Console.WriteLine("                        case " + packet.ID + ":");
+                    Console.WriteLine("                            return new " + packet.Name +
+                        "Packet((HighHeader)header, bytes, ref i);");
+                }
+            }
+            Console.WriteLine("                }\n            }\n\n" +
+                "            throw new MalformedDataException(\"Unknown packet ID\");\n" + 
+                "        }\n    }\n");
+
+            // Write the packet classes
             foreach (MapPacket packet in libsl.Protocol.LowMaps)
             {
                 if (packet != null) { WritePacketClass(packet); }
