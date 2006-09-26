@@ -27,6 +27,7 @@
 using System;
 using System.Collections;
 using libsecondlife;
+using libsecondlife.Packets;
 
 namespace sldump
 {
@@ -85,10 +86,10 @@ namespace sldump
 			}
 
 			// Setup the callback
-			client.Network.RegisterCallback("Default", new PacketCallback(DefaultHandler));
+			client.Network.RegisterCallback(PacketType.Default, new PacketCallback(DefaultHandler));
 
 			Hashtable loginParams = NetworkManager.DefaultLoginValues(args[0], args[1], args[2], "00:00:00:00:00:00",
-				"last", 1, 50, 50, 50, "Win", "0", "sldump", "jhurliman@wsu.edu");
+				"last", 1, 50, 50, 50, "Win", "0", "sldump", "contact@libsecondlife.org");
 
 			// An example of how to pass additional options to the login server
 			ArrayList optionsArray = new ArrayList();
