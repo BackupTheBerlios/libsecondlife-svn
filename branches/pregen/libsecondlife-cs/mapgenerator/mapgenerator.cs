@@ -51,9 +51,6 @@ namespace mapgenerator
                 case FieldType.S32:
                     type = "int";
                     break;
-                case FieldType.S64:
-                    type = "long";
-                    break;
                 case FieldType.S8:
                     type = "sbyte";
                     break;
@@ -152,13 +149,6 @@ namespace mapgenerator
                     Console.WriteLine("                    " + field.Name +
                         " = (int)(bytes[i++] + (bytes[i++] << 8) + (bytes[i++] << 16) + (bytes[i++] << 24));");
                     break;
-                case FieldType.S64:
-                    Console.WriteLine("                    " + field.Name +
-                        " = (long)(bytes[i++] + (bytes[i++] << 8) + " +
-                        "(bytes[i++] << 16) + (bytes[i++] << 24) + " +
-                        "(bytes[i++] << 32) + (bytes[i++] << 40) + " +
-                        "(bytes[i++] << 48) + (bytes[i++] << 56));");
-                    break;
                 case FieldType.S8:
                     Console.WriteLine("                    " + field.Name +
                         " = (sbyte)bytes[i++];");
@@ -187,12 +177,100 @@ namespace mapgenerator
                     Console.WriteLine("                    Array.Copy(bytes, i, _" + field.Name.ToLower() +
                         ", 0, length); i += length;");
                     break;
+                default:
+                    Console.WriteLine("!!! ERROR: Unhandled FieldType: " + field.Type.ToString() + " !!!");
+                    break;
+            }
+        }
+
+        static void WriteFieldToBytes(MapField field)
+        {
+            Console.Write("                ");
+
+            switch (field.Type)
+            {
+                case FieldType.BOOL:
+                    Console.WriteLine("bytes[i++] = (byte)((" + field.Name + ") ? 1 : 0);");
+                    break;
+                case FieldType.F32:
+                    Console.WriteLine("ba = BitConverter.GetBytes(" + field.Name + ");\n" +
+                        "                if(!BitConverter.IsLittleEndian) { Array.Reverse(ba, 0, 4); }\n" +
+                        "                Array.Copy(ba, 0, bytes, i, 4); i += 4;");
+                    break;
+                case FieldType.F64:
+                    Console.WriteLine("ba = BitConverter.GetBytes(" + field.Name + ");\n" +
+                        "                if(!BitConverter.IsLittleEndian) { Array.Reverse(ba, 0, 8); }\n" +
+                        "                Array.Copy(ba, 0, bytes, i, 8); i += 8;");
+                    break;
+                case FieldType.Fixed:
+                    Console.WriteLine("Array.Copy(" + field.Name + ", 0, bytes, i, " + field.Count + ");" + 
+                        "i += " + field.Count + ";");
+                    break;
+                case FieldType.IPPORT:
+                case FieldType.U16:
+                case FieldType.S16:
+                    Console.WriteLine("bytes[i++] = (byte)(" + field.Name + " % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 8) % 256);");
+                    break;
+                case FieldType.LLQuaternion:
+                case FieldType.LLUUID:
+                case FieldType.LLVector4:
+                    Console.WriteLine("Array.Copy(" + field.Name + ".GetBytes(), 0, bytes, i, 16); i += 16;");
+                    break;
+                case FieldType.LLVector3:
+                    Console.WriteLine("Array.Copy(" + field.Name + ".GetBytes(), 0, bytes, i, 12); i += 12;");
+                    break;
+                case FieldType.LLVector3d:
+                    Console.WriteLine("Array.Copy(" + field.Name + ".GetBytes(), 0, bytes, i, 24); i += 24;");
+                    break;
+                case FieldType.U8:
+                    Console.WriteLine("bytes[i++] = " + field.Name + ";");
+                    break;
+                case FieldType.S8:
+                    Console.WriteLine("bytes[i++] = (byte)" + field.Name + ";");
+                    break;
+                case FieldType.IPADDR:
+                case FieldType.U32:
+                case FieldType.S32:
+                    Console.WriteLine("bytes[i++] = (byte)(" + field.Name + " % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 8) % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 16) % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 24) % 256);");
+                    break;
+                case FieldType.U64:
+                    Console.WriteLine("bytes[i++] = (byte)(" + field.Name + " % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 8) % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 16) % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 24) % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 32) % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 40) % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 48) % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 56) % 256);");
+                    break;
+                case FieldType.Variable:
+                    if (field.Count == 1)
+                    {
+                        Console.WriteLine("bytes[i++] = (byte)" + field.Name + ".Length;");
+                    }
+                    else
+                    {
+                        Console.WriteLine("bytes[i++] = (byte)(" + field.Name + ".Length % 256);");
+                        Console.WriteLine("                bytes[i++] = (byte)((" + 
+                            field.Name + ".Length >> 8) % 256);");
+                    }
+                    Console.WriteLine("                Array.Copy(" + field.Name + ", 0, bytes, i, " + 
+                        field.Name + ".Length); " + "i += " + field.Name + ".Length;");
+                    break;
+                default:
+                    Console.WriteLine("!!! ERROR: Unhandled FieldType: " + field.Type.ToString() + " !!!");
+                    break;
             }
         }
 
         static void WriteBlockClass(MapBlock block)
         {
             bool variableFields = false;
+            bool floatFields = false;
 
             Console.WriteLine("        public class " + block.Name + "Block\n        {");
 
@@ -201,6 +279,7 @@ namespace mapgenerator
                 WriteFieldMember(field);
 
                 if (field.Type == FieldType.Variable) { variableFields = true; }
+                if (field.Type == FieldType.F32 || field.Type == FieldType.F64) { floatFields = true; }
             }
 
             Console.WriteLine("");
@@ -208,15 +287,14 @@ namespace mapgenerator
             // Default constructor
             Console.WriteLine("            public " + block.Name + "Block() { }");
 
-            //
+            // Constructor for building the class from bytes
             Console.WriteLine("            public " + block.Name + "Block(byte[] bytes, ref int i)" +
                 "\n            {");
 
             // Declare a length variable if we need it for variable fields in this constructor
-            if (variableFields)
-            {
-                Console.WriteLine("                int length;");
-            }
+            if (variableFields) { Console.WriteLine("                int length;"); }
+
+            // Start of the try catch block
             Console.WriteLine("                try\n                {");
 
             foreach (MapField field in block.Fields)
@@ -228,10 +306,18 @@ namespace mapgenerator
                 "                {\n                    throw new MalformedDataException();\n" +
                 "                }\n            }\n");
 
-            // FIXME: Write the ToBytes() function
-            Console.WriteLine("            public byte[] ToBytes() { return null; }");
+            // ToBytes() function
+            Console.WriteLine("            public void ToBytes(byte[] bytes, ref int i)\n            {");
 
-            Console.WriteLine("        }\n");
+            // Declare a byte[] variable if we need it for floating point field conversions
+            if (floatFields) { Console.WriteLine("                byte[] ba;"); }
+
+            foreach (MapField field in block.Fields)
+            {
+                WriteFieldToBytes(field);
+            }
+
+            Console.WriteLine("            }\n        }\n");
         }
 
         static void WritePacketClass(MapPacket packet)
@@ -245,7 +331,8 @@ namespace mapgenerator
             }
 
             // Header member
-            Console.WriteLine("        public " + packet.Frequency.ToString() + "Header Header;");
+            Console.WriteLine("        private Header header;");
+            Console.WriteLine("        public override Header Header { get { return header; } set { header = value; } }");
 
             // PacketType member
             Console.WriteLine("        public override PacketType Type { get { return PacketType." + 
@@ -329,9 +416,9 @@ namespace mapgenerator
             seenVariable = false;
 
             // Constructor that takes a byte array and a prebuilt header
-            Console.WriteLine("        public " + packet.Name + "Packet(" + packet.Frequency.ToString() + 
-                "Header header, byte[] bytes, ref int i)\n        {");
-            Console.WriteLine("            Header = header;");
+            Console.WriteLine("        public " + packet.Name + 
+                "Packet(Header head, byte[] bytes, ref int i)\n        {");
+            Console.WriteLine("            Header = head;");
             Console.WriteLine("            int packetEnd = bytes.Length - 1;");
             foreach (MapBlock block in packet.Blocks)
             {
@@ -370,10 +457,13 @@ namespace mapgenerator
             Console.WriteLine("        }\n");
 
             // ToBytes() function
-            Console.WriteLine("        public byte[] ToBytes() { return null; }");
+            Console.WriteLine("        public override byte[] ToBytes()\n        {");
+
+            // FIXME:
+            Console.WriteLine("            return null;");
 
             // Closing bracket
-            Console.WriteLine("    }\n");
+            Console.WriteLine("        }\n    }\n");
         }
 
         static void Main(string[] args)
@@ -385,7 +475,7 @@ namespace mapgenerator
             reader.Close();
 
             // Write the PacketType enum
-            Console.WriteLine("    public enum PacketType\n    {");
+            Console.WriteLine("    public enum PacketType\n    {\n        Default,");
             foreach (MapPacket packet in libsl.Protocol.LowMaps)
             {
                 if (packet != null)
@@ -411,7 +501,10 @@ namespace mapgenerator
 
             // Write the base Packet class
             Console.WriteLine("    public abstract class Packet\n    {\n" + 
-                "        public abstract PacketType Type { get; }\n\n" +
+                "        public abstract Header Header { get; set; }\n" +
+                "        public abstract PacketType Type { get; }\n" +
+                "        public int TickCount;\n\n" +
+                "        public abstract byte[] ToBytes();\n\n" +
                 "        public static Packet BuildPacket(byte[] bytes, ref int packetEnd)\n" +
                 "        {\n            ushort id;\n            int i = 0;\n" +
                 "            Header header = Header.BuildHeader(bytes, ref i, ref packetEnd);\n" +
@@ -429,7 +522,7 @@ namespace mapgenerator
                 {
                     Console.WriteLine("                        case " + packet.ID + ":");
                     Console.WriteLine("                            return new " + packet.Name +
-                        "Packet((LowHeader)header, bytes, ref i);");
+                        "Packet(header, bytes, ref i);");
                 }
             }
             Console.WriteLine("                    }\n                }\n                else\n" +
@@ -441,7 +534,7 @@ namespace mapgenerator
                 {
                     Console.WriteLine("                        case " + packet.ID + ":");
                     Console.WriteLine("                            return new " + packet.Name +
-                        "Packet((MediumHeader)header, bytes, ref i);");
+                        "Packet(header, bytes, ref i);");
                 }
             }
             Console.WriteLine("                    }\n                }\n            }\n" + 
@@ -454,7 +547,7 @@ namespace mapgenerator
                 {
                     Console.WriteLine("                        case " + packet.ID + ":");
                     Console.WriteLine("                            return new " + packet.Name +
-                        "Packet((HighHeader)header, bytes, ref i);");
+                        "Packet(header, bytes, ref i);");
                 }
             }
             Console.WriteLine("                }\n            }\n\n" +

@@ -20,7 +20,6 @@ namespace libsecondlife
 		S8,
 		S16,
 		S32,
-		S64,
 		F32,
 		F64,
 		LLUUID,
@@ -134,7 +133,6 @@ namespace libsecondlife
 			TypeSizes.Add(FieldType.S8, 1);
 			TypeSizes.Add(FieldType.S16, 2);
 			TypeSizes.Add(FieldType.S32, 4);
-			TypeSizes.Add(FieldType.S64, 8);
 			TypeSizes.Add(FieldType.F32, 4);
 			TypeSizes.Add(FieldType.F64, 8);
 			TypeSizes.Add(FieldType.LLUUID, 16);

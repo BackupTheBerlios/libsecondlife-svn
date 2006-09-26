@@ -26,6 +26,7 @@
 
 using System;
 using System.Collections;
+using libsecondlife.Packets;
 
 namespace libsecondlife
 {
@@ -63,25 +64,31 @@ namespace libsecondlife
 			Client = client;
 			Regions = new Hashtable();
 			PacketCallback callback = new PacketCallback(MapBlockReplyHandler);
-			Client.Network.RegisterCallback("MapBlockReply", callback);
+			Client.Network.RegisterCallback(PacketType.MapBlockReply, callback);
 		}
 
 		public void AddSim(string name) 
 		{
 			if(!Regions.ContainsKey(name)) 
 			{
-				Client.Network.SendPacket(Packets.Sim.MapNameRequest(Client.Protocol,Client.Avatar.ID,0,0,false,name));
-//				Client.Network.SendPacket(Packets.Sim.MapNameRequest(Client.Protocol,Client.Avatar.ID,2,0,false,name));
-//				Client.Network.SendPacket(Packets.Sim.MapNameRequest(Client.Protocol,Client.Avatar.ID,512,0,false,name));
+                MapNameRequestPacket map = new MapNameRequestPacket();
+                map.AgentData.AgentID = Client.Network.AgentID;
+                map.NameData.Name = Helpers.StringToField(name);
+
+                Client.Network.SendPacket((Packet)map);
 			}
 		}
 
 		public void AddAllSims() 
 		{
-//			uint flags = 2;
-//			Client.Network.SendPacket(Packets.Sim.MapBlockRequest(Client.Protocol,Client.Avatar.ID,flags,0,false,0,65535,0,65535));
-			uint flags = 0;
-			Client.Network.SendPacket(Packets.Sim.MapBlockRequest(Client.Protocol,Client.Avatar.ID,flags,0,false,0,65535,0,65535));
+            MapBlockRequestPacket request = new MapBlockRequestPacket();
+            request.AgentData.AgentID = Client.Network.AgentID;
+            request.PositionData.MaxX = 65535;
+            request.PositionData.MaxY = 65535;
+            request.PositionData.MinX = 0;
+            request.PositionData.MinY = 0;
+
+            Client.Network.SendPacket((Packet)request);
 		}
 
 		public GridRegion GetSim(string name) 
@@ -96,8 +103,8 @@ namespace libsecondlife
 				return (GridRegion)Regions[name];
 			else 
 			{
-				/* TODO: Put some better handling inplace here with some retry code */
-				Client.Log("Error returned sim that didnt exist",Helpers.LogLevel.Warning);
+				//TODO: Put some better handling inplace here with some retry code
+				Client.Log("GetSim(): Returned a sim that we aren't tracking",Helpers.LogLevel.Warning);
 				return new GridRegion();
 			}
 		}
@@ -105,56 +112,27 @@ namespace libsecondlife
 		private void MapBlockReplyHandler(Packet packet, Simulator simulator) 
 		{
 			GridRegion region;
+            MapBlockReplyPacket map = (MapBlockReplyPacket)packet;
 
-			foreach (Block block in packet.Blocks())
-			{
-				if(block.Layout.Name == "Data") 
-				{
-					region = new GridRegion();
-					foreach (Field field in block.Fields)
-					{
-						if (field.Layout.Name == "X") 
-						{
-							if(System.BitConverter.IsLittleEndian) 
-							{
-								ushort temp = (ushort)field.Data;
-								region.X = ((temp << 8) & 0xFF00) | ((temp >> 8) & 0x00FF);
-							} 
-							else 
-							{
-								region.X = (ushort)field.Data;
-							}
-						}
-						else if(field.Layout.Name == "Y")
-						{
-							if(System.BitConverter.IsLittleEndian) 
-							{
-								ushort temp = (ushort)field.Data;
-								region.Y = ((temp << 8) & 0xFF00) | ((temp >> 8) & 0x00FF);
-							} 
-							else 
-							{
-								region.Y = (ushort)field.Data;
-							}
-						}
-						else if(field.Layout.Name == "Name")
-							region.Name = Helpers.FieldToString(field.Data);
-						else if(field.Layout.Name == "RegionFlags")
-							region.RegionFlags = (uint)field.Data;
-						else if(field.Layout.Name == "WaterHeight")
-							region.WaterHeight = (byte)field.Data;
-						else if(field.Layout.Name == "Agents")
-							region.Agents = (byte)field.Data;
-						else if(field.Layout.Name == "MapImageID")
-							region.MapImageID = (LLUUID)field.Data;
-					}
+            foreach (MapBlockReplyPacket.DataBlock block in map.Data)
+            {
+                region = new GridRegion();
 
-					region.RegionHandle = new U64(region.X * 256,region.Y * 256);
+                region.X = block.X;
+                region.Y = block.Y;
+                region.Name = Helpers.FieldToString(block.Name);
+                region.RegionFlags = block.RegionFlags;
+                region.WaterHeight = block.WaterHeight;
+                region.Agents = block.Agents;
+                region.Access = block.Access;
+                region.MapImageID = block.MapImageID;
+                region.RegionHandle = new U64(region.X * 256,region.Y * 256);
 
-					if(region.Name != "" && (region.X != 0 && region.Y != 0))
-						Regions[region.Name] = region;
-				}
-			}
+                if (region.Name != "" && region.X != 0 && region.Y != 0)
+                {
+                    Regions[region.Name] = region;
+                }
+            }
 		}
 	}
 }

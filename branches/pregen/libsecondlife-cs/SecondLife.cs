@@ -27,6 +27,7 @@
 using System;
 using System.Collections;
 using System.Threading;
+using libsecondlife.Packets;
 
 namespace libsecondlife
 {
@@ -62,7 +63,7 @@ namespace libsecondlife
             CurrentRegion = null;
             Debug = true;
 
-            Network.RegisterCallback("UUIDNameReply", new PacketCallback(GetAgentNameHandler));
+            Network.RegisterCallback(PacketType.UUIDNameReply, new PacketCallback(GetAgentNameHandler));
         }
 
         public override string ToString()
@@ -108,8 +109,17 @@ namespace libsecondlife
             AvatarsMutex.WaitOne();
             Avatars[AgentID] = new Avatar();
             AvatarsMutex.ReleaseMutex();
+        }
 
-            return;
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="avatar"></param>
+        public void AddAvatar(Avatar avatar)
+        {
+            AvatarsMutex.WaitOne();
+            Avatars[avatar.ID] = avatar;
+            AvatarsMutex.ReleaseMutex();
         }
 
         /// <summary>
@@ -118,10 +128,11 @@ namespace libsecondlife
         /// <param name="AgentID"></param>
         private void GetAgentDetails(LLUUID AgentID)
         {
-            Packet packet = Packets.Communication.UUIDNameRequest(Protocol, AgentID);
-            Network.SendPacket(packet);
+            //FIXME:
+            //Packet packet = Packets.Communication.UUIDNameRequest(Protocol, AgentID);
+            //Network.SendPacket(packet);
 
-            // TODO: Shouldn't this function block?
+            //// TODO: Shouldn't this function block?
         }
 
         /// <summary>
@@ -131,37 +142,19 @@ namespace libsecondlife
         /// <param name="simulator"></param>
         private void GetAgentNameHandler(Packet packet, Simulator simulator)
         {
-            if (packet.Layout.Name == "UUIDNameReply")
+            if (packet.Type == PacketType.UUIDNameReply)
             {
-                LLUUID ID = new LLUUID();
-                string Firstname = "";
-                string Lastname = "";
+                UUIDNameReplyPacket reply = (UUIDNameReplyPacket)packet;
 
-                ArrayList blocks;
-
-                blocks = packet.Blocks();
-
-                foreach (Block block in blocks)
-                {
-                    foreach (Field field in block.Fields)
-                    {
-                        if (field.Layout.Name == "ID")
-                        {
-                            ID = (LLUUID)field.Data;
-                        }
-                        else if (field.Layout.Name == "FirstName")
-                        {
-                            Firstname = System.Text.Encoding.UTF8.GetString((byte[])field.Data).Replace("\0", "");
-                        }
-                        else if (field.Layout.Name == "LastName")
-                        {
-                            Lastname = System.Text.Encoding.UTF8.GetString((byte[])field.Data).Replace("\0", "");
-                        }
-                    }
-                }
+                #region AvatarsMutex
                 AvatarsMutex.WaitOne();
-                ((Avatar)Avatars[ID]).Name = Firstname + " " + Lastname;
+                foreach (UUIDNameReplyPacket.UUIDNameBlockBlock block in reply.UUIDNameBlock)
+                {
+                    ((Avatar)Avatars[block.ID]).Name = Helpers.FieldToString(block.FirstName) +
+                        " " + Helpers.FieldToString(block.LastName);
+                }
                 AvatarsMutex.ReleaseMutex();
+                #endregion AvatarsMutex
             }
         }
     }
@@ -171,7 +164,7 @@ namespace libsecondlife
     /// </summary>
     public class Helpers
     {
-        public readonly static string VERSION = "libsecondlife-cs 0.0.6";
+        public readonly static string VERSION = "libsecondlife 0.0.9";
 
         public const byte MSG_APPENDED_ACKS = 0x10;
         public const byte MSG_RESENT = 0x20;
@@ -189,33 +182,34 @@ namespace libsecondlife
         };
 
         /// <summary>
-        /// Converting a variable length field (byte array) to a string
+        /// Convert a variable length field (byte array) to a string
         /// </summary>
-        /// <param name="data">The Data member of the Field class you are converting</param>
-        public static string FieldToString(object data)
+        /// <param name="bytes">The byte array to convert to a string</param>
+        /// <returns>A UTF8 string, minus the null terminator</returns>
+        public static string FieldToString(byte[] bytes)
         {
-            byte[] byteArray;
-
-            try
-            {
-                byteArray = (byte[])data;
-            }
-            catch (Exception)
-            {
-                return "[object]";
-            }
-
-            return System.Text.Encoding.ASCII.GetString(byteArray).Replace("\0", "");
+            return System.Text.Encoding.UTF8.GetString(bytes).Replace("\0", "");
         }
 
         /// <summary>
-        /// Decode a zerocoded byte array. Used to decompress packets marked
-        /// with the zerocoded flag. Any time a zero is encountered, the
-        /// next byte is a count of how many zeroes to expand. One zero is
-        /// encoded with 0x00 0x01, two zeroes is 0x00 0x02, three zeroes is
-        /// 0x00 0x03, etc. The first four bytes are copied directly to the
-        /// output buffer.
+        /// Convert a UTF8 string to a byte array
         /// </summary>
+        /// <param name="str">The string to convert to a byte array</param>
+        /// <returns>A null-terminated byte array</returns>
+        public static byte[] StringToField(string str)
+        {
+            return System.Text.UTF8Encoding.UTF8.GetBytes(str);
+        }
+
+        /// <summary>
+        /// Decode a zerocoded byte array, used to decompress packets marked
+        /// with the zerocoded flag
+        /// </summary>
+        /// <remarks>Any time a zero is encountered, the next byte is a count 
+        /// of how many zeroes to expand. One zero is encoded with 0x00 0x01, 
+        /// two zeroes is 0x00 0x02, three zeroes is 0x00 0x03, etc. The 
+        /// first four bytes are copied directly to the output buffer.
+        /// </remarks>
         /// <param name="src">The byte array to decode</param>
         /// <param name="srclen">The length of the byte array to decode</param>
         /// <param name="dest">The output byte array to decode to</param>

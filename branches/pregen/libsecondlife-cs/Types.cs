@@ -163,6 +163,11 @@ namespace libsecondlife
 			else           data = new byte[16];
 		}
 
+        public byte[] GetBytes()
+        {
+            return Data;
+        }
+
 		/// <summary>
 		/// Calculate an LLCRC for the given LLUUID
 		/// </summary>

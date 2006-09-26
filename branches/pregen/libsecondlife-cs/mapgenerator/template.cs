@@ -27,7 +27,7 @@
 using System;
 using libsecondlife;
 
-namespace libsecondlife.Protocol
+namespace libsecondlife.UDP
 {
     public class MalformedDataException : ApplicationException
     {

@@ -25,6 +25,7 @@
  */
 
 using System;
+using libsecondlife.Packets;
 
 namespace libsecondlife
 {
@@ -147,38 +148,53 @@ namespace libsecondlife
 
         public void ParcelSubdivide(float west, float south, float east, float north)
         {
-            Client.Network.SendPacket(
-                    Packets.Parcel.ParcelDivide(Client.Protocol, Client.Avatar.ID,
-                    west, south, east, north));
+            ParcelDividePacket divide = new ParcelDividePacket();
+            divide.AgentData.AgentID = Client.Network.AgentID;
+            divide.AgentData.SessionID = Client.Network.SessionID;
+            divide.ParcelData.East = east;
+            divide.ParcelData.North = north;
+            divide.ParcelData.South = south;
+            divide.ParcelData.West = west;
+
+            // FIXME: Region needs a reference to it's parent Simulator
+            //Client.Network.SendPacket((Packet)divide, this.Simulator);
         }
 
         public void ParcelJoin(float west, float south, float east, float north)
         {
-            Client.Network.SendPacket(
-                    Packets.Parcel.ParcelJoin(Client.Protocol, Client.Avatar.ID,
-                    west, south, east, north));
+            ParcelJoinPacket join = new ParcelJoinPacket();
+            join.AgentData.AgentID = Client.Network.AgentID;
+            join.AgentData.SessionID = Client.Network.SessionID;
+            join.ParcelData.East = east;
+            join.ParcelData.North = north;
+            join.ParcelData.South = south;
+            join.ParcelData.West = west;
+
+            // FIXME: Region needs a reference to it's parent Simulator
+            //Client.Network.SendPacket((Packet)join, this.Simulator);
         }
 
         public void RezObject(PrimObject prim, LLVector3 position, LLVector3 avatarPosition)
         {
-            byte[] textureEntry = new byte[40];
-            Array.Copy(prim.Texture.Data, textureEntry, 16);
-            textureEntry[35] = 0xe0; // No clue
+            // FIXME:
+            //byte[] textureEntry = new byte[40];
+            //Array.Copy(prim.Texture.Data, textureEntry, 16);
+            //textureEntry[35] = 0xe0; // No clue
 
-            Packet objectAdd = libsecondlife.Packets.Object.ObjectAdd(Client.Protocol, Client.Network.AgentID,
-                    LLUUID.GenerateUUID(), avatarPosition,
-                    position, prim, textureEntry);
-            Client.Network.SendPacket(objectAdd);
+            //Packet objectAdd = libsecondlife.Packets.Object.ObjectAdd(Client.Protocol, Client.Network.AgentID,
+            //        LLUUID.GenerateUUID(), avatarPosition,
+            //        position, prim, textureEntry);
+            //Client.Network.SendPacket(objectAdd);
         }
 
         public void FillParcels()
         {
+            // FIXME:
             // Begins filling parcels
-            ParcelDownloading = true;
+            //ParcelDownloading = true;
 
-            // TODO: Replace Client.Network with Region.Simulator, or similar?
-            Client.Network.SendPacket(libsecondlife.Packets.Parcel.ParcelPropertiesRequest(Client.Protocol, Client.Avatar.ID, -10000,
-                    0.0f, 0.0f, 4.0f, 4.0f, false));
+            //Client.Network.SendPacket(libsecondlife.Packets.Parcel.ParcelPropertiesRequest(Client.Protocol, Client.Avatar.ID, -10000,
+            //        0.0f, 0.0f, 4.0f, 4.0f, false));
         }
 
         public void ResetParcelDownload()
