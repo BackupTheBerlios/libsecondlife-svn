@@ -348,6 +348,7 @@ namespace libsecondlife
 			{
                 PacketAckPacket ack = new PacketAckPacket();
                 ack.Packets = new PacketAckPacket.PacketsBlock[1];
+                ack.Packets[0] = new PacketAckPacket.PacketsBlock();
                 ack.Packets[0].ID = id;
 
 				// Set the sequence number

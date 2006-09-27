@@ -267,6 +267,44 @@ namespace mapgenerator
             }
         }
 
+        static int GetFieldLength(MapField field)
+        {
+            switch(field.Type)
+            {
+                case FieldType.BOOL:
+                case FieldType.U8:
+                case FieldType.S8:
+                    return 1;
+                case FieldType.U16:
+                case FieldType.S16:
+                case FieldType.IPPORT:
+                    return 2;
+                case FieldType.U32:
+                case FieldType.S32:
+                case FieldType.F32:
+                case FieldType.IPADDR:
+                    return 4;
+                case FieldType.U64:
+                case FieldType.F64:
+                    return 8;
+                case FieldType.LLVector3:
+                    return 12;
+                case FieldType.LLUUID:
+                case FieldType.LLVector4:
+                case FieldType.LLQuaternion:
+                    return 16;
+                case FieldType.LLVector3d:
+                    return 24;
+                case FieldType.Fixed:
+                    return field.Count;
+                case FieldType.Variable:
+                    return 0;
+                default:
+                    Console.WriteLine("!!! ERROR: Unhandled FieldType " + field.Type.ToString() + " !!!");
+                    return 0;
+            }
+        }
+
         static void WriteBlockClass(MapBlock block)
         {
             bool variableFields = false;
@@ -282,7 +320,25 @@ namespace mapgenerator
                 if (field.Type == FieldType.F32 || field.Type == FieldType.F64) { floatFields = true; }
             }
 
-            Console.WriteLine("");
+            // Length property
+            Console.WriteLine("\n            public int Length\n            {\n                get\n" +
+                "                {");
+            int length = 0;
+            foreach (MapField field in block.Fields)
+            {
+                length += GetFieldLength(field);
+            }
+            if (block.Count == -1) { length += 1; }
+            Console.WriteLine("                    int length = " + length + ";");
+            foreach (MapField field in block.Fields)
+            {
+                if (field.Type == FieldType.Variable)
+                {
+                    Console.WriteLine("                    if (" + field.Name +
+                        " != null) { length += " + field.Count + " + " + field.Name + ".Length; }");
+                }
+            }
+            Console.WriteLine("                    return length;\n                }\n            }\n");
 
             // Default constructor
             Console.WriteLine("            public " + block.Name + "Block() { }");
@@ -336,7 +392,7 @@ namespace mapgenerator
 
             // PacketType member
             Console.WriteLine("        public override PacketType Type { get { return PacketType." + 
-                packet.Name + ";  } }");
+                packet.Name + "; } }");
 
             // Block members
             foreach (MapBlock block in packet.Blocks)
@@ -350,6 +406,9 @@ namespace mapgenerator
             // Default constructor
             Console.WriteLine("        public " + packet.Name + "Packet()\n        {");
             Console.WriteLine("            Header = new " + packet.Frequency.ToString() + "Header();");
+            Console.WriteLine("            Header.ID = " + packet.ID + ";");
+            Console.WriteLine("            Header.Reliable = true;"); // Turn the reliable flag on by default
+            if (packet.Encoded) { Console.WriteLine("            Header.Zerocoded = true;"); }
             foreach (MapBlock block in packet.Blocks)
             {
                 if (block.Count == 1)
@@ -459,11 +518,65 @@ namespace mapgenerator
             // ToBytes() function
             Console.WriteLine("        public override byte[] ToBytes()\n        {");
 
-            // FIXME:
-            Console.WriteLine("            return null;");
+            Console.Write("            int length = ");
+            if (packet.Frequency == PacketFrequency.Low) { Console.WriteLine("8;"); }
+            else if (packet.Frequency == PacketFrequency.Medium) { Console.WriteLine("6;"); }
+            else { Console.WriteLine("5;"); }
 
-            // Closing bracket
-            Console.WriteLine("        }\n    }\n");
+            foreach (MapBlock block in packet.Blocks)
+            {
+                if (block.Count == 1)
+                {
+                    // Single count block
+                    Console.Write("            length += " + block.Name + ".Length;");
+                }
+            }
+            Console.WriteLine(";");
+
+            foreach (MapBlock block in packet.Blocks)
+            {
+                if (block.Count == -1)
+                {
+                    Console.WriteLine("            for (int j = 0; j < " + block.Name + 
+                        ".Length; j++) { length += " + block.Name + "[j].Length; }");
+                }
+                else if (block.Count > 1)
+                {
+                    Console.WriteLine("            for (int j = 0; j < " + block.Count + 
+                        "; j++) { length += " + block.Name + "[j].Length; }");
+                }
+            }
+
+            Console.WriteLine("            if (header.AckList.Length > 0) { length += header.AckList.Length * 4 + 1; }");
+            Console.WriteLine("            byte[] bytes = new byte[length];");
+            Console.WriteLine("            int i = 0;");
+            Console.WriteLine("            header.ToBytes(bytes, ref i);");
+            foreach (MapBlock block in packet.Blocks)
+            {
+                if (block.Count == -1)
+                {
+                    // Variable count block
+                    Console.WriteLine("            bytes[i++] = (byte)" + block.Name + ".Length;");
+                    Console.WriteLine("            for (int j = 0; j < " + block.Name +
+                        ".Length; j++) { " + block.Name + "[j].ToBytes(bytes, ref i); }");
+                }
+                else if (block.Count == 1)
+                {
+                    Console.WriteLine("            " + block.Name + ".ToBytes(bytes, ref i);");
+                }
+                else
+                {
+                    // Multiple count block
+                    Console.WriteLine("            for (int j = 0; j < " + block.Count + 
+                        "; j++) { " + block.Name + "[j].ToBytes(bytes, ref i); }");
+                }
+            }
+
+            Console.WriteLine("            if (header.AckList.Length > 0) { header.AcksToBytes(bytes, ref i); }");
+            Console.WriteLine("            return bytes;\n        }");
+
+            // Closing function bracket
+            Console.WriteLine("    }\n");
         }
 
         static void Main(string[] args)

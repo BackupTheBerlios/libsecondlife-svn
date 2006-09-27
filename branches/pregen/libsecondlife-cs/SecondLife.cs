@@ -198,6 +198,7 @@ namespace libsecondlife
         /// <returns>A null-terminated byte array</returns>
         public static byte[] StringToField(string str)
         {
+            if (!str.EndsWith("\0")) { str += "\0"; }
             return System.Text.UTF8Encoding.UTF8.GetBytes(str);
         }
 
@@ -221,15 +222,16 @@ namespace libsecondlife
             Array.Copy(src, 0, dest, 0, 4);
             zerolen += 4;
 
-            int bodylen;
-            if ((src[0] & MSG_APPENDED_ACKS) == 0)
-            {
-                bodylen = srclen;
-            }
-            else
-            {
-                bodylen = srclen - src[srclen - 1] * 4 - 1;
-            }
+            //int bodylen;
+            //if ((src[0] & MSG_APPENDED_ACKS) == 0)
+            //{
+            //    bodylen = srclen;
+            //}
+            //else
+            //{
+            //    bodylen = srclen - src[srclen - 1] * 4 - 1;
+            //}
+            int bodylen = srclen;
 
             uint i;
             for (i = zerolen; i < bodylen; i++)
