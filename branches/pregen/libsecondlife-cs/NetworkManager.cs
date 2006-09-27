@@ -350,6 +350,7 @@ namespace libsecondlife
                 ack.Packets = new PacketAckPacket.PacketsBlock[1];
                 ack.Packets[0] = new PacketAckPacket.PacketsBlock();
                 ack.Packets[0].ID = id;
+                ack.Header.Reliable = false;
 
 				// Set the sequence number
 				ack.Header.Sequence = ++Sequence;
@@ -405,8 +406,15 @@ namespace libsecondlife
                     NeedAckMutex.WaitOne();
                     foreach (ushort ack in packet.Header.AckList)
                     {
-                        Client.Log("Appended ACK " + ack, Helpers.LogLevel.Info);
-                        NeedAck.Remove(ack);
+                        if (NeedAck.ContainsKey(ack))
+                        {
+                            Client.Log("Appended ACK " + ack, Helpers.LogLevel.Info);
+                            NeedAck.Remove(ack);
+                        }
+                        else
+                        {
+                            Client.Log("Appended ACK for a packet we didn't send: " + ack, Helpers.LogLevel.Warning);
+                        }
                     }
                 }
                 catch (Exception e)
@@ -418,9 +426,6 @@ namespace libsecondlife
                     NeedAckMutex.ReleaseMutex();
                 }
                 #endregion NeedAckMutex
-
-                // Start listening again since we're done with RecvBuffer
-                Connection.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref endPoint, ReceivedData, null);
             }
             catch (Exception e)
             {
@@ -429,6 +434,7 @@ namespace libsecondlife
             finally
             {
                 RecvBufferMutex.ReleaseMutex();
+                Connection.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref endPoint, ReceivedData, null);
             }
             #endregion RecvBufferMutex
 

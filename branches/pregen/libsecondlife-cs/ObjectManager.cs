@@ -30,10 +30,10 @@ using libsecondlife.Packets;
 
 namespace libsecondlife
 {
-    public delegate void NewPrimCallback(Simulator simulator, PrimObject prim, U64 regionHandle, ushort timeDilation);
-    public delegate void NewAvatarCallback(Simulator simulator, Avatar avatar, U64 regionHandle, ushort timeDilation);
-    public delegate void PrimMovedCallback(Simulator simulator, PrimUpdate prim, U64 regionHandle, ushort timeDilation);
-    public delegate void AvatarMovedCallback(Simulator simulator, AvatarUpdate avatar, U64 regionHandle, ushort timeDilation);
+    public delegate void NewPrimCallback(Simulator simulator, PrimObject prim, ulong regionHandle, ushort timeDilation);
+    public delegate void NewAvatarCallback(Simulator simulator, Avatar avatar, ulong regionHandle, ushort timeDilation);
+    public delegate void PrimMovedCallback(Simulator simulator, PrimUpdate prim, ulong regionHandle, ushort timeDilation);
+    public delegate void AvatarMovedCallback(Simulator simulator, AvatarUpdate avatar, ulong regionHandle, ushort timeDilation);
 
     /// <summary>
     /// Contains all of the variables sent in an object update packet for a 
@@ -147,262 +147,134 @@ namespace libsecondlife
 
         private void UpdateHandler(Packet packet, Simulator simulator)
         {
-            //U64 regionHandle = null;
-            //ushort timeDilation = 0;
+            ObjectUpdatePacket update = (ObjectUpdatePacket)packet;
 
-            //foreach (Block block in packet.Blocks())
-            //{
-            //    Avatar avatar = null;
-            //    PrimObject prim = new PrimObject();
+            foreach (ObjectUpdatePacket.ObjectDataBlock block in update.ObjectData)
+            {
+                if (block.ObjectData.Length == 60)
+                {
+                    // New prim spotted
+                    PrimObject prim = new PrimObject();
 
-            //    foreach (Field field in block.Fields)
-            //    {
-            //        switch (field.Layout.Name)
-            //        {
-            //            case "ID":
-            //                prim.LocalID = (UInt32)field.Data;
-            //                break;
-            //            case "State":
-            //                prim.State = (byte)field.Data;
-            //                break;
-            //            case "FullID":
-            //                prim.ID = (LLUUID)field.Data;
-            //                break;
-            //            case "ParentID":
-            //                // Linked objects?
-            //                break;
-            //            case "OwnerID":
-            //                // Sound-related
-            //                break;
-            //            case "Material":
-            //                prim.Material = (byte)(field.Data);
-            //                break;
-            //            case "PathCurve":
-            //                prim.PathCurve = (byte)field.Data;
-            //                break;
-            //            case "ProfileCurve":
-            //                prim.ProfileCurve = (byte)field.Data;
-            //                break;
-            //            case "PathBegin":
-            //                prim.PathBegin = PrimObject.PathBeginFloat((byte)field.Data);
-            //                break;
-            //            case "PathEnd":
-            //                prim.PathEnd = PrimObject.PathEndFloat((byte)field.Data);
-            //                break;
-            //            case "PathScaleX":
-            //                prim.PathScaleX = PrimObject.PathScaleFloat((byte)field.Data);
-            //                break;
-            //            case "PathScaleY":
-            //                prim.PathScaleY = PrimObject.PathScaleFloat((byte)field.Data);
-            //                break;
-            //            case "PathShearX":
-            //                prim.PathShearX = PrimObject.PathShearFloat((byte)field.Data);
-            //                break;
-            //            case "PathShearY":
-            //                prim.PathShearY = PrimObject.PathShearFloat((byte)field.Data);
-            //                break;
-            //            case "PathTwist":
-            //                prim.PathTwist = PrimObject.PathTwistFloat((sbyte)field.Data);
-            //                break;
-            //            case "PathTwistBegin":
-            //                prim.PathTwistBegin = PrimObject.PathTwistFloat((sbyte)field.Data);
-            //                break;
-            //            case "PathRadiusOffset":
-            //                prim.PathRadiusOffset = PrimObject.PathRadiusOffsetFloat((sbyte)field.Data);
-            //                break;
-            //            case "PathTaperX":
-            //                prim.PathTaperX = PrimObject.PathTaperFloat((byte)(sbyte)field.Data);
-            //                break;
-            //            case "PathTaperY":
-            //                prim.PathTaperY = PrimObject.PathTaperFloat((byte)(sbyte)field.Data);
-            //                break;
-            //            case "PathRevolutions":
-            //                prim.PathRevolutions = PrimObject.PathRevolutionsFloat((byte)field.Data);
-            //                break;
-            //            case "PathSkew":
-            //                prim.PathSkew = PrimObject.PathSkewFloat((byte)(sbyte)field.Data);
-            //                break;
-            //            case "ProfileBegin":
-            //                prim.ProfileBegin = PrimObject.ProfileBeginFloat((byte)field.Data);
-            //                break;
-            //            case "ProfileEnd":
-            //                prim.ProfileEnd = PrimObject.ProfileEndFloat((byte)field.Data);
-            //                break;
-            //            case "ProfileHollow":
-            //                prim.ProfileHollow = (byte)field.Data;
-            //                break;
-            //            case "NameValue":
-            //                //Console.WriteLine("[debug] Name: " + Helpers.FieldToString(field.Data));
-            //                prim.Name = Helpers.FieldToString(field.Data);
-            //                break;
-            //            case "Data":
-            //                // ?
-            //                break;
-            //            case "Text":
-            //                // Hovering text
-            //                break;
-            //            case "TextColor":
-            //                // LLColor4U of the hovering text
-            //                break;
-            //            case "MediaURL":
-            //                // Quicktime stream
-            //                //Client.Log("MediaURL: " + Helpers.FieldToString(field.Data), Helpers.LogLevel.Info);
-            //                break;
-            //            case "TextureEntry":
-            //                // TODO: Multi-texture support
-            //                byte[] bytes = (byte[])field.Data;
-            //                if (bytes.Length >= 16)
-            //                {
-            //                    prim.Texture = new LLUUID(bytes, 0);
-            //                }
-            //                else
-            //                {
-            //                    prim.Texture = new LLUUID();
-            //                }
-            //                break;
-            //            case "TextureAnim":
-            //                // Not sure how this works
-            //                break;
-            //            case "JointType":
-            //                // ?
-            //                break;
-            //            case "JointPivot":
-            //                // ?
-            //                break;
-            //            case "JointAxisOrAnchor":
-            //                // ?
-            //                break;
-            //            case "PCode":
-            //                // ?
-            //                break;
-            //            case "PSBlock":
-            //                // Particle system related
-            //                break;
-            //            case "ExtraParams":
-            //                // ?
-            //                break;
-            //            case "Scale":
-            //                prim.Scale = (LLVector3)field.Data;
-            //                break;
-            //            case "Flags":
-            //                // ?
-            //                break;
-            //            case "UpdateFlags":
-            //                // ?
-            //                break;
-            //            case "CRC":
-            //                // We could optionally verify this on the client side
-            //                break;
-            //            case "ClickAction":
-            //                //
-            //                break;
-            //            case "Gain":
-            //                // Sound-related
-            //                break;
-            //            case "Sound":
-            //                // Sound-related
-            //                break;
-            //            case "Radius":
-            //                // Sound-related
-            //                break;
-            //            case "ObjectData":
-            //                byte[] data = (byte[])field.Data;
-            //                if (data.Length == 60)
-            //                {
-            //                    prim.Position = new LLVector3(data, 0);
-            //                    prim.Rotation = new LLQuaternion(data, 36);
-            //                    // Calculate the quaternion W value from the given X/Y/Z
-            //                    float xyzsum = 1.0F -
-            //                        prim.Rotation.X * prim.Rotation.X -
-            //                        prim.Rotation.Y * prim.Rotation.Y -
-            //                        prim.Rotation.Z * prim.Rotation.Z;
-            //                    prim.Rotation.S = (xyzsum > 0.0F) ? (float)Math.Sqrt(xyzsum) : 0.0F;
-            //                    // TODO: Parse the rest of the fields
-            //                }
-            //                else if (data.Length == 76)
-            //                {
-            //                    avatar = new Avatar();
+                    prim.Position = new LLVector3(block.ObjectData, 0);
+                    prim.Rotation = new LLQuaternion(block.ObjectData, 36);
+                    // Calculate the quaternion W value from the given X/Y/Z
+                    float xyzsum = 1.0F -
+                        prim.Rotation.X * prim.Rotation.X -
+                        prim.Rotation.Y * prim.Rotation.Y -
+                        prim.Rotation.Z * prim.Rotation.Z;
+                    prim.Rotation.S = (xyzsum > 0.0F) ? (float)Math.Sqrt(xyzsum) : 0.0F;
+                    // TODO: Parse the rest of the ObjectData byte array fields
 
-            //                    //avatar.CollisionPlane = new LLQuaternion(data, 0);
-            //                    avatar.Position = new LLVector3(data, 16);
-            //                    avatar.Rotation = new LLQuaternion(data, 52);
-            //                    float xyzsum = 1.0F -
-            //                        avatar.Rotation.X * avatar.Rotation.X -
-            //                        avatar.Rotation.Y * avatar.Rotation.Y -
-            //                        avatar.Rotation.Z * avatar.Rotation.Z;
-            //                    avatar.Rotation.S = (xyzsum > 0.0F) ? (float)Math.Sqrt(xyzsum) : 0.0F;
-            //                }
-            //                else
-            //                {
-            //                    Client.Log("Unhandled ObjectData:\n" + field.ToString(), Helpers.LogLevel.Warning);
-            //                }
-            //                break;
-            //            case "TimeDilation":
-            //                timeDilation = (ushort)field.Data;
-            //                break;
-            //            case "RegionHandle":
-            //                regionHandle = (U64)field.Data;
-            //                break;
-            //            default:
-            //                Client.Log("ObjectUpdate field not handled: " + field.Layout.Name + " " + 
-            //                    field.Data.GetType().ToString(), Helpers.LogLevel.Info);
-            //                break;
-            //        }
-            //    }
+                    prim.LocalID = block.ID;
+                    prim.State = block.State;
+                    prim.ID = block.FullID;
+                    //block.ParentID; Linked objects?
+                    //block.OwnerID Sound-related
+                    prim.Material = block.Material;
+                    prim.PathCurve = block.PathCurve;
+                    prim.ProfileCurve = block.ProfileCurve;
+                    prim.PathBegin = PrimObject.PathBeginFloat(block.PathBegin);
+                    prim.PathEnd = PrimObject.PathEndFloat(block.PathEnd);
+                    prim.PathScaleX = PrimObject.PathScaleFloat(block.PathScaleX);
+                    prim.PathScaleY = PrimObject.PathScaleFloat(block.PathScaleY);
+                    prim.PathShearX = PrimObject.PathShearFloat(block.PathShearX);
+                    prim.PathShearY = PrimObject.PathShearFloat(block.PathShearY);
+                    prim.PathTwist = PrimObject.PathTwistFloat(block.PathTwist);
+                    prim.PathTwistBegin = PrimObject.PathTwistFloat(block.PathTwistBegin);
+                    prim.PathRadiusOffset = PrimObject.PathRadiusOffsetFloat(block.PathRadiusOffset);
+                    prim.PathTaperX = PrimObject.PathTaperFloat((byte)block.PathTaperX);
+                    prim.PathTaperY = PrimObject.PathTaperFloat((byte)block.PathTaperY);
+                    prim.PathRevolutions = PrimObject.PathRevolutionsFloat(block.PathRevolutions);
+                    prim.PathSkew = PrimObject.PathSkewFloat((byte)block.PathSkew);
+                    prim.ProfileBegin = PrimObject.ProfileBeginFloat(block.ProfileBegin);
+                    prim.ProfileEnd = PrimObject.ProfileEndFloat(block.ProfileEnd);
+                    prim.ProfileHollow = block.ProfileHollow;
+                    prim.Name = Helpers.FieldToString(block.NameValue);
+                    //block.Data ?
+                    //block.Text Hovering text
+                    //block.TextColor LLColor4U of the hovering text
+                    //block.MediaURL Quicktime stream
+                    // TODO: Multi-texture support
+                    if (block.TextureEntry.Length >= 16)
+                    {
+                        prim.Texture = new LLUUID(block.TextureEntry, 0);
+                    }
+                    else
+                    {
+                        prim.Texture = new LLUUID();
+                    }
+                    //block.TextureAnim ?
+                    //block.JointType ?
+                    //block.JointPivot ?
+                    //block.JointAxisOrAnchor ?
+                    //block.PCode ?
+                    //block.PSBlock Particle system related
+                    //block.ExtraParams ?
+                    prim.Scale = block.Scale;
+                    //block.Flags ?
+                    //block.UpdateFlags ?
+                    //block.ClickAction ?
+                    //block.Gain Sound-related
+                    //block.Sound Sound-related
+                    //block.Radius Sound-related
 
-            //    // Parse the NameValue to see if this is actually an avatar
-            //    if (prim.LocalID != 0)
-            //    {
-            //        if (avatar != null)
-            //        {
-            //            string FirstName = "";
-            //            string LastName = "";
-            //            string GroupName = "";
+                    if (OnNewPrim != null)
+                    {
+                        OnNewPrim(simulator, prim, update.RegionData.RegionHandle, update.RegionData.TimeDilation);
+                    }
+                }
+                else if (block.ObjectData.Length == 76)
+                {
+                    // New avatar spotted
+                    Avatar avatar = new Avatar();
+                    string FirstName = "";
+                    string LastName = "";
+                    string GroupName = "";
 
-            //            // Get the individual components of the avatar name
-            //            ParseAvName(prim.Name, ref FirstName, ref LastName, ref GroupName);
+                    //avatar.CollisionPlane = new LLQuaternion(block.ObjectData, 0);
+                    avatar.Position = new LLVector3(block.ObjectData, 16);
+                    avatar.Rotation = new LLQuaternion(block.ObjectData, 52);
+                    float xyzsum = 1.0F -
+                        avatar.Rotation.X * avatar.Rotation.X -
+                        avatar.Rotation.Y * avatar.Rotation.Y -
+                        avatar.Rotation.Z * avatar.Rotation.Z;
+                    avatar.Rotation.S = (xyzsum > 0.0F) ? (float)Math.Sqrt(xyzsum) : 0.0F;
+                    // TODO: Parse the rest of the ObjectData byte array fields
 
-            //            avatar.ID = prim.ID;
-            //            avatar.LocalID = prim.LocalID;
-            //            avatar.Name = FirstName + " " + LastName;
-            //            avatar.GroupName = GroupName;
-            //            avatar.Online = true;
-            //            avatar.Position = prim.Position;
-            //            avatar.Rotation = prim.Rotation;
-            //            // TODO: Look up the region by regionHandle instead
-            //            avatar.CurrentRegion = simulator.Region;
+                    ParseAvName(Helpers.FieldToString(block.NameValue), ref FirstName, ref LastName, ref GroupName);
 
-            //            prim = null;
+                    avatar.ID = block.FullID;
+                    avatar.LocalID = block.ID;
+                    avatar.Name = FirstName + " " + LastName;
+                    avatar.GroupName = GroupName;
+                    avatar.Online = true;
+                    avatar.CurrentRegion = simulator.Region;
 
-            //            // Is this our avatar? Update the position
-            //            if (FirstName == Client.Avatar.FirstName && LastName == Client.Avatar.LastName)
-            //            {
-            //                // Update our avatar
-            //                Client.Avatar.LocalID = avatar.LocalID;
-            //                Client.Avatar.Position = avatar.Position;
-            //                Client.Avatar.Rotation = avatar.Rotation;
-            //            }
-            //            else
-            //            {
-            //                Client.AddAvatar(avatar);
+                    if (FirstName == Client.Avatar.FirstName && LastName == Client.Avatar.LastName)
+                    {
+                        // Update our avatar
+                        Client.Avatar.LocalID = avatar.LocalID;
+                        Client.Avatar.Position = avatar.Position;
+                        Client.Avatar.Rotation = avatar.Rotation;
+                    }
+                    else
+                    {
+                        Client.AddAvatar(avatar);
 
-            //                // If an event handler is registered call it
-            //                if (OnNewAvatar != null)
-            //                {
-            //                    OnNewAvatar(simulator, avatar, regionHandle, timeDilation);
-            //                }
-            //            }
-            //        }
-            //        else if (prim != null)
-            //        {
-            //            // If an event handler is registered call it
-            //            if (OnNewPrim != null)
-            //            {
-            //                OnNewPrim(simulator, prim, regionHandle, timeDilation);
-            //            }
-            //        }
-            //    }
-            //}
+                        if (OnNewAvatar != null)
+                        {
+                            OnNewAvatar(simulator, avatar, update.RegionData.RegionHandle, update.RegionData.TimeDilation);
+                        }
+                    }
+                }
+                else
+                {
+                    // Unknown
+                    Client.Log("Unhandled ObjectData.ObjectData length:\n" + block.ObjectData.Length, 
+                        Helpers.LogLevel.Warning);
+                }
+            }
         }
 
         private void TerseUpdateHandler(Packet packet, Simulator simulator)
@@ -518,10 +390,10 @@ namespace libsecondlife
             //        avupdate.RotationVelocity = RotationVelocity;
 
             //        // If an event handler is registered call it
-            //        if (OnAvatarMoved != null)
-            //        {
+                    if (OnAvatarMoved != null)
+                    {
             //            OnAvatarMoved(simulator, avupdate, regionHandle, timeDilation);
-            //        }
+                    }
             //    }
             //}
             //else
@@ -536,10 +408,10 @@ namespace libsecondlife
             //    primupdate.RotationVelocity = RotationVelocity;
 
             //    // If an event handler is registered call it
-            //    if (OnPrimMoved != null)
-            //    {
+                if (OnPrimMoved != null)
+                {
             //        OnPrimMoved(simulator, primupdate, regionHandle, timeDilation);
-            //    }
+                }
             //}
         }
 

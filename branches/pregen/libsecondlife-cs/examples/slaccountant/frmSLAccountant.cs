@@ -353,7 +353,8 @@ namespace SLAccountant
 		[STAThread]
 		static void Main() 
 		{
-			Application.Run(new frmSLAccountant());
+            frmSLAccountant frm = new frmSLAccountant();
+            frm.ShowDialog();
 		}
 
 		private void BalanceHandler(Packet packet, Simulator simulator)
@@ -439,20 +440,14 @@ namespace SLAccountant
 						client.Network.LoginValues["last_name"];
 
 					// AgentHeightWidth
-                    //Hashtable blocks = new Hashtable();
-                    //Hashtable fields = new Hashtable();
-                    //fields["ID"] = client.Network.AgentID;
-                    //fields["GenCounter"] = (uint)0;
-                    //fields["CircuitCode"] = client.Network.CurrentSim.CircuitCode;
-                    //blocks[fields] = "Sender";
-                    //fields = new Hashtable();
-                    //fields["Height"] = (ushort)rand.Next(0, 65535);
-                    //fields["Width"] = (ushort)rand.Next(0, 65535);
-                    //blocks[fields] = "HeightWidthBlock";
-                    //Packet packet = PacketBuilder.BuildPacket("AgentHeightWidth", client.Protocol, blocks,
-                    //    Helpers.MSG_RELIABLE + Helpers.MSG_ZEROCODED);
+                    AgentHeightWidthPacket heightwidth = new AgentHeightWidthPacket();
+                    heightwidth.HeightWidthBlock.Height = (ushort)rand.Next(0, 65535);
+                    heightwidth.HeightWidthBlock.Width = (ushort)rand.Next(0, 65535);
+                    heightwidth.Sender.CircuitCode = client.Network.CurrentSim.CircuitCode;
+                    heightwidth.Sender.GenCounter = 0;
+                    heightwidth.Sender.ID = client.Network.AgentID;
 
-                    //client.Network.SendPacket(packet);
+                    client.Network.SendPacket((Packet)heightwidth);
 
 					// ConnectAgentToUserserver
                     //blocks = new Hashtable();
@@ -473,14 +468,22 @@ namespace SLAccountant
 
 					client.Network.SendPacket((Packet)request);
 
-                    //// AgentSetAppearance
-                    //// Setup some random appearance values
-                    //for (int i = 0; i < 218; ++i)
-                    //{
-                    //    fields = new Hashtable();
-                    //    fields["ParamValue"] = (byte)rand.Next(255);
-                    //    blocks[fields] = "VisualParam";
-                    //}
+                    // AgentSetAppearance
+                    AgentSetAppearancePacket appearance = new AgentSetAppearancePacket();
+                    appearance.VisualParam = new AgentSetAppearancePacket.VisualParamBlock[218];
+                    // Setup some random appearance values
+                    for (int i = 0; i < 218; i++)
+                    {
+                        appearance.VisualParam[i] = new AgentSetAppearancePacket.VisualParamBlock();
+                        appearance.VisualParam[i].ParamValue = (byte)rand.Next(255);
+                    }
+                    appearance.Sender.SerialNum = 1;
+                    appearance.Sender.Size = new LLVector3(0.45F, 0.6F, 1.831094F);
+                    appearance.Sender.ID = client.Network.AgentID;
+                    appearance.ObjectData.TextureEntry = new byte[0];
+
+                    client.Network.SendPacket((Packet)appearance);
+
                     //fields = new Hashtable();
                     //byte[] byteArray = new byte[400];
                     //fields["TextureEntry"] = byteArray;

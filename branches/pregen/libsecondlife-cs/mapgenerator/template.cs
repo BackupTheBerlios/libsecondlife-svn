@@ -27,7 +27,7 @@
 using System;
 using libsecondlife;
 
-namespace libsecondlife.UDP
+namespace libsecondlife.Packets
 {
     public class MalformedDataException : ApplicationException
     {
@@ -71,11 +71,22 @@ namespace libsecondlife.UDP
         public ushort Sequence
         {
             get { return (ushort)((Data[2] << 8) + Data[3]); }
-            set { Data[2] = (byte)(value % 256); Data[3] = (byte)(value >> 8); }
+            set { Data[2] = (byte)(value >> 8); Data[3] = (byte)(value % 256); }
         }
         public abstract ushort ID { get; set; }
         public abstract PacketFrequency Frequency { get; }
+        public abstract void ToBytes(byte[] bytes, ref int i);
         public uint[] AckList;
+
+        public void AcksToBytes(byte[] bytes, ref int i)
+        {
+            foreach (uint ack in AckList)
+            {
+                bytes[i++] = (byte)(ack % 256);
+                bytes[i++] = (byte)((ack >> 8) % 256);
+            }
+            if (AckList.Length > 0) { bytes[i++] = (byte)AckList.Length; }
+        }
         
         protected void CreateAckList(byte[] bytes, ref int packetEnd)
         {
@@ -83,13 +94,15 @@ namespace libsecondlife.UDP
             {
                 try
                 {
-                    int count = bytes[packetEnd];
+                    int count = bytes[packetEnd--];
                     AckList = new uint[count];
                     
                     for (int i = 0; i < count; i++)
                     {
-                        AckList[i] = (ushort)(bytes[(packetEnd - i * 4) - 1] | (bytes[packetEnd - i * 4] << 8));
+                        AckList[i] = (ushort)((bytes[(packetEnd - i * 4) - 1] << 8) | (bytes[packetEnd - i * 4]));
                     }
+
+                    packetEnd -= (count * 4);
                 }
                 catch (Exception)
                 {
@@ -160,6 +173,12 @@ namespace libsecondlife.UDP
             pos = 8;
             CreateAckList(bytes, ref packetEnd);
         }
+
+        public override void ToBytes(byte[] bytes, ref int i)
+        {
+            Array.Copy(Data, 0, bytes, i, 8);
+            i += 8;
+        }
     }
 
     public class MediumHeader : Header
@@ -186,6 +205,12 @@ namespace libsecondlife.UDP
             pos = 6;
             CreateAckList(bytes, ref packetEnd);
         }
+
+        public override void ToBytes(byte[] bytes, ref int i)
+        {
+            Array.Copy(Data, 0, bytes, i, 6);
+            i += 6;
+        }
     }
 
     public class HighHeader : Header
@@ -210,5 +235,11 @@ namespace libsecondlife.UDP
             Array.Copy(bytes, Data, 5);
             pos = 5;
             CreateAckList(bytes, ref packetEnd);
+        }
+
+        public override void ToBytes(byte[] bytes, ref int i)
+        {
+            Array.Copy(Data, 0, bytes, i, 5);
+            i += 5;
         }
     }

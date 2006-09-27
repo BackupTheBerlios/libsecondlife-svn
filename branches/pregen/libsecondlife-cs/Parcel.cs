@@ -259,36 +259,24 @@ namespace libsecondlife
 
         public void ParcelDwellReplyHandler(Packet packet, Simulator simulator)
         {
-            //int LocalID = 0;
-            //LLUUID ParcelID = new LLUUID();
-            //float Dwell = 0.0f;
+            ParcelDwellReplyPacket dwell = (ParcelDwellReplyPacket)packet;
 
-            //foreach (Block block in packet.Blocks())
-            //{
-            //    foreach (Field field in block.Fields)
-            //    {
-            //        if (field.Layout.Name == "LocalID")
-            //            LocalID = (int)field.Data;
-            //        else if (field.Layout.Name == "ParcelID")
-            //            ParcelID = (LLUUID)field.Data;
-            //        else if (field.Layout.Name == "Dwell")
-            //            Dwell = (float)field.Data;
-            //    }
-            //}
-            //if (Dwell != 0.0f && simulator.Region.Parcels.ContainsKey(LocalID))
-            //    ((Parcel)simulator.Region.Parcels[LocalID]).Dwell = Dwell;
+            if (dwell.Data.Dwell != 0.0F && simulator.Region.Parcels.ContainsKey(dwell.Data.LocalID))
+            {
+                ((Parcel)simulator.Region.Parcels[dwell.Data.LocalID]).Dwell = dwell.Data.Dwell;
+            }
         }
 
         public bool RequestParcelInfo(DirectoryParcel parcel)
         {
-        //    int attempts = 0;
+            int attempts = 0;
 
-        //Beginning:
-        //    if (attempts++ > 3) { return false; }
+        Beginning:
+            if (attempts++ > 3) { return false; }
 
-        //    Finished = false;
-        //    ParcelInfoTimeout = false;
-        //    ParcelInfoParcel = parcel;
+            Finished = false;
+            ParcelInfoTimeout = false;
+            ParcelInfoParcel = parcel;
 
         //    // Setup the timer
         //    Timer ParcelInfoTimer = new Timer(5000);
@@ -306,13 +294,13 @@ namespace libsecondlife
 
         //    Client.Network.SendPacket((Packet)request);
 
-        //    while (!Finished)
-        //    {
-        //        // FIXME: This can easily cause an infinite loop
-        //        if (ParcelInfoTimeout) { goto Beginning; }
+            while (!Finished)
+            {
+                // FIXME: This can easily cause an infinite loop
+                if (ParcelInfoTimeout) { goto Beginning; }
 
-        //        Client.Tick();
-        //    }
+                Client.Tick();
+            }
 
             return true;
         }

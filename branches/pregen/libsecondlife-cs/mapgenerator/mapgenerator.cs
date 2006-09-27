@@ -378,6 +378,8 @@ namespace mapgenerator
 
         static void WritePacketClass(MapPacket packet)
         {
+            string sanitizedName;
+
             Console.WriteLine("    public class " + packet.Name + "Packet : Packet\n    {");
 
             // Write out each block class
@@ -397,8 +399,12 @@ namespace mapgenerator
             // Block members
             foreach (MapBlock block in packet.Blocks)
             {
+                // TODO: This is such a weak hack
+                if (block.Name == "Header") { sanitizedName = "_" + block.Name; }
+                else { sanitizedName = block.Name; }
+
                 Console.WriteLine("        public " + block.Name + "Block" +
-                    ((block.Count != 1) ? "[]" : "") + " " + block.Name + ";");
+                    ((block.Count != 1) ? "[]" : "") + " " + sanitizedName + ";");
             }
 
             Console.WriteLine("");
@@ -411,20 +417,23 @@ namespace mapgenerator
             if (packet.Encoded) { Console.WriteLine("            Header.Zerocoded = true;"); }
             foreach (MapBlock block in packet.Blocks)
             {
+                if (block.Name == "Header") { sanitizedName = "_" + block.Name; }
+                else { sanitizedName = block.Name; }
+
                 if (block.Count == 1)
                 {
                     // Single count block
-                    Console.WriteLine("            " + block.Name + " = new " + block.Name + "Block();");
+                    Console.WriteLine("            " + sanitizedName + " = new " + block.Name + "Block();");
                 }
                 else if (block.Count == -1)
                 {
                     // Variable count block
-                    Console.WriteLine("            " + block.Name + " = new " + block.Name + "Block[0];");
+                    Console.WriteLine("            " + sanitizedName + " = new " + block.Name + "Block[0];");
                 }
                 else
                 {
                     // Multiple count block
-                    Console.WriteLine("            " + block.Name + " = new " + block.Name + 
+                    Console.WriteLine("            " + sanitizedName + " = new " + block.Name + 
                         "Block[" + block.Count + "];");
                 }
             }
@@ -438,10 +447,13 @@ namespace mapgenerator
                 "Header(bytes, ref i, ref packetEnd);");
             foreach (MapBlock block in packet.Blocks)
             {
+                if (block.Name == "Header") { sanitizedName = "_" + block.Name; }
+                else { sanitizedName = block.Name; }
+
                 if (block.Count == 1)
                 {
                     // Single count block
-                    Console.WriteLine("            " + block.Name + " = new " + block.Name + "Block(bytes, ref i);");
+                    Console.WriteLine("            " + sanitizedName + " = new " + block.Name + "Block(bytes, ref i);");
                 }
                 else if (block.Count == -1)
                 {
@@ -455,18 +467,18 @@ namespace mapgenerator
                     {
                         Console.WriteLine("            count = (int)bytes[i++];");
                     }
-                    Console.WriteLine("            " + block.Name + " = new " + block.Name + "Block[count];");
+                    Console.WriteLine("            " + sanitizedName + " = new " + block.Name + "Block[count];");
                     Console.WriteLine("            for (int j = 0; j < count; j++)");
-                    Console.WriteLine("            { " + block.Name + "[j] = new " +
+                    Console.WriteLine("            { " + sanitizedName + "[j] = new " +
                         block.Name + "Block(bytes, ref i); }");
                 }
                 else
                 {
                     // Multiple count block
-                    Console.WriteLine("            " + block.Name + " = new " + block.Name + 
+                    Console.WriteLine("            " + sanitizedName + " = new " + block.Name + 
                         "Block[" + block.Count + "];");
                     Console.WriteLine("            for (int j = 0; j < " + block.Count + "; j++)");
-                    Console.WriteLine("            { " + block.Name + "[j] = new " + 
+                    Console.WriteLine("            { " + sanitizedName + "[j] = new " + 
                         block.Name + "Block(bytes, ref i); }");
                 }
             }
@@ -481,10 +493,13 @@ namespace mapgenerator
             Console.WriteLine("            int packetEnd = bytes.Length - 1;");
             foreach (MapBlock block in packet.Blocks)
             {
+                if (block.Name == "Header") { sanitizedName = "_" + block.Name; }
+                else { sanitizedName = block.Name; }
+
                 if (block.Count == 1)
                 {
                     // Single count block
-                    Console.WriteLine("            " + block.Name + " = new " + block.Name + "Block(bytes, ref i);");
+                    Console.WriteLine("            " + sanitizedName + " = new " + block.Name + "Block(bytes, ref i);");
                 }
                 else if (block.Count == -1)
                 {
@@ -498,18 +513,18 @@ namespace mapgenerator
                     {
                         Console.WriteLine("            count = (int)bytes[i++];");
                     }
-                    Console.WriteLine("            " + block.Name + " = new " + block.Name + "Block[count];");
+                    Console.WriteLine("            " + sanitizedName + " = new " + block.Name + "Block[count];");
                     Console.WriteLine("            for (int j = 0; j < count; j++)");
-                    Console.WriteLine("            { " + block.Name + "[j] = new " +
+                    Console.WriteLine("            { " + sanitizedName + "[j] = new " +
                         block.Name + "Block(bytes, ref i); }");
                 }
                 else
                 {
                     // Multiple count block
-                    Console.WriteLine("            " + block.Name + " = new " + block.Name +
+                    Console.WriteLine("            " + sanitizedName + " = new " + block.Name +
                         "Block[" + block.Count + "];");
                     Console.WriteLine("            for (int j = 0; j < " + block.Count + "; j++)");
-                    Console.WriteLine("            { " + block.Name + "[j] = new " +
+                    Console.WriteLine("            { " + sanitizedName + "[j] = new " +
                         block.Name + "Block(bytes, ref i); }");
                 }
             }
@@ -525,25 +540,31 @@ namespace mapgenerator
 
             foreach (MapBlock block in packet.Blocks)
             {
+                if (block.Name == "Header") { sanitizedName = "_" + block.Name; }
+                else { sanitizedName = block.Name; }
+
                 if (block.Count == 1)
                 {
                     // Single count block
-                    Console.Write("            length += " + block.Name + ".Length;");
+                    Console.Write("            length += " + sanitizedName + ".Length;");
                 }
             }
             Console.WriteLine(";");
 
             foreach (MapBlock block in packet.Blocks)
             {
+                if (block.Name == "Header") { sanitizedName = "_" + block.Name; }
+                else { sanitizedName = block.Name; }
+
                 if (block.Count == -1)
                 {
-                    Console.WriteLine("            for (int j = 0; j < " + block.Name + 
-                        ".Length; j++) { length += " + block.Name + "[j].Length; }");
+                    Console.WriteLine("            for (int j = 0; j < " + sanitizedName +
+                        ".Length; j++) { length += " + sanitizedName + "[j].Length; }");
                 }
                 else if (block.Count > 1)
                 {
-                    Console.WriteLine("            for (int j = 0; j < " + block.Count + 
-                        "; j++) { length += " + block.Name + "[j].Length; }");
+                    Console.WriteLine("            for (int j = 0; j < " + block.Count +
+                        "; j++) { length += " + sanitizedName + "[j].Length; }");
                 }
             }
 
@@ -553,22 +574,25 @@ namespace mapgenerator
             Console.WriteLine("            header.ToBytes(bytes, ref i);");
             foreach (MapBlock block in packet.Blocks)
             {
+                if (block.Name == "Header") { sanitizedName = "_" + block.Name; }
+                else { sanitizedName = block.Name; }
+
                 if (block.Count == -1)
                 {
                     // Variable count block
-                    Console.WriteLine("            bytes[i++] = (byte)" + block.Name + ".Length;");
-                    Console.WriteLine("            for (int j = 0; j < " + block.Name +
-                        ".Length; j++) { " + block.Name + "[j].ToBytes(bytes, ref i); }");
+                    Console.WriteLine("            bytes[i++] = (byte)" + sanitizedName + ".Length;");
+                    Console.WriteLine("            for (int j = 0; j < " + sanitizedName +
+                        ".Length; j++) { " + sanitizedName + "[j].ToBytes(bytes, ref i); }");
                 }
                 else if (block.Count == 1)
                 {
-                    Console.WriteLine("            " + block.Name + ".ToBytes(bytes, ref i);");
+                    Console.WriteLine("            " + sanitizedName + ".ToBytes(bytes, ref i);");
                 }
                 else
                 {
                     // Multiple count block
-                    Console.WriteLine("            for (int j = 0; j < " + block.Count + 
-                        "; j++) { " + block.Name + "[j].ToBytes(bytes, ref i); }");
+                    Console.WriteLine("            for (int j = 0; j < " + block.Count +
+                        "; j++) { " + sanitizedName + "[j].ToBytes(bytes, ref i); }");
                 }
             }
 
@@ -621,8 +645,8 @@ namespace mapgenerator
                 "        public static Packet BuildPacket(byte[] bytes, ref int packetEnd)\n" +
                 "        {\n            ushort id;\n            int i = 0;\n" +
                 "            Header header = Header.BuildHeader(bytes, ref i, ref packetEnd);\n" +
-                "            if ((bytes[0] & Helpers.MSG_ZEROCODED) != 0)\n            {\n" +
-                "                byte[] zeroBuffer = new byte[4096];\n" +
+                "            if (header.Zerocoded)\n            {\n" +
+                "                byte[] zeroBuffer = new byte[8192];\n" +
                 "                packetEnd = Helpers.ZeroDecode(bytes, packetEnd + 1, zeroBuffer) - 1;\n" +
                 "                bytes = zeroBuffer;\n            }\n\n" + 
                 "            if (bytes[4] == 0xFF)\n            {\n" +

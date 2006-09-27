@@ -94,13 +94,15 @@ namespace libsecondlife.Packets
             {
                 try
                 {
-                    int count = bytes[packetEnd];
+                    int count = bytes[packetEnd--];
                     AckList = new uint[count];
                     
                     for (int i = 0; i < count; i++)
                     {
-                        AckList[i] = (ushort)(bytes[(packetEnd - i * 4) - 1] | (bytes[packetEnd - i * 4] << 8));
+                        AckList[i] = (ushort)((bytes[(packetEnd - i * 4) - 1] << 8) | (bytes[packetEnd - i * 4]));
                     }
+
+                    packetEnd -= (count * 4);
                 }
                 catch (Exception)
                 {
@@ -834,9 +836,9 @@ namespace libsecondlife.Packets
             ushort id;
             int i = 0;
             Header header = Header.BuildHeader(bytes, ref i, ref packetEnd);
-            if ((bytes[0] & Helpers.MSG_ZEROCODED) != 0)
+            if (header.Zerocoded)
             {
-                byte[] zeroBuffer = new byte[4096];
+                byte[] zeroBuffer = new byte[8192];
                 packetEnd = Helpers.ZeroDecode(bytes, packetEnd + 1, zeroBuffer) - 1;
                 bytes = zeroBuffer;
             }
