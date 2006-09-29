@@ -207,11 +207,69 @@ namespace libsecondlife
         /// <summary>
         /// Convert a variable length field (byte array) to a string
         /// </summary>
+        /// <remarks>If the byte array has unprintable characters in it, a 
+        /// hex dump will be put in the string instead</remarks>
         /// <param name="bytes">The byte array to convert to a string</param>
         /// <returns>A UTF8 string, minus the null terminator</returns>
         public static string FieldToString(byte[] bytes)
         {
-            return System.Text.Encoding.UTF8.GetString(bytes).Replace("\0", "");
+            bool printable = true;
+
+            for (int i = 0; i < bytes.Length; ++i)
+            {
+                // Check if there are any unprintable characters in the array
+                if ((bytes[i] < 0x20 || bytes[i] > 0x7E) && bytes[i] != 0x09
+                    && bytes[i] != 0x0D && bytes[i] != 0x0A && bytes[i] != 0x00)
+                {
+                    printable = false;
+                }
+            }
+
+            if (printable)
+            {
+                return System.Text.Encoding.UTF8.GetString(bytes).Replace("\0", "");
+            }
+            else
+            {
+                string output = "";
+
+                for (int i = 0; i < bytes.Length; i += 16)
+                {
+                    if (i != 0) { output += "\n"; }
+
+                    for (int j = 0; j < 16; j++)
+                    {
+                        if ((i + j) < bytes.Length)
+                        {
+                            string s = String.Format("{0:X} ", bytes[i + j]);
+                            if (s.Length == 2)
+                            {
+                                s = "0" + s;
+                            }
+
+                            output += s;
+                        }
+                        else
+                        {
+                            output += "   ";
+                        }
+                    }
+
+                    for (int j = 0; j < 16 && (i + j) < bytes.Length; j++)
+                    {
+                        if (bytes[i + j] >= 0x20 && bytes[i + j] < 0x7E)
+                        {
+                            output += (char)bytes[i + j];
+                        }
+                        else
+                        {
+                            output += ".";
+                        }
+                    }
+                }
+
+                return output;
+            }
         }
 
         /// <summary>
@@ -223,6 +281,12 @@ namespace libsecondlife
         {
             if (!str.EndsWith("\0")) { str += "\0"; }
             return System.Text.UTF8Encoding.UTF8.GetBytes(str);
+        }
+
+        public static int GetUnixTime()
+        {
+            TimeSpan ts = (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0));
+            return (int)ts.TotalSeconds;
         }
 
         /// <summary>
