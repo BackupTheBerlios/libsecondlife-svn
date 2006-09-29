@@ -47,11 +47,9 @@
         <csc target="library" output="../bin/libsecondlife.dll" doc="../bin/libsecondlife.xml" debug="${build.debug}">
             <sources> 
 		<include name="*.cs" /> 
-                <include name="AssetSystem/*.cs" />
-                <include name="InventorySystem/*.cs" />
+                <!-- <include name="AssetSystem/*.cs" /> -->
+                <!-- <include name="InventorySystem/*.cs" /> -->
                 <include name="JSON/*.cs" />
-                <include name="Packets/*.cs" />
-                <include name="Utils/*.cs" />
                 <include name="XmlRpcCS/*.cs" />
 	     </sources>
         </csc>

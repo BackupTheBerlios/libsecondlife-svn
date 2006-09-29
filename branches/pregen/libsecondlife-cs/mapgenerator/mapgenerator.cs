@@ -66,11 +66,13 @@ namespace mapgenerator
             }
             if (field.Type != FieldType.Variable)
             {
+                Console.WriteLine("            /// <summary>" + field.Name + " field</summary>");
                 Console.WriteLine("            public " + type + " " + field.Name + ";");
             }
             else
             {
                 Console.WriteLine("            private byte[] _" + field.Name.ToLower() + ";");
+                Console.WriteLine("            /// <summary>" + field.Name + " field</summary>");
                 Console.WriteLine("            public byte[] " + field.Name + "\n            {");
                 Console.WriteLine("                get { return _" + field.Name.ToLower() + "; }");
                 Console.WriteLine("                set\n                {");
@@ -310,6 +312,7 @@ namespace mapgenerator
             bool variableFields = false;
             bool floatFields = false;
 
+            Console.WriteLine("        /// <summary>" + block.Name + " block</summary>");
             Console.WriteLine("        public class " + block.Name + "Block\n        {");
 
             foreach (MapField field in block.Fields)
@@ -321,7 +324,9 @@ namespace mapgenerator
             }
 
             // Length property
-            Console.WriteLine("\n            public int Length\n            {\n                get\n" +
+            Console.WriteLine("");
+            Console.WriteLine("            /// <summary>Length of this block serialized in bytes</summary>");
+            Console.WriteLine("            public int Length\n            {\n                get\n" +
                 "                {");
             int length = 0;
             foreach (MapField field in block.Fields)
@@ -341,9 +346,11 @@ namespace mapgenerator
             Console.WriteLine("                    return length;\n                }\n            }\n");
 
             // Default constructor
+            Console.WriteLine("            /// <summary>Default constructor</summary>");
             Console.WriteLine("            public " + block.Name + "Block() { }");
 
             // Constructor for building the class from bytes
+            Console.WriteLine("            /// <summary>Constructor for building the block from a byte array</summary>");
             Console.WriteLine("            public " + block.Name + "Block(byte[] bytes, ref int i)" +
                 "\n            {");
 
@@ -363,6 +370,7 @@ namespace mapgenerator
                 "                }\n            }\n");
 
             // ToBytes() function
+            Console.WriteLine("            /// <summary>Serialize this block to a byte array</summary>");
             Console.WriteLine("            public void ToBytes(byte[] bytes, ref int i)\n            {");
 
             // Declare a byte[] variable if we need it for floating point field conversions
@@ -380,6 +388,7 @@ namespace mapgenerator
         {
             string sanitizedName;
 
+            Console.WriteLine("    /// <summary>" + packet.Name + " packet</summary>");
             Console.WriteLine("    public class " + packet.Name + "Packet : Packet\n    {");
 
             // Write out each block class
@@ -390,19 +399,22 @@ namespace mapgenerator
 
             // Header member
             Console.WriteLine("        private Header header;");
+            Console.WriteLine("        /// <summary>The header for this packet</summary>");
             Console.WriteLine("        public override Header Header { get { return header; } set { header = value; } }");
 
             // PacketType member
+            Console.WriteLine("        /// <summary>Will return PacketType." + packet.Name+ "</summary>");
             Console.WriteLine("        public override PacketType Type { get { return PacketType." + 
                 packet.Name + "; } }");
 
             // Block members
             foreach (MapBlock block in packet.Blocks)
             {
-                // TODO: This is such a weak hack
+                // TODO: More thorough name blacklisting
                 if (block.Name == "Header") { sanitizedName = "_" + block.Name; }
                 else { sanitizedName = block.Name; }
 
+                Console.WriteLine("        /// <summary>" + block.Name + " block</summary>");
                 Console.WriteLine("        public " + block.Name + "Block" +
                     ((block.Count != 1) ? "[]" : "") + " " + sanitizedName + ";");
             }
@@ -410,6 +422,7 @@ namespace mapgenerator
             Console.WriteLine("");
 
             // Default constructor
+            Console.WriteLine("        /// <summary>Default constructor</summary>");
             Console.WriteLine("        public " + packet.Name + "Packet()\n        {");
             Console.WriteLine("            Header = new " + packet.Frequency.ToString() + "Header();");
             Console.WriteLine("            Header.ID = " + packet.ID + ";");
@@ -441,6 +454,7 @@ namespace mapgenerator
 
             // Constructor that takes a byte array and beginning position only (no prebuilt header)
             bool seenVariable = false;
+            Console.WriteLine("        /// <summary>Constructor that takes a byte array and beginning position (no prebuilt header)</summary>");
             Console.WriteLine("        public " + packet.Name + "Packet(byte[] bytes, ref int i)\n        {");
             Console.WriteLine("            int packetEnd = bytes.Length - 1;");
             Console.WriteLine("            Header = new " + packet.Frequency.ToString() + 
@@ -487,10 +501,9 @@ namespace mapgenerator
             seenVariable = false;
 
             // Constructor that takes a byte array and a prebuilt header
-            Console.WriteLine("        public " + packet.Name + 
-                "Packet(Header head, byte[] bytes, ref int i)\n        {");
+            Console.WriteLine("        /// <summary>Constructor that takes a byte array and a prebuilt header</summary>");
+            Console.WriteLine("        public " + packet.Name + "Packet(Header head, byte[] bytes, ref int i)\n        {");
             Console.WriteLine("            Header = head;");
-            Console.WriteLine("            int packetEnd = bytes.Length - 1;");
             foreach (MapBlock block in packet.Blocks)
             {
                 if (block.Name == "Header") { sanitizedName = "_" + block.Name; }
@@ -531,6 +544,7 @@ namespace mapgenerator
             Console.WriteLine("        }\n");
 
             // ToBytes() function
+            Console.WriteLine("        /// <summary>Serialize this packet to a byte array</summary><returns>A byte array containing the serialized packet</returns>");
             Console.WriteLine("        public override byte[] ToBytes()\n        {");
 
             Console.Write("            int length = ");
@@ -617,6 +631,7 @@ namespace mapgenerator
             {
                 if (packet != null)
                 {
+                    Console.WriteLine("        /// <summary>" + packet.Name + "</summary>");
                     Console.WriteLine("        " + packet.Name + ",");
                 }
             }
@@ -624,6 +639,7 @@ namespace mapgenerator
             {
                 if (packet != null)
                 {
+                    Console.WriteLine("        /// <summary>" + packet.Name + "</summary>");
                     Console.WriteLine("        " + packet.Name + ",");
                 }
             }
@@ -631,17 +647,28 @@ namespace mapgenerator
             {
                 if (packet != null)
                 {
+                    Console.WriteLine("        /// <summary>" + packet.Name + "</summary>");
                     Console.WriteLine("        " + packet.Name + ",");
                 }
             }
             Console.WriteLine("    }\n");
 
             // Write the base Packet class
-            Console.WriteLine("    public abstract class Packet\n    {\n" + 
+            Console.WriteLine("    /// <summary>Base class for all packet classes</summary>\n" +
+                "    public abstract class Packet\n    {\n" + 
+                "        /// <summary>Either a LowHeader, MediumHeader, or HighHeader representing the first bytes of the packet</summary>\n" +
                 "        public abstract Header Header { get; set; }\n" +
+                "        /// <summary>The type of this packet, identified by it's frequency and ID</summary>\n" +
                 "        public abstract PacketType Type { get; }\n" +
+                "        /// <summary>Used internally to track timeouts, do not use</summary>\n" +
                 "        public int TickCount;\n\n" +
+                "        /// <summary>Serializes the packet in to a byte array</summary>\n" +
+                "        /// <returns>A byte array containing the serialized packet payload, ready to be sent across the wire</returns>\n" +
                 "        public abstract byte[] ToBytes();\n\n" +
+                "        /// <summary>Construct a packet in it's native class from a byte array</summary>\n" +
+                "        /// <param name=\"bytes\">Byte array containing the packet, starting at position 0</param>\n" +
+                "        /// <param name=\"packetEnd\">The last byte of the packet. If the packet was 76 bytes long, packetEnd would be 75</param>\n" +
+                "        /// <returns>The native packet class for this type of packet, typecasted to the generic Packet</returns>\n" +
                 "        public static Packet BuildPacket(byte[] bytes, ref int packetEnd)\n" +
                 "        {\n            ushort id;\n            int i = 0;\n" +
                 "            Header header = Header.BuildHeader(bytes, ref i, ref packetEnd);\n" +
