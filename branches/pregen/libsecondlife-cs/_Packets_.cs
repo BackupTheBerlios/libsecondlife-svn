@@ -29,10 +29,20 @@ using libsecondlife;
 
 namespace libsecondlife.Packets
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class MalformedDataException : ApplicationException
     {
+        /// <summary>
+        /// 
+        /// </summary>
         public MalformedDataException() { }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="Message"></param>
         public MalformedDataException(string Message)
             : base(Message)
         {
@@ -40,44 +50,63 @@ namespace libsecondlife.Packets
         }
     }
     
+    /// <summary>
+    /// 
+    /// </summary>
     public abstract class Header
     {
+        /// <summary></summary>
         public byte[] Data;
+        /// <summary></summary>
         public byte Flags
         {
             get { return Data[0]; }
             set { Data[0] = value; }
         }
+        /// <summary></summary>
         public bool Reliable
         {
             get { return (Data[0] & Helpers.MSG_RELIABLE) != 0; }
             set { if (value) { Data[0] += (byte)Helpers.MSG_RELIABLE; } else { Data[0] -= (byte)Helpers.MSG_RELIABLE; } }
         }
+        /// <summary></summary>
         public bool Resent
         {
             get { return (Data[0] & Helpers.MSG_RESENT) != 0; }
             set { if (value) { Data[0] += (byte)Helpers.MSG_RESENT; } else { Data[0] -= (byte)Helpers.MSG_RESENT; } }
         }
+        /// <summary></summary>
         public bool Zerocoded
         {
             get { return (Data[0] & Helpers.MSG_ZEROCODED) != 0; }
             set { if (value) { Data[0] += (byte)Helpers.MSG_ZEROCODED; } else { Data[0] -= (byte)Helpers.MSG_ZEROCODED; } }
         }
+        /// <summary></summary>
         public bool AppendedAcks
         {
             get { return (Data[0] & Helpers.MSG_APPENDED_ACKS) != 0; }
             set { if (value) { Data[0] += (byte)Helpers.MSG_APPENDED_ACKS; } else { Data[0] -= (byte)Helpers.MSG_APPENDED_ACKS; } }
         }
+        /// <summary></summary>
         public ushort Sequence
         {
             get { return (ushort)((Data[2] << 8) + Data[3]); }
             set { Data[2] = (byte)(value >> 8); Data[3] = (byte)(value % 256); }
         }
+        /// <summary></summary>
         public abstract ushort ID { get; set; }
+        /// <summary></summary>
         public abstract PacketFrequency Frequency { get; }
+        /// <summary></summary>
         public abstract void ToBytes(byte[] bytes, ref int i);
+        /// <summary></summary>
         public uint[] AckList;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <param name="i"></param>
         public void AcksToBytes(byte[] bytes, ref int i)
         {
             foreach (uint ack in AckList)
@@ -87,7 +116,38 @@ namespace libsecondlife.Packets
             }
             if (AckList.Length > 0) { bytes[i++] = (byte)AckList.Length; }
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <param name="pos"></param>
+        /// <param name="packetEnd"></param>
+        /// <returns></returns>
+        public static Header BuildHeader(byte[] bytes, ref int pos, ref int packetEnd)
+        {
+            if (bytes[4] == 0xFF)
+            {
+                if (bytes[5] == 0xFF)
+                {
+                    return new LowHeader(bytes, ref pos, ref packetEnd);
+                }
+                else
+                {
+                    return new MediumHeader(bytes, ref pos, ref packetEnd);
+                }
+            }
+            else
+            {
+                return new HighHeader(bytes, ref pos, ref packetEnd);
+            }
+        }
         
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <param name="packetEnd"></param>
         protected void CreateAckList(byte[] bytes, ref int packetEnd)
         {
             if (AppendedAcks)
@@ -115,36 +175,25 @@ namespace libsecondlife.Packets
                 AckList = new uint[0];
             }
         }
-
-        public static Header BuildHeader(byte[] bytes, ref int pos, ref int packetEnd)
-        {
-            if (bytes[4] == 0xFF)
-            {
-                if (bytes[5] == 0xFF)
-                {
-                    return new LowHeader(bytes, ref pos, ref packetEnd);
-                }
-                else
-                {
-                    return new MediumHeader(bytes, ref pos, ref packetEnd);
-                }
-            }
-            else
-            {
-                return new HighHeader(bytes, ref pos, ref packetEnd);
-            }
-        }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class LowHeader : Header
     {
+        /// <summary></summary>
         public override ushort ID
         {
             get { return (ushort)((Data[6] << 8) + Data[7]); }
             set { Data[6] = (byte)(value >> 8); Data[7] = (byte)(value % 256); }
         }
+        /// <summary></summary>
         public override PacketFrequency Frequency { get { return PacketFrequency.Low; } }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public LowHeader()
         {
             Data = new byte[8];
@@ -152,6 +201,12 @@ namespace libsecondlife.Packets
             AckList = new uint[0];
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <param name="pos"></param>
+        /// <param name="packetEnd"></param>
         public LowHeader(byte[] bytes, ref int pos, ref int packetEnd)
         {
             if (bytes.Length < 8) { throw new MalformedDataException(); }
@@ -174,6 +229,11 @@ namespace libsecondlife.Packets
             CreateAckList(bytes, ref packetEnd);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <param name="i"></param>
         public override void ToBytes(byte[] bytes, ref int i)
         {
             Array.Copy(Data, 0, bytes, i, 8);
@@ -181,15 +241,23 @@ namespace libsecondlife.Packets
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class MediumHeader : Header
     {
+        /// <summary></summary>
         public override ushort ID
         {
             get { return (ushort)Data[5]; }
             set { Data[5] = (byte)value; }
         }
+        /// <summary></summary>
         public override PacketFrequency Frequency { get { return PacketFrequency.Medium; } }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public MediumHeader()
         {
             Data = new byte[6];
@@ -197,6 +265,12 @@ namespace libsecondlife.Packets
             AckList = new uint[0];
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <param name="pos"></param>
+        /// <param name="packetEnd"></param>
         public MediumHeader(byte[] bytes, ref int pos, ref int packetEnd)
         {
             if (bytes.Length < 6) { throw new MalformedDataException(); }
@@ -206,6 +280,11 @@ namespace libsecondlife.Packets
             CreateAckList(bytes, ref packetEnd);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <param name="i"></param>
         public override void ToBytes(byte[] bytes, ref int i)
         {
             Array.Copy(Data, 0, bytes, i, 6);
@@ -213,21 +292,35 @@ namespace libsecondlife.Packets
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class HighHeader : Header
     {
+        /// <summary></summary>
         public override ushort ID
         {
             get { return (ushort)Data[4]; }
             set { Data[4] = (byte)value; }
         }
+        /// <summary></summary>
         public override PacketFrequency Frequency { get { return PacketFrequency.High; } }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public HighHeader()
         {
             Data = new byte[5];
             AckList = new uint[0];
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <param name="pos"></param>
+        /// <param name="packetEnd"></param>
         public HighHeader(byte[] bytes, ref int pos, ref int packetEnd)
         {
             if (bytes.Length < 5) { throw new MalformedDataException(); }
@@ -237,6 +330,11 @@ namespace libsecondlife.Packets
             CreateAckList(bytes, ref packetEnd);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <param name="i"></param>
         public override void ToBytes(byte[] bytes, ref int i)
         {
             Array.Copy(Data, 0, bytes, i, 5);
@@ -244,8 +342,12 @@ namespace libsecondlife.Packets
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public enum PacketType
     {
+        /// <summary>A generic value, not an actual packet type</summary>
         Default,
         /// <summary>TestMessage</summary>
         TestMessage,
@@ -6819,8 +6921,6 @@ namespace libsecondlife.Packets
             }
             /// <summary>AgentPosition field</summary>
             public LLVector3 AgentPosition;
-            /// <summary>ReportType field</summary>
-            public byte ReportType;
             /// <summary>Category field</summary>
             public byte Category;
             /// <summary>OwnerID field</summary>
@@ -6841,6 +6941,8 @@ namespace libsecondlife.Packets
             }
             /// <summary>ReporterID field</summary>
             public LLUUID ReporterID;
+            /// <summary>ReportType field</summary>
+            public byte ReportType;
             /// <summary>ScreenshotID field</summary>
             public LLUUID ScreenshotID;
             /// <summary>LastOwnerID field</summary>
@@ -6881,7 +6983,6 @@ namespace libsecondlife.Packets
                     _versionstring = new byte[length];
                     Array.Copy(bytes, i, _versionstring, 0, length); i += length;
                     AgentPosition = new LLVector3(bytes, i); i += 12;
-                    ReportType = (byte)bytes[i++];
                     Category = (byte)bytes[i++];
                     OwnerID = new LLUUID(bytes, i); i += 16;
                     CreatorID = new LLUUID(bytes, i); i += 16;
@@ -6889,6 +6990,7 @@ namespace libsecondlife.Packets
                     _summary = new byte[length];
                     Array.Copy(bytes, i, _summary, 0, length); i += length;
                     ReporterID = new LLUUID(bytes, i); i += 16;
+                    ReportType = (byte)bytes[i++];
                     ScreenshotID = new LLUUID(bytes, i); i += 16;
                     LastOwnerID = new LLUUID(bytes, i); i += 16;
                     ViewerPosition = new LLVector3(bytes, i); i += 12;
@@ -6911,13 +7013,13 @@ namespace libsecondlife.Packets
                 bytes[i++] = (byte)VersionString.Length;
                 Array.Copy(VersionString, 0, bytes, i, VersionString.Length); i += VersionString.Length;
                 Array.Copy(AgentPosition.GetBytes(), 0, bytes, i, 12); i += 12;
-                bytes[i++] = ReportType;
                 bytes[i++] = Category;
                 Array.Copy(OwnerID.GetBytes(), 0, bytes, i, 16); i += 16;
                 Array.Copy(CreatorID.GetBytes(), 0, bytes, i, 16); i += 16;
                 bytes[i++] = (byte)Summary.Length;
                 Array.Copy(Summary, 0, bytes, i, Summary.Length); i += Summary.Length;
                 Array.Copy(ReporterID.GetBytes(), 0, bytes, i, 16); i += 16;
+                bytes[i++] = ReportType;
                 Array.Copy(ScreenshotID.GetBytes(), 0, bytes, i, 16); i += 16;
                 Array.Copy(LastOwnerID.GetBytes(), 0, bytes, i, 16); i += 16;
                 Array.Copy(ViewerPosition.GetBytes(), 0, bytes, i, 12); i += 12;
@@ -29320,8 +29422,6 @@ namespace libsecondlife.Packets
             }
             /// <summary>CheckFlags field</summary>
             public byte CheckFlags;
-            /// <summary>ReportType field</summary>
-            public byte ReportType;
             /// <summary>Category field</summary>
             public byte Category;
             private byte[] _summary;
@@ -29338,6 +29438,8 @@ namespace libsecondlife.Packets
             }
             /// <summary>ReporterID field</summary>
             public LLUUID ReporterID;
+            /// <summary>ReportType field</summary>
+            public byte ReportType;
             /// <summary>ScreenshotID field</summary>
             public LLUUID ScreenshotID;
             /// <summary>Position field</summary>
@@ -29372,12 +29474,12 @@ namespace libsecondlife.Packets
                     _versionstring = new byte[length];
                     Array.Copy(bytes, i, _versionstring, 0, length); i += length;
                     CheckFlags = (byte)bytes[i++];
-                    ReportType = (byte)bytes[i++];
                     Category = (byte)bytes[i++];
                     length = (ushort)bytes[i++];
                     _summary = new byte[length];
                     Array.Copy(bytes, i, _summary, 0, length); i += length;
                     ReporterID = new LLUUID(bytes, i); i += 16;
+                    ReportType = (byte)bytes[i++];
                     ScreenshotID = new LLUUID(bytes, i); i += 16;
                     Position = new LLVector3(bytes, i); i += 12;
                 }
@@ -29397,11 +29499,11 @@ namespace libsecondlife.Packets
                 bytes[i++] = (byte)VersionString.Length;
                 Array.Copy(VersionString, 0, bytes, i, VersionString.Length); i += VersionString.Length;
                 bytes[i++] = CheckFlags;
-                bytes[i++] = ReportType;
                 bytes[i++] = Category;
                 bytes[i++] = (byte)Summary.Length;
                 Array.Copy(Summary, 0, bytes, i, Summary.Length); i += Summary.Length;
                 Array.Copy(ReporterID.GetBytes(), 0, bytes, i, 16); i += 16;
+                bytes[i++] = ReportType;
                 Array.Copy(ScreenshotID.GetBytes(), 0, bytes, i, 16); i += 16;
                 Array.Copy(Position.GetBytes(), 0, bytes, i, 12); i += 12;
             }
@@ -79768,8 +79870,6 @@ namespace libsecondlife.Packets
             public uint RequestFlags;
             /// <summary>ReportType field</summary>
             public uint ReportType;
-            /// <summary>ParcelLocalID field</summary>
-            public int ParcelLocalID;
             private byte[] _filter;
             /// <summary>Filter field</summary>
             public byte[] Filter
@@ -79782,6 +79882,8 @@ namespace libsecondlife.Packets
                     else { _filter = new byte[value.Length]; Array.Copy(value, _filter, value.Length); }
                 }
             }
+            /// <summary>ParcelLocalID field</summary>
+            public int ParcelLocalID;
 
             /// <summary>Length of this block serialized in bytes</summary>
             public int Length
@@ -79804,10 +79906,10 @@ namespace libsecondlife.Packets
                 {
                     RequestFlags = (uint)(bytes[i++] + (bytes[i++] << 8) + (bytes[i++] << 16) + (bytes[i++] << 24));
                     ReportType = (uint)(bytes[i++] + (bytes[i++] << 8) + (bytes[i++] << 16) + (bytes[i++] << 24));
-                    ParcelLocalID = (int)(bytes[i++] + (bytes[i++] << 8) + (bytes[i++] << 16) + (bytes[i++] << 24));
                     length = (ushort)bytes[i++];
                     _filter = new byte[length];
                     Array.Copy(bytes, i, _filter, 0, length); i += length;
+                    ParcelLocalID = (int)(bytes[i++] + (bytes[i++] << 8) + (bytes[i++] << 16) + (bytes[i++] << 24));
                 }
                 catch (Exception)
                 {
@@ -79826,12 +79928,12 @@ namespace libsecondlife.Packets
                 bytes[i++] = (byte)((ReportType >> 8) % 256);
                 bytes[i++] = (byte)((ReportType >> 16) % 256);
                 bytes[i++] = (byte)((ReportType >> 24) % 256);
+                bytes[i++] = (byte)Filter.Length;
+                Array.Copy(Filter, 0, bytes, i, Filter.Length); i += Filter.Length;
                 bytes[i++] = (byte)(ParcelLocalID % 256);
                 bytes[i++] = (byte)((ParcelLocalID >> 8) % 256);
                 bytes[i++] = (byte)((ParcelLocalID >> 16) % 256);
                 bytes[i++] = (byte)((ParcelLocalID >> 24) % 256);
-                bytes[i++] = (byte)Filter.Length;
-                Array.Copy(Filter, 0, bytes, i, Filter.Length); i += Filter.Length;
             }
         }
 

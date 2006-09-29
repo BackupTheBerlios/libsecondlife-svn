@@ -163,7 +163,7 @@ namespace libsecondlife
                         prim.Rotation.X * prim.Rotation.X -
                         prim.Rotation.Y * prim.Rotation.Y -
                         prim.Rotation.Z * prim.Rotation.Z;
-                    prim.Rotation.S = (xyzsum > 0.0F) ? (float)Math.Sqrt(xyzsum) : 0.0F;
+                    prim.Rotation.W = (xyzsum > 0.0F) ? (float)Math.Sqrt(xyzsum) : 0.0F;
                     // TODO: Parse the rest of the ObjectData byte array fields
 
                     prim.LocalID = block.ID;
@@ -239,7 +239,7 @@ namespace libsecondlife
                         avatar.Rotation.X * avatar.Rotation.X -
                         avatar.Rotation.Y * avatar.Rotation.Y -
                         avatar.Rotation.Z * avatar.Rotation.Z;
-                    avatar.Rotation.S = (xyzsum > 0.0F) ? (float)Math.Sqrt(xyzsum) : 0.0F;
+                    avatar.Rotation.W = (xyzsum > 0.0F) ? (float)Math.Sqrt(xyzsum) : 0.0F;
                     // TODO: Parse the rest of the ObjectData byte array fields
 
                     ParseAvName(Helpers.FieldToString(block.NameValue), ref FirstName, ref LastName, ref GroupName);

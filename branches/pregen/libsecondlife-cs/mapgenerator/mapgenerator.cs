@@ -619,15 +619,19 @@ namespace mapgenerator
 
         static void Main(string[] args)
         {
-            SecondLife libsl = new SecondLife("keywords.txt", "message_template.msg");
+            SecondLife libsl = new SecondLife();
+            ProtocolManager protocol = new ProtocolManager("keywords.txt", "message_template.msg", libsl);
 
             TextReader reader = new StreamReader("template.cs");
             Console.WriteLine(reader.ReadToEnd());
             reader.Close();
 
             // Write the PacketType enum
-            Console.WriteLine("    public enum PacketType\n    {\n        Default,");
-            foreach (MapPacket packet in libsl.Protocol.LowMaps)
+            Console.WriteLine("    <summary>Used to identify the type of a packet</summary>");
+            Console.WriteLine("    public enum PacketType\n    {\n" +
+                "        /// <summary>A generic value, not an actual packet type</summary>\n" +
+                "        Default,");
+            foreach (MapPacket packet in protocol.LowMaps)
             {
                 if (packet != null)
                 {
@@ -635,7 +639,7 @@ namespace mapgenerator
                     Console.WriteLine("        " + packet.Name + ",");
                 }
             }
-            foreach (MapPacket packet in libsl.Protocol.MediumMaps)
+            foreach (MapPacket packet in protocol.MediumMaps)
             {
                 if (packet != null)
                 {
@@ -643,7 +647,7 @@ namespace mapgenerator
                     Console.WriteLine("        " + packet.Name + ",");
                 }
             }
-            foreach (MapPacket packet in libsl.Protocol.HighMaps)
+            foreach (MapPacket packet in protocol.HighMaps)
             {
                 if (packet != null)
                 {
@@ -680,7 +684,7 @@ namespace mapgenerator
                 "                if (bytes[5] == 0xFF)\n                {\n" +
                 "                    id = (ushort)((bytes[6] << 8) + bytes[7]);\n" +
                 "                    switch (id)\n                    {");
-            foreach (MapPacket packet in libsl.Protocol.LowMaps)
+            foreach (MapPacket packet in protocol.LowMaps)
             {
                 if (packet != null)
                 {
@@ -692,7 +696,7 @@ namespace mapgenerator
             Console.WriteLine("                    }\n                }\n                else\n" +
                 "                {\n                    id = (ushort)bytes[5];\n" +
                 "                    switch (id)\n                    {");
-            foreach (MapPacket packet in libsl.Protocol.MediumMaps)
+            foreach (MapPacket packet in protocol.MediumMaps)
             {
                 if (packet != null)
                 {
@@ -705,7 +709,7 @@ namespace mapgenerator
                 "            else\n            {\n" + 
                 "                id = (ushort)bytes[4];\n" + 
                 "                switch (id)\n                    {");
-            foreach (MapPacket packet in libsl.Protocol.HighMaps)
+            foreach (MapPacket packet in protocol.HighMaps)
             {
                 if (packet != null)
                 {
@@ -719,17 +723,17 @@ namespace mapgenerator
                 "        }\n    }\n");
 
             // Write the packet classes
-            foreach (MapPacket packet in libsl.Protocol.LowMaps)
+            foreach (MapPacket packet in protocol.LowMaps)
             {
                 if (packet != null) { WritePacketClass(packet); }
             }
 
-            foreach (MapPacket packet in libsl.Protocol.MediumMaps)
+            foreach (MapPacket packet in protocol.MediumMaps)
             {
                 if (packet != null) { WritePacketClass(packet); }
             }
 
-            foreach (MapPacket packet in libsl.Protocol.HighMaps)
+            foreach (MapPacket packet in protocol.HighMaps)
             {
                 if (packet != null) { WritePacketClass(packet); }
             }

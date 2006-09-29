@@ -404,21 +404,14 @@ namespace SLAccountant
 		{
 			lstFindMutex = new Mutex(false, "lstFindMutex");
 
-			try
-			{
-				client = new SecondLife("keywords.txt", "message_template.msg");
+			client = new SecondLife();
 
-				// Install our packet handlers
-				//client.Network.RegisterCallback(PacketType.AvatarAppearance, new PacketCallback(AvatarAppearanceHandler));
-				client.Network.RegisterCallback(PacketType.MoneyBalanceReply, new PacketCallback(BalanceHandler));
-                client.Network.RegisterCallback(PacketType.DirPeopleReply, new PacketCallback(DirPeopleHandler));
+			// Install our packet handlers
+			//client.Network.RegisterCallback(PacketType.AvatarAppearance, new PacketCallback(AvatarAppearanceHandler));
+			client.Network.RegisterCallback(PacketType.MoneyBalanceReply, new PacketCallback(BalanceHandler));
+            client.Network.RegisterCallback(PacketType.DirPeopleReply, new PacketCallback(DirPeopleHandler));
 
-				grpLogin.Enabled = true;
-			}
-			catch (Exception error)
-			{
-				MessageBox.Show(this, error.ToString());
-			}
+			grpLogin.Enabled = true;
 		}
 
 		private void cmdConnect_Click(object sender, System.EventArgs e)

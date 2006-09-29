@@ -115,7 +115,6 @@ namespace libsecondlife
         public bool DisconnectCandidate;
         
         private SecondLife Client;
-		private ProtocolManager Protocol;
 		private NetworkManager Network;
 		private Hashtable Callbacks;
 		private ushort Sequence;
@@ -142,7 +141,6 @@ namespace libsecondlife
 			IPAddress ip, int port)
 		{
             Client = client;
-			Protocol = client.Protocol;
 			Network = client.Network;
 			Callbacks = callbacks;
 			Region = new Region(client);
@@ -605,16 +603,14 @@ namespace libsecondlife
 
 		private Hashtable Callbacks;
 		private SecondLife Client;
-		private ProtocolManager Protocol;
 		private ArrayList Simulators;
 		private Mutex SimulatorsMutex;
         private System.Timers.Timer DisconnectTimer;
         private bool connected;
 
-		public NetworkManager(SecondLife client, ProtocolManager protocol)
+		public NetworkManager(SecondLife client)
 		{
 			Client = client;
-			Protocol = protocol;
 			Simulators = new ArrayList();
 			SimulatorsMutex = new Mutex(true, "SimulatorsMutex");
 			Callbacks = new Hashtable();
@@ -783,7 +779,7 @@ namespace libsecondlife
 			LLVector3d vector = null;
 			LLVector3d posVector = null;
 			LLVector3d lookatVector = null;
-			U64 regionHandle = null;
+            ulong regionHandle = 0;
 
 			if (LoginValues.Contains("look_at"))
 			{
@@ -823,9 +819,10 @@ namespace libsecondlife
 				lookatVector = new LLVector3d(Convert.ToDouble(array[0]), 
 					Convert.ToDouble(array[1]), Convert.ToDouble(array[2]));
 
-				// Create the regionhandle U64
+				// Create the regionhandle
 				array = (JSONArray)jsonObject["region_handle"];
-				regionHandle = new U64((int)array[0], (int)array[1]);
+                // FIXME: Helpers function needed
+				//regionHandle = new U64((int)array[0], (int)array[1]);
 
 				// Create a hashtable to hold the home values
 				home = new Hashtable();

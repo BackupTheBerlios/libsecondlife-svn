@@ -40,7 +40,7 @@ namespace libsecondlife
         public LLUUID ID;
         public LLUUID OwnerID;
         public LLUUID SnapshotID;
-        public U64 RegionHandle;
+        public ulong RegionHandle;
         public string Name;
         public string SimName;
         public string Desc;
@@ -181,7 +181,7 @@ namespace libsecondlife
             request.Data.LocalID = LocalID;
             request.Data.ParcelID = new LLUUID();
 
-            Sim.SendPacket(request, true);
+            Sim.SendPacket((Packet)request, true);
         }
 
         public bool Buy(SecondLife client, bool forGroup, LLUUID groupID)
@@ -455,7 +455,7 @@ namespace libsecondlife
             //    }
             //}
 
-            ///* Mark this area as downloaded */
+            //// Mark this area as downloaded
             //int x, y, index, subindex;
             //byte val;
 
@@ -476,7 +476,7 @@ namespace libsecondlife
             //    }
             //}
 
-            ///* Fire off the next request, if we are downloading the whole sim */
+            //// Fire off the next request, if we are downloading the whole sim
             //bool hasTriggered = false;
             //if (simulator.Region.ParcelDownloading == true)
             //{
@@ -600,7 +600,8 @@ namespace libsecondlife
             handleX *= 256;
             uint handleY = (uint)Math.Floor(ParcelInfoParcel.GlobalPosition.Y / 256.0F);
             handleY *= 256;
-            ParcelInfoParcel.RegionHandle = new U64(handleX, handleY);
+            // FIXME: Helpers function needed
+            //ParcelInfoParcel.RegionHandle = new U64(handleX, handleY);
 
             // Get SimPosition from GlobalX/GlobalY and RegionHandle
             ParcelInfoParcel.SimPosition.X = ParcelInfoParcel.GlobalPosition.X - (float)handleX;

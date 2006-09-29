@@ -43,7 +43,7 @@ namespace libsecondlife
 		public byte WaterHeight;
 		public byte Agents;
 		public LLUUID MapImageID;
-		public U64 RegionHandle; // Used for teleporting
+		public ulong RegionHandle; // Used for teleporting
 
 		public GridRegion() 
 		{
@@ -126,7 +126,8 @@ namespace libsecondlife
                 region.Agents = block.Agents;
                 region.Access = block.Access;
                 region.MapImageID = block.MapImageID;
-                region.RegionHandle = new U64(region.X * 256,region.Y * 256);
+                // FIXME: We need Helpers.UIntsToLong()
+                //region.RegionHandle = new U64(region.X * 256,region.Y * 256);
 
                 if (region.Name != "" && region.X != 0 && region.Y != 0)
                 {

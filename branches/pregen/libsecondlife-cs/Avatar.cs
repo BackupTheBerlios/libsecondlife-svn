@@ -306,12 +306,12 @@ namespace libsecondlife
             Client.Network.SendPacket((Packet)money);
         }
 
-        public bool Teleport(U64 regionHandle, LLVector3 position)
+        public bool Teleport(ulong regionHandle, LLVector3 position)
         {
             return Teleport(regionHandle, position, new LLVector3(position.X + 1.0F, position.Y, position.Z));
         }
 
-        public bool Teleport(U64 regionHandle, LLVector3 position, LLVector3 lookAt)
+        public bool Teleport(ulong regionHandle, LLVector3 position, LLVector3 lookAt)
         {
             TeleportStatus = 0;
 

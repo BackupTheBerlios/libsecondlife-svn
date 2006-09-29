@@ -33,26 +33,38 @@ namespace libsecondlife
 {
     /// <summary>
     /// Main class to expose Second Life functionality to clients. All of the
-    /// classes are accessible through this class.
+    /// classes needed for sending and receiving data are accessible through 
+    /// this class.
     /// </summary>
     public class SecondLife
     {
-        public ProtocolManager Protocol;
+        /// <summary></summary>
         public NetworkManager Network;
+        /// <summary></summary>
         public ParcelManager Parcels;
+        /// <summary></summary>
         public MainAvatar Avatar;
+        /// <summary></summary>
         public Hashtable Avatars;
+        /// <summary></summary>
         public Mutex AvatarsMutex;
+        /// <summary></summary>
         public Inventory Inventory;
+        /// <summary></summary>
         public Region CurrentRegion;
+        /// <summary></summary>
         public GridManager Grid;
+        /// <summary></summary>
         public ObjectManager Objects;
+        /// <summary></summary>
         public bool Debug;
 
-        public SecondLife(string keywordFile, string mapFile)
+        /// <summary>
+        /// 
+        /// </summary>
+        public SecondLife()
         {
-            Protocol = new ProtocolManager(keywordFile, mapFile, this);
-            Network = new NetworkManager(this, Protocol);
+            Network = new NetworkManager(this);
             Parcels = new ParcelManager(this);
             Avatar = new MainAvatar(this);
             Avatars = new Hashtable();
@@ -66,6 +78,10 @@ namespace libsecondlife
             Network.RegisterCallback(PacketType.UUIDNameReply, new PacketCallback(GetAgentNameHandler));
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             return Avatar.FirstName + " " + Avatar.LastName;
@@ -164,20 +180,27 @@ namespace libsecondlife
     /// </summary>
     public class Helpers
     {
+        /// <summary></summary>
         public readonly static string VERSION = "libsecondlife 0.0.9";
-
+        /// <summary>This header flag signals that ACKs are appended to the packet</summary>
         public const byte MSG_APPENDED_ACKS = 0x10;
+        /// <summary>This header flag signals that this packet has been sent before</summary>
         public const byte MSG_RESENT = 0x20;
+        /// <summary>This header flags signals that an ACK is expected for this packet</summary>
         public const byte MSG_RELIABLE = 0x40;
+        /// <summary>This header flag signals that the message is compressed using zerocoding</summary>
         public const byte MSG_ZEROCODED = 0x80;
-        public const ushort MSG_FREQ_HIGH = 0x0000;
-        public const ushort MSG_FREQ_MED = 0xFF00;
-        public const ushort MSG_FREQ_LOW = 0xFFFF;
 
+        /// <summary>
+        /// 
+        /// </summary>
         public enum LogLevel
         {
+            /// <summary></summary>
             Info,
+            /// <summary></summary>
             Warning,
+            /// <summary></summary>
             Error
         };
 

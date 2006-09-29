@@ -36,67 +36,95 @@ namespace libsecondlife
     /// </summary>
     public class Region
     {
+        /// <summary></summary>
         public LLUUID ID;
-        public U64 Handle;
+        /// <summary></summary>
+        public ulong Handle;
+        /// <summary></summary>
         public string Name;
+        /// <summary></summary>
         public byte[] ParcelOverlay;
+        /// <summary></summary>
         public int ParcelOverlaysReceived;
 
-        public int[,] ParcelMarked; // 64x64 Array of parcels which have been successfully downloaded. (and their LocalID's, 0 = Null)
-        public bool ParcelDownloading; // Flag to indicate whether we are downloading a sim's parcels.
-        public bool ParcelDwell;           // Flag to indicate whether to get Dwell values automatically (NOT USED YET).
-        // Call <parcel>.GetDwell() instead.
+        /// <summary>64x64 Array of parcels which have been successfully downloaded. 
+        /// (and their LocalID's, 0 = Null)</summary>
+        public int[,] ParcelMarked;
+        /// <summary>Flag to indicate whether we are downloading a sim's parcels.</summary>
+        public bool ParcelDownloading;
+        /// <summary>Flag to indicate whether to get Dwell values automatically (NOT USED YET). Call Parcel.GetDwell() instead.</summary>
+        public bool ParcelDwell;
 
+        /// <summary></summary>
         public System.Collections.Hashtable Parcels;
+        /// <summary></summary>
         public System.Threading.Mutex ParcelsMutex;
 
+        /// <summary></summary>
         public float TerrainHeightRange00;
+        /// <summary></summary>
         public float TerrainHeightRange01;
+        /// <summary></summary>
         public float TerrainHeightRange10;
+        /// <summary></summary>
         public float TerrainHeightRange11;
+        /// <summary></summary>
         public float TerrainStartHeight00;
+        /// <summary></summary>
         public float TerrainStartHeight01;
+        /// <summary></summary>
         public float TerrainStartHeight10;
+        /// <summary></summary>
         public float TerrainStartHeight11;
+        /// <summary></summary>
         public float WaterHeight;
 
+        /// <summary></summary>
         public LLUUID SimOwner;
 
+        /// <summary></summary>
         public LLUUID TerrainBase0;
+        /// <summary></summary>
         public LLUUID TerrainBase1;
+        /// <summary></summary>
         public LLUUID TerrainBase2;
+        /// <summary></summary>
         public LLUUID TerrainBase3;
+        /// <summary></summary>
         public LLUUID TerrainDetail0;
+        /// <summary></summary>
         public LLUUID TerrainDetail1;
+        /// <summary></summary>
         public LLUUID TerrainDetail2;
+        /// <summary></summary>
         public LLUUID TerrainDetail3;
 
+        /// <summary></summary>
         public bool IsEstateManager;
+        /// <summary></summary>
         public EstateTools Estate;
 
         private SecondLife Client;
 
+        /// <summary></summary>
         public event ParcelCompleteCallback OnParcelCompletion;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
         public Region(SecondLife client)
         {
             Estate = new EstateTools(client);
             Client = client;
             ID = new LLUUID();
-            Handle = new U64();
-            Name = "";
             ParcelOverlay = new byte[4096];
-            ParcelOverlaysReceived = 0;
-
             ParcelMarked = new int[64, 64];
-            ParcelDownloading = false;
-            ParcelDwell = false;
 
             Parcels = new System.Collections.Hashtable();
             ParcelsMutex = new System.Threading.Mutex(false, "ParcelsMutex");
 
             SimOwner = new LLUUID();
-
             TerrainBase0 = new LLUUID();
             TerrainBase1 = new LLUUID();
             TerrainBase2 = new LLUUID();
@@ -105,11 +133,20 @@ namespace libsecondlife
             TerrainDetail1 = new LLUUID();
             TerrainDetail2 = new LLUUID();
             TerrainDetail3 = new LLUUID();
-
-            IsEstateManager = false;
         }
 
-        public Region(SecondLife client, LLUUID id, U64 handle, string name, float[] heightList,
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="id"></param>
+        /// <param name="handle"></param>
+        /// <param name="name"></param>
+        /// <param name="heightList"></param>
+        /// <param name="simOwner"></param>
+        /// <param name="terrainImages"></param>
+        /// <param name="isEstateManager"></param>
+        public Region(SecondLife client, LLUUID id, ulong handle, string name, float[] heightList,
                 LLUUID simOwner, LLUUID[] terrainImages, bool isEstateManager)
         {
             Client = client;
@@ -146,6 +183,13 @@ namespace libsecondlife
             IsEstateManager = isEstateManager;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="west"></param>
+        /// <param name="south"></param>
+        /// <param name="east"></param>
+        /// <param name="north"></param>
         public void ParcelSubdivide(float west, float south, float east, float north)
         {
             ParcelDividePacket divide = new ParcelDividePacket();
@@ -160,6 +204,13 @@ namespace libsecondlife
             //Client.Network.SendPacket((Packet)divide, this.Simulator);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="west"></param>
+        /// <param name="south"></param>
+        /// <param name="east"></param>
+        /// <param name="north"></param>
         public void ParcelJoin(float west, float south, float east, float north)
         {
             ParcelJoinPacket join = new ParcelJoinPacket();
@@ -174,6 +225,12 @@ namespace libsecondlife
             //Client.Network.SendPacket((Packet)join, this.Simulator);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="prim"></param>
+        /// <param name="position"></param>
+        /// <param name="avatarPosition"></param>
         public void RezObject(PrimObject prim, LLVector3 position, LLVector3 avatarPosition)
         {
             // FIXME:
@@ -187,6 +244,9 @@ namespace libsecondlife
             //Client.Network.SendPacket(objectAdd);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public void FillParcels()
         {
             // FIXME:
@@ -197,12 +257,18 @@ namespace libsecondlife
             //        0.0f, 0.0f, 4.0f, 4.0f, false));
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public void ResetParcelDownload()
         {
             Parcels = new System.Collections.Hashtable();
             ParcelMarked = new int[64, 64];
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public void FilledParcels()
         {
             if (OnParcelCompletion != null)
@@ -211,11 +277,20 @@ namespace libsecondlife
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
         public override int GetHashCode()
         {
             return ID.GetHashCode();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="o"></param>
+        /// <returns></returns>
         public override bool Equals(object o)
         {
             if (!(o is Region))
@@ -228,6 +303,12 @@ namespace libsecondlife
             return (region.ID == ID);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="lhs"></param>
+        /// <param name="rhs"></param>
+        /// <returns></returns>
         public static bool operator ==(Region lhs, Region rhs)
         {
             try
@@ -262,6 +343,12 @@ namespace libsecondlife
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="lhs"></param>
+        /// <param name="rhs"></param>
+        /// <returns></returns>
         public static bool operator !=(Region lhs, Region rhs)
         {
             return !(lhs == rhs);

@@ -68,20 +68,24 @@ namespace sldump
 				return;
 			}
 
-			try
-			{
-				client = new SecondLife("keywords.txt", "message_template.msg");
-			}
-			catch (Exception e)
-			{
-				// Error initializing the client, probably missing file(s)
-				Console.WriteLine(e.ToString());
-				return;
-			}
+            client = new SecondLife();
 
 			if (args[0] == "--printmap")
 			{
-				client.Protocol.PrintMap();
+                ProtocolManager protocol;
+
+                try
+                {
+                    protocol = new ProtocolManager("keywords.txt", "message_template.msg", client);
+                }
+                catch (Exception e)
+                {
+                    // Error initializing the client, probably missing file(s)
+                    Console.WriteLine(e.ToString());
+                    return;
+                }
+
+                protocol.PrintMap();
 				return;
 			}
 

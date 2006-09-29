@@ -70,16 +70,7 @@ namespace name2key
 				return;
 			}
 
-			try
-			{
-				client = new SecondLife("keywords.txt", "message_template.msg");
-			}
-			catch (Exception e)
-			{
-				// Error initializing the client, probably missing file(s)
-				Console.WriteLine(e.ToString());
-				return;
-			}
+			client = new SecondLife();
 
 			// Setup the callback
 			client.Network.RegisterCallback(PacketType.DirPeopleReply, new PacketCallback(QueryHandler));
