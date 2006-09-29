@@ -37,19 +37,34 @@ namespace libsecondlife
     /// </summary>
     public class DirectoryParcel
     {
+        /// <summary></summary>
         public LLUUID ID;
+        /// <summary></summary>
         public LLUUID OwnerID;
+        /// <summary></summary>
         public LLUUID SnapshotID;
+        /// <summary></summary>
         public ulong RegionHandle;
+        /// <summary></summary>
         public string Name;
+        /// <summary></summary>
         public string SimName;
+        /// <summary></summary>
         public string Desc;
+        /// <summary></summary>
         public int SalePrice;
+        /// <summary></summary>
         public int ActualArea;
+        /// <summary></summary>
         public LLVector3 GlobalPosition;
+        /// <summary></summary>
         public LLVector3 SimPosition;
+        /// <summary></summary>
         public float Dwell;
 
+        /// <summary>
+        /// 
+        /// </summary>
         public DirectoryParcel()
         {
             GlobalPosition = new LLVector3();
@@ -62,51 +77,97 @@ namespace libsecondlife
     /// </summary>
     public class Parcel
     {
+        /// <summary></summary>
         public int RequestResult;
+        /// <summary></summary>
         public int SequenceID;
+        /// <summary></summary>
         public bool SnapSelection;
+        /// <summary></summary>
         public int SelfCount;
+        /// <summary></summary>
         public int OtherCount;
+        /// <summary></summary>
         public int PublicCount;
+        /// <summary></summary>
         public int LocalID;
+        /// <summary></summary>
         public LLUUID OwnerID;
+        /// <summary></summary>
         public bool IsGroupOwned;
+        /// <summary></summary>
         public uint AuctionID;
+        /// <summary></summary>
         public bool ReservedNewbie;
+        /// <summary></summary>
         public int ClaimDate;
+        /// <summary></summary>
         public int ClaimPrice;
+        /// <summary></summary>
         public int RentPrice;
+        /// <summary></summary>
         public LLVector3 AABBMin;
+        /// <summary></summary>
         public LLVector3 AABBMax;
+        /// <summary></summary>
         public byte[] Bitmap;
+        /// <summary></summary>
         public int Area;
+        /// <summary></summary>
         public byte Status;
+        /// <summary></summary>
         public int SimWideMaxObjects;
+        /// <summary></summary>
         public int SimWideTotalObjects;
+        /// <summary></summary>
         public int MaxObjects;
+        /// <summary></summary>
         public int TotalObjects;
+        /// <summary></summary>
         public int OwnerObjects;
+        /// <summary></summary>
         public int GroupObjects;
+        /// <summary></summary>
         public int OtherObjects;
+        /// <summary></summary>
         public float ParcelObjectBonus;
+        /// <summary></summary>
         public int OtherCleanTime;
+        /// <summary></summary>
         public uint ParcelFlags;
+        /// <summary></summary>
         public int SalePrice;
+        /// <summary></summary>
         public string Name;
+        /// <summary></summary>
         public string Desc;
+        /// <summary></summary>
         public string MusicURL;
+        /// <summary></summary>
         public string MediaURL;
+        /// <summary></summary>
         public LLUUID MediaID;
+        /// <summary></summary>
         public byte MediaAutoScale;
+        /// <summary></summary>
         public LLUUID GroupID;
+        /// <summary></summary>
         public int PassPrice;
+        /// <summary></summary>
         public float PassHours;
+        /// <summary></summary>
         public byte Category;
+        /// <summary></summary>
         public LLUUID AuthBuyerID;
+        /// <summary></summary>
         public LLUUID SnapshotID;
+        /// <summary></summary>
         public LLVector3 UserLocation;
+        /// <summary></summary>
         public LLVector3 UserLookAt;
+        /// <summary></summary>
         public byte LandingType;
+        /// <summary></summary>
         public float Dwell;
 
         // Using Sim instead of Region since it references both
@@ -114,65 +175,40 @@ namespace libsecondlife
 
         private void init()
         {
-            //Dwell = 0.0f;
-            //RequestResult = 0;
-            //SequenceID = 0;
-            //SnapSelection = false;
-            //SelfCount = 0;
-            //OtherCount = 0;
-            //PublicCount = 0;
-            //LocalID = 0;
             OwnerID = new LLUUID();
-            //IsGroupOwned = false;
-            //AuctionID = 0;
-            //ReservedNewbie = false;
-            //ClaimDate = 0;
-            //ClaimPrice = 0;
-            //RentPrice = 0;
             AABBMin = new LLVector3();
             AABBMax = new LLVector3();
             Bitmap = new byte[512];
-            //Area = 0;
-            //Status = 0;
-            //SimWideMaxObjects = 0;
-            //SimWideTotalObjects = 0;
-            //MaxObjects = 0;
-            //TotalObjects = 0;
-            //OwnerObjects = 0;
-            //GroupObjects = 0;
-            //OtherObjects = 0;
-            //ParcelObjectBonus = 0.0f;
-            //OtherCleanTime = 0;
-            //ParcelFlags = 0;
-            //SalePrice = 0;
-            //Name = "";
-            //Desc = "";
-            //MusicURL = "";
-            //MediaURL = "";
             MediaID = new LLUUID();
-            //MediaAutoScale = 0;
             GroupID = new LLUUID();
-            //PassPrice = 0;
-            //PassHours = 0.0f;
-            //Category = 0;
             AuthBuyerID = new LLUUID();
             SnapshotID = new LLUUID();
             UserLocation = new LLVector3();
             UserLookAt = new LLVector3();
-            //LandingType = 0;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public Parcel()
         {
             init();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="simulator"></param>
         public Parcel(Simulator simulator)
         {
             Sim = simulator;
             init();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
         public void GetDwell(SecondLife client)
         {
             ParcelDwellRequestPacket request = new ParcelDwellRequestPacket();
@@ -184,6 +220,13 @@ namespace libsecondlife
             Sim.SendPacket((Packet)request, true);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="forGroup"></param>
+        /// <param name="groupID"></param>
+        /// <returns></returns>
         public bool Buy(SecondLife client, bool forGroup, LLUUID groupID)
         {
             //Packet buyPacket = Packets.Parcel.ParcelBuy(client.Protocol, LocalID, forGroup, groupID, true, client.Avatar.ID, client.Network.SessionID);
@@ -192,6 +235,11 @@ namespace libsecondlife
             return false;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
+        /// <returns></returns>
         public bool Reclaim(SecondLife client)
         {
             //Packet reclaimPacket = Packets.Parcel.ParcelReclaim(client.Protocol, LocalID, client.Avatar.ID, client.Network.SessionID);
@@ -200,6 +248,12 @@ namespace libsecondlife
             return false;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="groupID"></param>
+        /// <returns></returns>
         public bool Deed(SecondLife client, LLUUID groupID)
         {
             //Packet deedPacket = Packets.Parcel.ParcelDeedToGroup(client.Protocol, LocalID, groupID, client.Avatar.ID, client.Network.SessionID);
@@ -208,12 +262,22 @@ namespace libsecondlife
             return false;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
         public void Update(SecondLife client)
         {
             //Packet updatePacket = Packets.Parcel.ParcelPropertiesUpdate(client.Protocol, client.Avatar.ID, client.Network.SessionID, this);
             //Sim.SendPacket(updatePacket, true);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="returnType"></param>
+        /// <param name="otherCleanTime"></param>
         public void ReturnObjects(SecondLife client, int returnType, int otherCleanTime)
         {
             //Packet returnPacket = Packets.Parcel.ParcelReturnObjects(client.Protocol, client.Avatar.ID, client.Network.SessionID, LocalID,
@@ -221,6 +285,13 @@ namespace libsecondlife
             //Sim.SendPacket(returnPacket, true);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="returnType"></param>
+        /// <param name="otherCleanTime"></param>
+        /// <param name="ownerID"></param>
         public void ReturnObjects(SecondLife client, int returnType, int otherCleanTime, LLUUID ownerID)
         {
             //Packet returnPacket = Packets.Parcel.ParcelReturnObjects(client.Protocol, client.Avatar.ID, client.Network.SessionID, LocalID,
@@ -229,8 +300,12 @@ namespace libsecondlife
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class ParcelManager
     {
+        /// <summary></summary>
         public ArrayList ParcelsForSale;
 
         private SecondLife Client;
@@ -243,6 +318,10 @@ namespace libsecondlife
         private bool ParcelInfoTimeout;
         private DirectoryParcel ParcelInfoParcel;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
         public ParcelManager(SecondLife client)
         {
             Client = client;
@@ -257,6 +336,11 @@ namespace libsecondlife
             ParcelInfoParcel = new DirectoryParcel();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <param name="simulator"></param>
         public void ParcelDwellReplyHandler(Packet packet, Simulator simulator)
         {
             ParcelDwellReplyPacket dwell = (ParcelDwellReplyPacket)packet;
@@ -267,6 +351,11 @@ namespace libsecondlife
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="parcel"></param>
+        /// <returns></returns>
         public bool RequestParcelInfo(DirectoryParcel parcel)
         {
             int attempts = 0;
@@ -305,7 +394,52 @@ namespace libsecondlife
             return true;
         }
 
-        public void ParcelPropertiesHandler(Packet packet, Simulator simulator)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="reservedNewbie"></param>
+        /// <param name="forSale"></param>
+        /// <param name="auction"></param>
+        /// <returns></returns>
+        public int DirLandRequest(bool reservedNewbie, bool forSale, bool auction)
+        {
+            // Set the class-wide variables so the callback has them
+            ReservedNewbie = reservedNewbie;
+            ForSale = forSale;
+            Auction = auction;
+
+            // Clear the list
+            ParcelsForSale.Clear();
+
+            // Setup the timer
+            DirLandTimer = new Timer(15000);
+            DirLandTimer.Elapsed += new ElapsedEventHandler(DirLandTimerEvent);
+            DirLandTimeout = false;
+            DirLandTimer.Start();
+
+            DirLandQueryPacket query = new DirLandQueryPacket();
+            query.AgentData.AgentID = Client.Network.AgentID;
+            query.AgentData.SessionID = Client.Network.SessionID;
+            query.QueryData.Auction = auction;
+            query.QueryData.ForSale = forSale;
+            query.QueryData.QueryFlags = 0;
+            query.QueryData.QueryID = LLUUID.GenerateUUID();
+            query.QueryData.ReservedNewbie = reservedNewbie;
+
+            Client.Network.SendPacket((Packet)query);
+
+            while (!DirLandTimeout)
+            {
+                Client.Tick();
+            }
+
+            // Make sure the timer is actually stopped
+            DirLandTimer.Stop();
+
+            return ParcelsForSale.Count;
+        }
+
+        private void ParcelPropertiesHandler(Packet packet, Simulator simulator)
         {
             //// Marked == Added to Parcel Class specifically for this Packet
             //// -> XYZ == Equivilent to property XYZ in Packet.
@@ -614,44 +748,6 @@ namespace libsecondlife
         private void ParcelInfoTimerEvent(object source, System.Timers.ElapsedEventArgs ea)
         {
             ParcelInfoTimeout = true;
-        }
-
-        public int DirLandRequest(bool reservedNewbie, bool forSale, bool auction)
-        {
-            // Set the class-wide variables so the callback has them
-            ReservedNewbie = reservedNewbie;
-            ForSale = forSale;
-            Auction = auction;
-
-            // Clear the list
-            ParcelsForSale.Clear();
-
-            // Setup the timer
-            DirLandTimer = new Timer(15000);
-            DirLandTimer.Elapsed += new ElapsedEventHandler(DirLandTimerEvent);
-            DirLandTimeout = false;
-            DirLandTimer.Start();
-
-            DirLandQueryPacket query = new DirLandQueryPacket();
-            query.AgentData.AgentID = Client.Network.AgentID;
-            query.AgentData.SessionID = Client.Network.SessionID;
-            query.QueryData.Auction = auction;
-            query.QueryData.ForSale = forSale;
-            query.QueryData.QueryFlags = 0;
-            query.QueryData.QueryID = LLUUID.GenerateUUID();
-            query.QueryData.ReservedNewbie = reservedNewbie;
-
-            Client.Network.SendPacket((Packet)query);
-
-            while (!DirLandTimeout)
-            {
-                Client.Tick();
-            }
-
-            // Make sure the timer is actually stopped
-            DirLandTimer.Stop();
-
-            return ParcelsForSale.Count;
         }
 
         private void DirLandReplyHandler(Packet packet, Simulator simulator)

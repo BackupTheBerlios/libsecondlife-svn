@@ -29,10 +29,17 @@ using System.Collections;
 
 namespace libsecondlife
 {
+    /// <summary>
+    /// 
+    /// </summary>
 	public class Inventory
 	{
 		private SecondLife Client;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
 		public Inventory(SecondLife client)
 		{
 			Client = client;

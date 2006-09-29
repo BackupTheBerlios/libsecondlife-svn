@@ -38,14 +38,35 @@ using libsecondlife.Packets;
 
 namespace libsecondlife
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="packet"></param>
+    /// <param name="simulator"></param>
 	public delegate void PacketCallback(Packet packet, Simulator simulator);
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="simulator"></param>
+    /// <param name="reason"></param>
     public delegate void SimDisconnected(Simulator simulator, DisconnectType reason);
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="reason"></param>
+    /// <param name="message"></param>
     public delegate void Disconnected(DisconnectType reason, string message);
 
+    /// <summary>
+    /// 
+    /// </summary>
     public enum DisconnectType
     {
+        /// <summary></summary>
         ClientInitiated,
+        /// <summary></summary>
         ServerInitiated,
+        /// <summary></summary>
         NetworkTimeout
     }
 
@@ -131,78 +152,83 @@ namespace libsecondlife
 		private IPEndPoint ipEndPoint;
 		private EndPoint endPoint;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="callbacks"></param>
+        /// <param name="circuit"></param>
+        /// <param name="ip"></param>
+        /// <param name="port"></param>
 		public Simulator(SecondLife client, Hashtable callbacks, uint circuit, 
 			IPAddress ip, int port)
 		{
-			Initialize(client, callbacks, circuit, ip, port);
-		}
-
-		private void Initialize(SecondLife client, Hashtable callbacks, uint circuit, 
-			IPAddress ip, int port)
-		{
             Client = client;
-			Network = client.Network;
-			Callbacks = callbacks;
-			Region = new Region(client);
-			circuitCode = circuit;
-			Sequence = 0;
-			RecvBuffer = new byte[2048];
-			Connection = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-			connected = false;
+            Network = client.Network;
+            Callbacks = callbacks;
+            Region = new Region(client);
+            circuitCode = circuit;
+            Sequence = 0;
+            RecvBuffer = new byte[2048];
+            Connection = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            connected = false;
             DisconnectCandidate = false;
 
-			// Initialize the hashtable for reliable packets waiting on ACKs from the server
-			NeedAck = new Hashtable();
+            // Initialize the hashtable for reliable packets waiting on ACKs from the server
+            NeedAck = new Hashtable();
 
-			// Initialize the list of sequence numbers we've received so far
-			Inbox = new SortedList();
+            // Initialize the list of sequence numbers we've received so far
+            Inbox = new SortedList();
 
-			NeedAckMutex = new Mutex(false, "NeedAckMutex");
-			InboxMutex = new Mutex(false, "InboxMutex");
+            NeedAckMutex = new Mutex(false, "NeedAckMutex");
+            InboxMutex = new Mutex(false, "InboxMutex");
 
-			Client.Log("Connecting to " + ip.ToString() + ":" + port, Helpers.LogLevel.Info);
+            Client.Log("Connecting to " + ip.ToString() + ":" + port, Helpers.LogLevel.Info);
 
-			try
-			{
-				// Setup the callback
-				ReceivedData = new AsyncCallback(OnReceivedData);
+            try
+            {
+                // Setup the callback
+                ReceivedData = new AsyncCallback(OnReceivedData);
 
-				// Create an endpoint that we will be communicating with (need it in two 
-				// types due to .NET weirdness)
-				ipEndPoint = new IPEndPoint(ip, port);
-				endPoint = (EndPoint)ipEndPoint;
+                // Create an endpoint that we will be communicating with (need it in two 
+                // types due to .NET weirdness)
+                ipEndPoint = new IPEndPoint(ip, port);
+                endPoint = (EndPoint)ipEndPoint;
 
-				// Associate this simulator's socket with the given ip/port and start listening
-				Connection.Connect(endPoint);
-				Connection.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref endPoint, ReceivedData, null);
+                // Associate this simulator's socket with the given ip/port and start listening
+                Connection.Connect(endPoint);
+                Connection.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref endPoint, ReceivedData, null);
 
-				// Send the UseCircuitCode packet to initiate the connection
+                // Send the UseCircuitCode packet to initiate the connection
                 UseCircuitCodePacket use = new UseCircuitCodePacket();
                 use.CircuitCode.Code = CircuitCode;
                 use.CircuitCode.ID = Network.AgentID;
                 use.CircuitCode.SessionID = Network.SessionID;
 
-				// Send the initial packet out
-				SendPacket((Packet)use, true);
+                // Send the initial packet out
+                SendPacket((Packet)use, true);
 
-				// Track the current time for timeout purposes
+                // Track the current time for timeout purposes
                 int start = Environment.TickCount;
 
-				while (true)
-				{
-					if (connected || Environment.TickCount - start > 5000)
+                while (true)
+                {
+                    if (connected || Environment.TickCount - start > 5000)
                     {
                         return;
                     }
-					Thread.Sleep(10);
-				}
-			}
-			catch (Exception e)
-			{
-				Client.Log(e.ToString(), Helpers.LogLevel.Error);
-			}
+                    Thread.Sleep(10);
+                }
+            }
+            catch (Exception e)
+            {
+                Client.Log(e.ToString(), Helpers.LogLevel.Error);
+            }
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
 		public void Disconnect()
 		{
 			// Send the CloseCircuit notice
@@ -231,6 +257,11 @@ namespace libsecondlife
             connected = false;
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <param name="incrementSequence"></param>
 		public void SendPacket(Packet packet, bool incrementSequence)
 		{
 			byte[] buffer;
@@ -323,6 +354,10 @@ namespace libsecondlife
             }
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="payload"></param>
         public void SendPacket(byte[] payload)
         {
             if (!connected)
@@ -554,47 +589,37 @@ namespace libsecondlife
         /// The permanent UUID for the logged in avatar
         /// </summary>
 		public LLUUID AgentID;
-
         /// <summary>
         /// A temporary UUID assigned to this session, used for secure 
         /// transactions
         /// </summary>
 		public LLUUID SessionID;
-
         /// <summary>
         /// A string holding a descriptive error on login failure, empty
         /// otherwise
         /// </summary>
 		public string LoginError;
-
         /// <summary>
         /// The simulator that the logged in avatar is currently occupying
         /// </summary>
 		public Simulator CurrentSim;
-
         /// <summary>
         /// The complete hashtable of all the login values returned by the 
         /// RPC login server, converted to native data types wherever possible
         /// </summary>
 		public Hashtable LoginValues;
-
         /// <summary>
         /// Shows whether the network layer is logged in to the grid or not
         /// </summary>
         public bool Connected
         {
-            get
-            {
-                return connected;
-            }
+            get { return connected; }
         }
-
         /// <summary>
         /// An event for the connection to a simulator other than the currently
         /// occupied one disconnecting
         /// </summary>
         public SimDisconnected OnSimDisconnected;
-
         /// <summary>
         /// An event for being logged out either through client request, server
         /// forced, or network error
@@ -608,6 +633,10 @@ namespace libsecondlife
         private System.Timers.Timer DisconnectTimer;
         private bool connected;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
 		public NetworkManager(SecondLife client)
 		{
 			Client = client;
@@ -629,6 +658,11 @@ namespace libsecondlife
             DisconnectTimer.Elapsed += new ElapsedEventHandler(DisconnectTimer_Elapsed);
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="callback"></param>
 		public void RegisterCallback(PacketType type, PacketCallback callback)
 		{
 			if (!Callbacks.ContainsKey(type))
@@ -640,6 +674,11 @@ namespace libsecondlife
 			callbackArray.Add(callback);
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="callback"></param>
         public void UnregisterCallback(PacketType type, PacketCallback callback)
 		{
 			if (!Callbacks.ContainsKey(type))
@@ -662,6 +701,10 @@ namespace libsecondlife
 			}
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="packet"></param>
 		public void SendPacket(Packet packet)
 		{
 			if (CurrentSim != null)
@@ -674,11 +717,20 @@ namespace libsecondlife
 			}
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <param name="simulator"></param>
 		public void SendPacket(Packet packet, Simulator simulator)
 		{
 			simulator.SendPacket(packet, true);
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="payload"></param>
         public void SendPacket(byte[] payload)
         {
             if (CurrentSim != null)
@@ -691,6 +743,15 @@ namespace libsecondlife
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="firstName"></param>
+        /// <param name="lastName"></param>
+        /// <param name="password"></param>
+        /// <param name="userAgent"></param>
+        /// <param name="author"></param>
+        /// <returns></returns>
 		public static Hashtable DefaultLoginValues(string firstName, string lastName, string password,
 			string userAgent, string author)
 		{
@@ -698,6 +759,23 @@ namespace libsecondlife
 				1, 50, 50, 50, "Win", "0", userAgent, author);
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="firstName"></param>
+        /// <param name="lastName"></param>
+        /// <param name="password"></param>
+        /// <param name="mac"></param>
+        /// <param name="startLocation"></param>
+        /// <param name="major"></param>
+        /// <param name="minor"></param>
+        /// <param name="patch"></param>
+        /// <param name="build"></param>
+        /// <param name="platform"></param>
+        /// <param name="viewerDigest"></param>
+        /// <param name="userAgent"></param>
+        /// <param name="author"></param>
+        /// <returns></returns>
 		public static Hashtable DefaultLoginValues(string firstName, string lastName, string password, string mac,
 			string startLocation, int major, int minor, int patch, int build, string platform, string viewerDigest, 
 			string userAgent, string author)
@@ -732,11 +810,22 @@ namespace libsecondlife
 			return values;
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="loginParams"></param>
+        /// <returns></returns>
 		public bool Login(Hashtable loginParams)
 		{
 			return Login(loginParams, "https://login.agni.lindenlab.com/cgi-bin/login.cgi");
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="loginParams"></param>
+        /// <param name="url"></param>
+        /// <returns></returns>
 		public bool Login(Hashtable loginParams, string url)
 		{
 			XmlRpcResponse result;
@@ -872,6 +961,14 @@ namespace libsecondlife
 			return true;
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="port"></param>
+        /// <param name="circuitCode"></param>
+        /// <param name="setDefault"></param>
+        /// <returns></returns>
 		public Simulator Connect(IPAddress ip, ushort port, uint circuitCode, bool setDefault)
 		{
 			Simulator simulator = new Simulator(Client, this.Callbacks, circuitCode, ip, (int)port);
@@ -908,6 +1005,9 @@ namespace libsecondlife
 			return simulator;
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
 		public void Logout()
         {
             // This will catch a Logout when the client is not logged in
@@ -937,6 +1037,10 @@ namespace libsecondlife
             }
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sim"></param>
         public void DisconnectSim(Simulator sim)
         {
             sim.Disconnect();

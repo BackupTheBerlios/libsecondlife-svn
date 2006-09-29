@@ -29,6 +29,10 @@ using libsecondlife.Packets;
 
 namespace libsecondlife
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="region"></param>
     public delegate void ParcelCompleteCallback(Region region);
 
     /// <summary>

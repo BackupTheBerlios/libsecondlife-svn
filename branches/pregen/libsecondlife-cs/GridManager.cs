@@ -35,19 +35,30 @@ namespace libsecondlife
 	/// </summary>
 	public class GridRegion
 	{
+        /// <summary></summary>
 		public int X;
+        /// <summary></summary>
 		public int Y;
+        /// <summary></summary>
 		public string Name;
+        /// <summary></summary>
 		public byte Access;
+        /// <summary></summary>
 		public uint RegionFlags;
+        /// <summary></summary>
 		public byte WaterHeight;
+        /// <summary></summary>
 		public byte Agents;
+        /// <summary></summary>
 		public LLUUID MapImageID;
+        /// <summary></summary>
 		public ulong RegionHandle; // Used for teleporting
 
+        /// <summary>
+        /// 
+        /// </summary>
 		public GridRegion() 
 		{
-
 		}
 	}
 
@@ -56,9 +67,15 @@ namespace libsecondlife
 	/// </summary>
 	public class GridManager
 	{
+        /// <summary></summary>
 		public Hashtable Regions;
-		SecondLife Client;
 
+		private SecondLife Client;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
 		public GridManager(SecondLife client)
 		{
 			Client = client;
@@ -67,6 +84,10 @@ namespace libsecondlife
 			Client.Network.RegisterCallback(PacketType.MapBlockReply, callback);
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
 		public void AddSim(string name) 
 		{
 			if(!Regions.ContainsKey(name)) 
@@ -79,6 +100,9 @@ namespace libsecondlife
 			}
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
 		public void AddAllSims() 
 		{
             MapBlockRequestPacket request = new MapBlockRequestPacket();
@@ -91,6 +115,11 @@ namespace libsecondlife
             Client.Network.SendPacket((Packet)request);
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
 		public GridRegion GetSim(string name) 
 		{
 			if(Regions.ContainsKey(name)) 

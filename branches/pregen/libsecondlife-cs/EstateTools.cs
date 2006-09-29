@@ -35,11 +35,19 @@ namespace libsecondlife
 	{
 		private SecondLife Client;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
 		public EstateTools(SecondLife client)
 		{
 			Client = client;
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="prey"></param>
 		public void KickUser(LLUUID prey) 
 		{
             EstateOwnerMessagePacket estate = new EstateOwnerMessagePacket();
@@ -54,18 +62,30 @@ namespace libsecondlife
             Client.Network.SendPacket((Packet)estate);
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="prey"></param>
 		public void BanUser(LLUUID prey) 
 		{
             // FIXME:
 			//Client.Network.SendPacket(Packets.Estate.EstateBan(Client.Protocol,Client.Avatar.ID,Client.Network.SessionID,prey));
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="prey"></param>
 		public void UnBanUser(LLUUID prey) 
 		{
             // FIXME:
 			//Client.Network.SendPacket(Packets.Estate.EstateUnBan(Client.Protocol,Client.Avatar.ID,Client.Network.SessionID,prey));
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="prey"></param>
 		public void TeleportHomeUser(LLUUID prey) 
 		{
             // FIXME:

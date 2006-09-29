@@ -30,9 +30,37 @@ using libsecondlife.Packets;
 
 namespace libsecondlife
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="simulator"></param>
+    /// <param name="prim"></param>
+    /// <param name="regionHandle"></param>
+    /// <param name="timeDilation"></param>
     public delegate void NewPrimCallback(Simulator simulator, PrimObject prim, ulong regionHandle, ushort timeDilation);
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="simulator"></param>
+    /// <param name="avatar"></param>
+    /// <param name="regionHandle"></param>
+    /// <param name="timeDilation"></param>
     public delegate void NewAvatarCallback(Simulator simulator, Avatar avatar, ulong regionHandle, ushort timeDilation);
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="simulator"></param>
+    /// <param name="prim"></param>
+    /// <param name="regionHandle"></param>
+    /// <param name="timeDilation"></param>
     public delegate void PrimMovedCallback(Simulator simulator, PrimUpdate prim, ulong regionHandle, ushort timeDilation);
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="simulator"></param>
+    /// <param name="avatar"></param>
+    /// <param name="regionHandle"></param>
+    /// <param name="timeDilation"></param>
     public delegate void AvatarMovedCallback(Simulator simulator, AvatarUpdate avatar, ulong regionHandle, ushort timeDilation);
 
     /// <summary>
@@ -41,12 +69,19 @@ namespace libsecondlife
     /// </summary>
     public struct PrimUpdate
     {
+        /// <summary></summary>
         public uint LocalID;
+        /// <summary></summary>
         public byte State;
+        /// <summary></summary>
         public LLVector3 Position;
+        /// <summary></summary>
         public LLVector3 Velocity;
+        /// <summary></summary>
         public LLVector3 Acceleration;
+        /// <summary></summary>
         public LLQuaternion Rotation;
+        /// <summary></summary>
         public LLVector3 RotationVelocity;
     }
 
@@ -56,13 +91,21 @@ namespace libsecondlife
     /// </summary>
     public struct AvatarUpdate
     {
+        /// <summary></summary>
         public uint LocalID;
+        /// <summary></summary>
         public byte State;
+        /// <summary></summary>
         public LLVector4 CollisionPlane;
+        /// <summary></summary>
         public LLVector3 Position;
+        /// <summary></summary>
         public LLVector3 Velocity;
+        /// <summary></summary>
         public LLVector3 Acceleration;
+        /// <summary></summary>
         public LLQuaternion Rotation;
+        /// <summary></summary>
         public LLVector3 RotationVelocity;
     }
 
@@ -82,7 +125,6 @@ namespace libsecondlife
         /// </remarks>
         /// </summary>
         public event NewPrimCallback OnNewPrim;
-
         /// <summary>
         /// This event will be raised for every ObjectUpdate block that 
         /// contains a new avatar.
@@ -93,14 +135,12 @@ namespace libsecondlife
         /// storing objects.</remarks>
         /// </summary>
         public event NewAvatarCallback OnNewAvatar;
-
         /// <summary>
         /// This event will be raised when a prim movement packet is received, 
         /// containing the updated position, rotation, and movement-related 
         /// vectors.
         /// </summary>
         public event PrimMovedCallback OnPrimMoved;
-
         /// <summary>
         /// This event will be raised when an avatar movement packet is 
         /// received, containing the updated position, rotation, and 
@@ -108,8 +148,12 @@ namespace libsecondlife
         /// </summary>
         public event AvatarMovedCallback OnAvatarMoved;
 
-        protected SecondLife Client;
+        private SecondLife Client;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
         public ObjectManager(SecondLife client)
         {
             Client = client;

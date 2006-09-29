@@ -32,42 +32,107 @@ using libsecondlife.Packets;
 
 namespace libsecondlife
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="Message"></param>
+    /// <param name="Audible"></param>
+    /// <param name="Type"></param>
+    /// <param name="Sourcetype"></param>
+    /// <param name="FromName"></param>
+    /// <param name="ID"></param>
     public delegate void ChatCallback(string Message, byte Audible, byte Type, byte Sourcetype,
         string FromName, LLUUID ID);
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="FromAgentID"></param>
+    /// <param name="FromAgentName"></param>
+    /// <param name="ToAgentID"></param>
+    /// <param name="ParentEstateID"></param>
+    /// <param name="RegionID"></param>
+    /// <param name="Position"></param>
+    /// <param name="Dialog"></param>
+    /// <param name="GroupIM"></param>
+    /// <param name="IMSessionID"></param>
+    /// <param name="Timestamp"></param>
+    /// <param name="Message"></param>
     public delegate void InstantMessageCallback(LLUUID FromAgentID, string FromAgentName, 
         LLUUID ToAgentID, uint ParentEstateID, LLUUID RegionID, LLVector3 Position, 
         bool Dialog, bool GroupIM, LLUUID IMSessionID, DateTime Timestamp, string Message);
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="AgentID"></param>
+    /// <param name="Online"></param>
     public delegate void FriendNotificationCallback(LLUUID AgentID, bool Online);
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="message"></param>
     public delegate void TeleportCallback(string message);
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class Avatar
     {
+        /// <summary></summary>
         public LLUUID ID;
+        /// <summary></summary>
         public uint LocalID;
+        /// <summary></summary>
         public string Name;
+        /// <summary></summary>
         public string GroupName;
+        /// <summary></summary>
         public bool Online;
+        /// <summary></summary>
         public LLVector3 Position;
+        /// <summary></summary>
         public LLQuaternion Rotation;
+        /// <summary></summary>
         public Region CurrentRegion;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class MainAvatar
     {
+        /// <summary></summary>
+        public event ChatCallback OnChat;
+        /// <summary></summary>
+        public event InstantMessageCallback OnInstantMessage;
+        /// <summary></summary>
+        public event FriendNotificationCallback OnFriendNotification;
+        /// <summary></summary>
+        public event TeleportCallback OnTeleport;
+
+        /// <summary></summary>
         public LLUUID ID;
+        /// <summary></summary>
         public uint LocalID;
+        /// <summary></summary>
         public string FirstName;
+        /// <summary></summary>
         public string LastName;
+        /// <summary></summary>
         public string TeleportMessage;
+        /// <summary></summary>
         public LLVector3 Position;
+        /// <summary></summary>
         public LLQuaternion Rotation;
-        // Should we even keep LookAt around? It's just for setting the initial
-        // rotation after login AFAIK
-        public LLVector3d LookAt;
+        /// <summary></summary>
+        public LLVector3d LookAt; // Should we even keep LookAt around? It's 
+                                  // just for setting the initial rotation 
+                                  // after login AFAIK
+        /// <summary></summary>
         public LLVector3d HomePosition;
+        /// <summary></summary>
         public LLVector3d HomeLookAt;
 
         private SecondLife Client;
@@ -75,11 +140,10 @@ namespace libsecondlife
         private Timer TeleportTimer;
         private bool TeleportTimeout;
 
-        public event ChatCallback OnChat;
-        public event InstantMessageCallback OnInstantMessage;
-        public event FriendNotificationCallback OnFriendNotification;
-        public event TeleportCallback OnTeleport;
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
         public MainAvatar(SecondLife client)
         {
             Client = client;
@@ -117,6 +181,228 @@ namespace libsecondlife
             TeleportTimer = new Timer(8000);
             TeleportTimer.Elapsed += new ElapsedEventHandler(TeleportTimerEvent);
             TeleportTimeout = false;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="message"></param>
+        public void InstantMessage(LLUUID target, string message)
+        {
+            TimeSpan t = (DateTime.UtcNow - new DateTime(1970, 1, 1));
+            uint now = (uint)(t.TotalSeconds);
+            string name = FirstName + " " + LastName;
+
+            InstantMessage(name, LLUUID.GenerateUUID(), target, message, null);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="fromName"></param>
+        /// <param name="sessionID"></param>
+        /// <param name="target"></param>
+        /// <param name="message"></param>
+        /// <param name="conferenceIDs"></param>
+        public void InstantMessage(string fromName, LLUUID sessionID, LLUUID target, string message, LLUUID[] conferenceIDs)
+        {
+            ImprovedInstantMessagePacket im = new ImprovedInstantMessagePacket();
+            im.AgentData.AgentID = this.ID;
+            im.AgentData.SessionID = Client.Network.SessionID;
+            im.MessageBlock.Dialog = 0;
+            im.MessageBlock.FromAgentName = Helpers.StringToField(fromName);
+            im.MessageBlock.FromGroup = false;
+            im.MessageBlock.ID = LLUUID.GenerateUUID();
+            im.MessageBlock.Message = Helpers.StringToField(message);
+            im.MessageBlock.Offline = 1;
+            im.MessageBlock.ToAgentID = target;
+            if (conferenceIDs != null && conferenceIDs.Length > 0)
+            {
+                im.MessageBlock.BinaryBucket = new byte[16 * conferenceIDs.Length];
+
+                for (int i = 0; i < conferenceIDs.Length; ++i)
+                {
+                    Array.Copy(conferenceIDs[i].Data, 0, im.MessageBlock.BinaryBucket, i * 16, 16);
+                }
+            }
+            else
+            {
+                im.MessageBlock.BinaryBucket = new byte[0];
+            }
+
+            // Send the message
+            Client.Network.SendPacket((Packet)im);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public enum ChatType
+        {
+            /// <summary></summary>
+            Whisper = 0,
+            /// <summary></summary>
+            Normal = 1,
+            /// <summary></summary>
+            Shout = 2,
+            /// <summary></summary>
+            Say = 3,
+            /// <summary></summary>
+            StartTyping = 4,
+            /// <summary></summary>
+            StopTyping = 5
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="channel"></param>
+        /// <param name="type"></param>
+        public void Chat(string message, int channel, ChatType type)
+        {
+            ChatFromViewerPacket chat = new ChatFromViewerPacket();
+            chat.AgentData.AgentID = this.ID;
+            chat.AgentData.SessionID = Client.Network.SessionID;
+            chat.ChatData.Channel = channel;
+            chat.ChatData.Message = Helpers.StringToField(message);
+            chat.ChatData.Type = (byte)type;
+
+            Client.Network.SendPacket((Packet)chat);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="amount"></param>
+        /// <param name="description"></param>
+        public void GiveMoney(LLUUID target, int amount, string description)
+        {
+            // 5001 - transaction type for av to av money transfers
+            GiveMoney(target, amount, description, 5001);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="amount"></param>
+        /// <param name="description"></param>
+        /// <param name="transactiontype"></param>
+        public void GiveMoney(LLUUID target, int amount, string description, int transactiontype)
+        {
+            MoneyTransferRequestPacket money = new MoneyTransferRequestPacket();
+            money.AgentData.AgentID = this.ID;
+            money.AgentData.SessionID = Client.Network.SessionID;
+            money.MoneyData.Description = Helpers.StringToField(description);
+            money.MoneyData.DestID = target;
+            money.MoneyData.SourceID = this.ID;
+            money.MoneyData.TransactionType = transactiontype;
+
+            Client.Network.SendPacket((Packet)money);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="regionHandle"></param>
+        /// <param name="position"></param>
+        /// <returns></returns>
+        public bool Teleport(ulong regionHandle, LLVector3 position)
+        {
+            return Teleport(regionHandle, position, new LLVector3(position.X + 1.0F, position.Y, position.Z));
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="regionHandle"></param>
+        /// <param name="position"></param>
+        /// <param name="lookAt"></param>
+        /// <returns></returns>
+        public bool Teleport(ulong regionHandle, LLVector3 position, LLVector3 lookAt)
+        {
+            TeleportStatus = 0;
+
+            TeleportLocationRequestPacket teleport = new TeleportLocationRequestPacket();
+            teleport.AgentData.AgentID = Client.Network.AgentID;
+            teleport.AgentData.SessionID = Client.Network.SessionID;
+            teleport.Info.LookAt = lookAt;
+            teleport.Info.Position = position;
+            // FIXME: Uncomment me
+            //teleport.Info.RegionHandle = regionHandle;
+            teleport.Header.Reliable = true;
+
+            Client.Log("Teleporting to region " + regionHandle.ToString(), Helpers.LogLevel.Info);
+
+            // Start the timeout check
+            TeleportTimeout = false;
+            TeleportTimer.Start();
+
+            Client.Network.SendPacket((Packet)teleport);
+
+            while (TeleportStatus == 0 && !TeleportTimeout)
+            {
+                Client.Tick();
+            }
+
+            TeleportTimer.Stop();
+
+            if (TeleportTimeout)
+            {
+                if (OnTeleport != null) { OnTeleport("Teleport timed out."); }
+            }
+            else
+            {
+                if (OnTeleport != null) { OnTeleport(TeleportMessage); }
+            }
+
+            return (TeleportStatus == 1);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="simName"></param>
+        /// <param name="position"></param>
+        /// <returns></returns>
+        public bool Teleport(string simName, LLVector3 position)
+        {
+            return Teleport(simName, position, new LLVector3(position.X + 1.0F, position.Y, position.Z));
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="simName"></param>
+        /// <param name="position"></param>
+        /// <param name="lookAt"></param>
+        /// <returns></returns>
+        public bool Teleport(string simName, LLVector3 position, LLVector3 lookAt)
+        {
+            Client.Grid.AddSim(simName);
+            int attempts = 0;
+
+            while (attempts++ < 5)
+            {
+                if (Client.Grid.Regions.ContainsKey(simName))
+                {
+                    return Teleport(((GridRegion)Client.Grid.Regions[simName]).RegionHandle, position, lookAt);
+                }
+                else
+                {
+                    System.Threading.Thread.Sleep(1000);
+                    Client.Grid.AddSim(simName);
+                    Client.Tick();
+                }
+            }
+            if (OnTeleport != null)
+            {
+                OnTeleport("Unable to resolve name: " + simName);
+            }
+            return false;
         }
 
         private void FriendNotificationHandler(Packet packet, Simulator simulator)
@@ -224,161 +510,6 @@ namespace libsecondlife
                         Helpers.FieldToString(chat.ChatData.FromName), chat.ChatData.SourceID);
                 }
             }
-        }
-
-        public void InstantMessage(LLUUID target, string message)
-        {
-            TimeSpan t = (DateTime.UtcNow - new DateTime(1970, 1, 1));
-            uint now = (uint)(t.TotalSeconds);
-            string name = FirstName + " " + LastName;
-
-            InstantMessage(name, LLUUID.GenerateUUID(), target, message, null);
-        }
-
-        public void InstantMessage(string fromName, LLUUID sessionID, LLUUID target, string message, LLUUID[] conferenceIDs)
-        {
-            ImprovedInstantMessagePacket im = new ImprovedInstantMessagePacket();
-            im.AgentData.AgentID = this.ID;
-            im.AgentData.SessionID = Client.Network.SessionID;
-            im.MessageBlock.Dialog = 0;
-            im.MessageBlock.FromAgentName = Helpers.StringToField(fromName);
-            im.MessageBlock.FromGroup = false;
-            im.MessageBlock.ID = LLUUID.GenerateUUID();
-            im.MessageBlock.Message = Helpers.StringToField(message);
-            im.MessageBlock.Offline = 1;
-            im.MessageBlock.ToAgentID = target;
-            if (conferenceIDs != null && conferenceIDs.Length > 0)
-            {
-                im.MessageBlock.BinaryBucket = new byte[16 * conferenceIDs.Length];
-
-                for (int i = 0; i < conferenceIDs.Length; ++i)
-                {
-                    Array.Copy(conferenceIDs[i].Data, 0, im.MessageBlock.BinaryBucket, i * 16, 16);
-                }
-            }
-            else
-            {
-                im.MessageBlock.BinaryBucket = new byte[0];
-            }
-
-            // Send the message
-            Client.Network.SendPacket((Packet)im);
-        }
-
-        public enum ChatType
-        {
-            Whisper = 0,
-            Normal = 1,
-            Shout = 2,
-            Say = 3,
-            StartTyping = 4,
-            StopTyping = 5
-        }
-
-        public void Chat(string message, int channel, ChatType type)
-        {
-            ChatFromViewerPacket chat = new ChatFromViewerPacket();
-            chat.AgentData.AgentID = this.ID;
-            chat.AgentData.SessionID = Client.Network.SessionID;
-            chat.ChatData.Channel = channel;
-            chat.ChatData.Message = Helpers.StringToField(message);
-            chat.ChatData.Type = (byte)type;
-
-            Client.Network.SendPacket((Packet)chat);
-        }
-
-        public void GiveMoney(LLUUID target, int amount, string description)
-        {
-            // 5001 - transaction type for av to av money transfers
-            GiveMoney(target, amount, description, 5001);
-        }
-
-        public void GiveMoney(LLUUID target, int amount, string description, int transactiontype)
-        {
-            MoneyTransferRequestPacket money = new MoneyTransferRequestPacket();
-            money.AgentData.AgentID = this.ID;
-            money.AgentData.SessionID = Client.Network.SessionID;
-            money.MoneyData.Description = Helpers.StringToField(description);
-            money.MoneyData.DestID = target;
-            money.MoneyData.SourceID = this.ID;
-            money.MoneyData.TransactionType = transactiontype;
-
-            Client.Network.SendPacket((Packet)money);
-        }
-
-        public bool Teleport(ulong regionHandle, LLVector3 position)
-        {
-            return Teleport(regionHandle, position, new LLVector3(position.X + 1.0F, position.Y, position.Z));
-        }
-
-        public bool Teleport(ulong regionHandle, LLVector3 position, LLVector3 lookAt)
-        {
-            TeleportStatus = 0;
-
-            TeleportLocationRequestPacket teleport = new TeleportLocationRequestPacket();
-            teleport.AgentData.AgentID = Client.Network.AgentID;
-            teleport.AgentData.SessionID = Client.Network.SessionID;
-            teleport.Info.LookAt = lookAt;
-            teleport.Info.Position = position;
-            // FIXME: Uncomment me
-            //teleport.Info.RegionHandle = regionHandle;
-            teleport.Header.Reliable = true;
-
-            Client.Log("Teleporting to region " + regionHandle.ToString(), Helpers.LogLevel.Info);
-
-            // Start the timeout check
-            TeleportTimeout = false;
-            TeleportTimer.Start();
-
-            Client.Network.SendPacket((Packet)teleport);
-
-            while (TeleportStatus == 0 && !TeleportTimeout)
-            {
-                Client.Tick();
-            }
-
-            TeleportTimer.Stop();
-
-            if (TeleportTimeout)
-            {
-                if (OnTeleport != null) { OnTeleport("Teleport timed out."); }
-            }
-            else
-            {
-                if (OnTeleport != null) { OnTeleport(TeleportMessage); }
-            }
-
-            return (TeleportStatus == 1);
-        }
-
-        public bool Teleport(string simName, LLVector3 position)
-        {
-            return Teleport(simName, position, new LLVector3(position.X + 1.0F, position.Y, position.Z));
-        }
-
-        public bool Teleport(string simName, LLVector3 position, LLVector3 lookAt)
-        {
-            Client.Grid.AddSim(simName);
-            int attempts = 0;
-
-            while (attempts++ < 5)
-            {
-                if (Client.Grid.Regions.ContainsKey(simName))
-                {
-                    return Teleport(((GridRegion)Client.Grid.Regions[simName]).RegionHandle, position, lookAt);
-                }
-                else
-                {
-                    System.Threading.Thread.Sleep(1000);
-                    Client.Grid.AddSim(simName);
-                    Client.Tick();
-                }
-            }
-            if (OnTeleport != null)
-            {
-                OnTeleport("Unable to resolve name: " + simName);
-            }
-            return false;
         }
 
         private void TeleportHandler(Packet packet, Simulator simulator)
