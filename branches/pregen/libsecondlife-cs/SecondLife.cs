@@ -451,5 +451,59 @@ namespace libsecondlife
 
             return (int)zerolen;
         }
+
+        /// <summary>
+        /// Calculates the CRC (cyclic redundancy check) needed to upload inventory.
+        /// </summary>
+        /// <param name="creationDate">Creation date</param>
+        /// <param name="saleType">Sale type</param>
+        /// <param name="invType">Inventory type</param>
+        /// <param name="type">Type</param>
+        /// <param name="assetID">Asset ID</param>
+        /// <param name="groupID">Group ID</param>
+        /// <param name="salePrice">Sale price</param>
+        /// <param name="ownerID">Owner ID</param>
+        /// <param name="creatorID">Creator ID</param>
+        /// <param name="itemID">Item ID</param>
+        /// <param name="folderID">Folder ID</param>
+        /// <param name="everyoneMask">Everyone mask (permissions)</param>
+        /// <param name="flags">Flags</param>
+        /// <param name="nextOwnerMask">Next owner mask (permissions)</param>
+        /// <param name="groupMask">Group mask (permissions)</param>
+        /// <param name="ownerMask">Owner mask (permisions)</param>
+        /// <returns>The calculated CRC</returns>
+        public static uint InventoryCRC(int creationDate, byte saleType, sbyte invType, sbyte type,
+            LLUUID assetID, LLUUID groupID, int salePrice, LLUUID ownerID, LLUUID creatorID,
+            LLUUID itemID, LLUUID folderID, uint everyoneMask, uint flags, uint nextOwnerMask,
+            uint groupMask, uint ownerMask)
+        {
+            uint CRC = 0;
+
+            // IDs
+            CRC += assetID.CRC(); // AssetID
+            CRC += folderID.CRC(); // FolderID
+            CRC += itemID.CRC(); // ItemID
+
+            // Permission stuff
+            CRC += creatorID.CRC(); // CreatorID
+            CRC += ownerID.CRC(); // OwnerID
+            CRC += groupID.CRC(); // GroupID
+
+            // CRC += another 4 words which always seem to be zero -- unclear if this is a LLUUID or what
+            CRC += ownerMask;
+            CRC += nextOwnerMask;
+            CRC += everyoneMask;
+            CRC += groupMask;
+
+            // The rest of the CRC fields
+            CRC += flags; // Flags
+            CRC += (uint)invType; // InvType
+            CRC += (uint)type; // Type 
+            CRC += (uint)creationDate; // CreationDate
+            CRC += (uint)salePrice;    // SalePrice
+            CRC += (uint)((uint)saleType * 0x07073096); // SaleType
+
+            return CRC;
+        }
     }
 }

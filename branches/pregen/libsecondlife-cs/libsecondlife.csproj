@@ -91,6 +91,12 @@
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="AssetSystem\Asset.cs" />
+    <Compile Include="AssetSystem\AssetImage.cs" />
+    <Compile Include="AssetSystem\AssetManager.cs" />
+    <Compile Include="AssetSystem\AssetNotecard.cs" />
+    <Compile Include="AssetSystem\ImageManager.cs" />
+    <Compile Include="AssetSystem\NotecardAsset.cs" />
     <Compile Include="Avatar.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -103,6 +109,12 @@
     <Compile Include="Inventory.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="InventorySystem\InventoryBase.cs" />
+    <Compile Include="InventorySystem\InventoryFolder.cs" />
+    <Compile Include="InventorySystem\InventoryImage.cs" />
+    <Compile Include="InventorySystem\InventoryItem.cs" />
+    <Compile Include="InventorySystem\InventoryManager.cs" />
+    <Compile Include="InventorySystem\InventoryNotecard.cs" />
     <Compile Include="JSON\JSONArray.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -137,9 +149,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Types.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Utils\Utils.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="XmlRpcCS\Logger.cs">

@@ -190,11 +190,7 @@ namespace libsecondlife
         /// <param name="message"></param>
         public void InstantMessage(LLUUID target, string message)
         {
-            TimeSpan t = (DateTime.UtcNow - new DateTime(1970, 1, 1));
-            uint now = (uint)(t.TotalSeconds);
-            string name = FirstName + " " + LastName;
-
-            InstantMessage(name, LLUUID.GenerateUUID(), target, message, null);
+            InstantMessage(FirstName + " " + LastName, LLUUID.GenerateUUID(), target, message, null);
         }
 
         /// <summary>
@@ -492,7 +488,12 @@ namespace libsecondlife
 
                 if (OnInstantMessage != null)
                 {
-                    // FIXME: IMs are broken
+                    // FIXME: I think im.AgentData.AgentID is wrong
+                    OnInstantMessage(im.AgentData.AgentID, Helpers.FieldToString(im.MessageBlock.FromAgentName),
+                        im.MessageBlock.ToAgentID, im.MessageBlock.ParentEstateID, im.MessageBlock.RegionID,
+                        im.MessageBlock.Position, Convert.ToBoolean(im.MessageBlock.Dialog), im.MessageBlock.FromGroup,
+                        im.MessageBlock.ID, new DateTime(im.MessageBlock.Timestamp), 
+                        Helpers.FieldToString(im.MessageBlock.Message));
                 }
             }
         }

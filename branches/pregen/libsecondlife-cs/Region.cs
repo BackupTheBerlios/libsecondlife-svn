@@ -321,24 +321,15 @@ namespace libsecondlife
             }
             catch (NullReferenceException)
             {
-                byte test;
                 bool lhsnull = false;
                 bool rhsnull = false;
 
-                try
-                {
-                    test = lhs.ID.Data[0];
-                }
-                catch (NullReferenceException)
+                if (lhs == null || lhs.ID == null || lhs.ID.Data == null || lhs.ID.Data.Length == 0)
                 {
                     lhsnull = true;
                 }
 
-                try
-                {
-                    test = rhs.ID.Data[0];
-                }
-                catch (NullReferenceException)
+                if (rhs == null || rhs.ID == null || rhs.ID.Data == null || rhs.ID.Data.Length == 0)
                 {
                     rhsnull = true;
                 }

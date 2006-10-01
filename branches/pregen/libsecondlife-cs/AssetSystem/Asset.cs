@@ -44,11 +44,5 @@ namespace libsecondlife.AssetSystem
 			Tempfile	= false;
 			AssetData	= assetData;
 		}
-
-
-		public string AssetDataToString()
-		{
-			return libsecondlife.Utils.ByteArrayStuff.ByteArrayToString((byte[])AssetData);
-		}
 	}
 }

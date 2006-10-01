@@ -323,140 +323,113 @@ namespace libsecondlife
 
         private void TerseUpdateHandler(Packet packet, Simulator simulator)
         {
-            //U64 regionHandle = null;
-            //ushort timeDilation = 0;
-            //bool avatar = false;
-            //int i;
-            //byte[] data;
-            //uint localid = 0;
-            //byte state = 0;
-            //float x, y, z, s;
-            //LLVector4 CollisionPlane = null;
-            //LLVector3 Position = null, Velocity = null, Acceleration = null, RotationVelocity = null;
-            //LLQuaternion Rotation = null;
+            float x, y, z, w;
+            uint localid;
+            LLVector4 CollisionPlane = null;
+            LLVector3 Position;
+            LLVector3 Velocity;
+            LLVector3 Acceleration;
+            LLQuaternion Rotation;
+            LLVector3 RotationVelocity;
 
-            //foreach (Block block in packet.Blocks())
-            //{
-            //    foreach (Field field in block.Fields)
-            //    {
-            //        switch (field.Layout.Name)
-            //        {
-            //            case "Data":
-            //                i = 0;
-            //                data = (byte[])field.Data;
+            ImprovedTerseObjectUpdatePacket update = (ImprovedTerseObjectUpdatePacket)packet;
 
-            //                // Region ID
-            //                localid = (uint)(data[i] + (data[i + 1] << 8) + (data[i + 2] << 16) + (data[i + 3] << 24));
-            //                i += 4;
+            foreach (ImprovedTerseObjectUpdatePacket.ObjectDataBlock block in update.ObjectData)
+            {
+                int i = 0;
+                bool avatar;
 
-            //                // Object state
-            //                state = data[i++];
+                localid = (uint)(block.Data[i++] + (block.Data[i++] << 8) + 
+                    (block.Data[i++] << 16) + (block.Data[i++] << 24));
 
-            //                // Avatar boolean
-            //                avatar = Convert.ToBoolean(data[i]);
-            //                i++;
+                byte state = block.Data[i++];
 
-            //                if (avatar)
-            //                {
-            //                    CollisionPlane = new LLVector4(data, i);
-            //                    i += 16;
-            //                }
+                avatar = Convert.ToBoolean(block.Data[i++]);
 
-            //                // Position
-            //                Position = new LLVector3(data, i);
-            //                i += 12;
-            //                // Velocity
-            //                x = Dequantize(data, i, -128.0F, 128.0F);
-            //                i += 2;
-            //                y = Dequantize(data, i, -128.0F, 128.0F);
-            //                i += 2;
-            //                z = Dequantize(data, i, -128.0F, 128.0F);
-            //                i += 2;
-            //                Velocity = new LLVector3(x, y, z);
-            //                // Acceleration
-            //                x = Dequantize(data, i, -64.0F, 64.0F);
-            //                i += 2;
-            //                y = Dequantize(data, i, -64.0F, 64.0F);
-            //                i += 2;
-            //                z = Dequantize(data, i, -64.0F, 64.0F);
-            //                i += 2;
-            //                Acceleration = new LLVector3(x, y, z);
-            //                // Rotation
-            //                x = Dequantize(data, i, -1.0F, 1.0F);
-            //                i += 2;
-            //                y = Dequantize(data, i, -1.0F, 1.0F);
-            //                i += 2;
-            //                z = Dequantize(data, i, -1.0F, 1.0F);
-            //                i += 2;
-            //                s = Dequantize(data, i, -1.0F, 1.0F);
-            //                i += 2;
-            //                Rotation = new LLQuaternion(x, y, z, s);
-            //                // Rotation velocity
-            //                x = Dequantize(data, i, -64.0F, 64.0F);
-            //                i += 2;
-            //                y = Dequantize(data, i, -64.0F, 64.0F);
-            //                i += 2;
-            //                z = Dequantize(data, i, -64.0F, 64.0F);
-            //                i += 2;
-            //                RotationVelocity = new LLVector3(x, y, z);
+                if (avatar)
+                {
+                    CollisionPlane = new LLVector4(block.Data, i);
+                    i += 16;
+                }
 
-            //                break;
-            //            case "RegionHandle":
-            //                regionHandle = (U64)field.Data;
-            //                break;
-            //            case "TimeDilation":
-            //                timeDilation = (ushort)field.Data;
-            //                break;
-            //            case "TextureEntry":
-            //                //
-            //                break;
-            //        }
-            //    }
-            //}
+                // Position
+                Position = new LLVector3(block.Data, i);
+                i += 12;
+                // Velocity
+                x = Dequantize(block.Data, i, -128.0F, 128.0F);
+                i += 2;
+                y = Dequantize(block.Data, i, -128.0F, 128.0F);
+                i += 2;
+                z = Dequantize(block.Data, i, -128.0F, 128.0F);
+                i += 2;
+                Velocity = new LLVector3(x, y, z);
+                // Acceleration
+                x = Dequantize(block.Data, i, -64.0F, 64.0F);
+                i += 2;
+                y = Dequantize(block.Data, i, -64.0F, 64.0F);
+                i += 2;
+                z = Dequantize(block.Data, i, -64.0F, 64.0F);
+                i += 2;
+                Acceleration = new LLVector3(x, y, z);
+                // Rotation
+                x = Dequantize(block.Data, i, -1.0F, 1.0F);
+                i += 2;
+                y = Dequantize(block.Data, i, -1.0F, 1.0F);
+                i += 2;
+                z = Dequantize(block.Data, i, -1.0F, 1.0F);
+                i += 2;
+                w = Dequantize(block.Data, i, -1.0F, 1.0F);
+                i += 2;
+                Rotation = new LLQuaternion(x, y, z, w);
+                // Rotation velocity
+                x = Dequantize(block.Data, i, -64.0F, 64.0F);
+                i += 2;
+                y = Dequantize(block.Data, i, -64.0F, 64.0F);
+                i += 2;
+                z = Dequantize(block.Data, i, -64.0F, 64.0F);
+                i += 2;
+                RotationVelocity = new LLVector3(x, y, z);
 
-            //if (avatar)
-            //{
-            //    if (localid == Client.Avatar.LocalID)
-            //    {
-            //        Client.Avatar.Position = Position;
-            //        Client.Avatar.Rotation = Rotation;
-            //    }
-            //    else
-            //    {
-            //        AvatarUpdate avupdate = new AvatarUpdate();
-            //        avupdate.LocalID = localid;
-            //        avupdate.State = state;
-            //        avupdate.Position = Position;
-            //        avupdate.CollisionPlane = CollisionPlane;
-            //        avupdate.Velocity = Velocity;
-            //        avupdate.Acceleration = Acceleration;
-            //        avupdate.Rotation = Rotation;
-            //        avupdate.RotationVelocity = RotationVelocity;
+                if (avatar)
+                {
+                    if (localid == Client.Avatar.LocalID)
+                    {
+                        Client.Avatar.Position = Position;
+                        Client.Avatar.Rotation = Rotation;
+                    }
 
-            //        // If an event handler is registered call it
+                    AvatarUpdate avupdate = new AvatarUpdate();
+                    avupdate.LocalID = localid;
+                    avupdate.State = state;
+                    avupdate.Position = Position;
+                    avupdate.CollisionPlane = CollisionPlane;
+                    avupdate.Velocity = Velocity;
+                    avupdate.Acceleration = Acceleration;
+                    avupdate.Rotation = Rotation;
+                    avupdate.RotationVelocity = RotationVelocity;
+
                     if (OnAvatarMoved != null)
                     {
-            //            OnAvatarMoved(simulator, avupdate, regionHandle, timeDilation);
+                        OnAvatarMoved(simulator, avupdate, update.RegionData.RegionHandle, update.RegionData.TimeDilation);
                     }
-            //    }
-            //}
-            //else
-            //{
-            //    PrimUpdate primupdate = new PrimUpdate();
-            //    primupdate.LocalID = localid;
-            //    primupdate.State = state;
-            //    primupdate.Position = Position;
-            //    primupdate.Velocity = Velocity;
-            //    primupdate.Acceleration = Acceleration;
-            //    primupdate.Rotation = Rotation;
-            //    primupdate.RotationVelocity = RotationVelocity;
-
-            //    // If an event handler is registered call it
-                if (OnPrimMoved != null)
-                {
-            //        OnPrimMoved(simulator, primupdate, regionHandle, timeDilation);
                 }
-            //}
+                else
+                {
+                    PrimUpdate primupdate = new PrimUpdate();
+                    primupdate.LocalID = localid;
+                    primupdate.State = state;
+                    primupdate.Position = Position;
+                    primupdate.Velocity = Velocity;
+                    primupdate.Acceleration = Acceleration;
+                    primupdate.Rotation = Rotation;
+                    primupdate.RotationVelocity = RotationVelocity;
+
+                    if (OnPrimMoved != null)
+                    {
+                        OnPrimMoved(simulator, primupdate, update.RegionData.RegionHandle, update.RegionData.TimeDilation);
+                    }
+                }
+            }
         }
 
         private void CompressedUpdateHandler(Packet packet, Simulator simulator)
