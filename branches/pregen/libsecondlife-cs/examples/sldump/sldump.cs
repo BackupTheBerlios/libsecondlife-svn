@@ -36,7 +36,7 @@ namespace sldump
 		// Default packet handler, registered for all packet types
 		public static void DefaultHandler(Packet packet, Simulator simulator)
 		{
-			//Console.Write(packet.ToString());
+			Console.WriteLine(packet.ToString());
 		}
 
 		/// <summary>

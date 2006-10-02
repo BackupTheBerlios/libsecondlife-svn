@@ -381,7 +381,32 @@ namespace mapgenerator
                 WriteFieldToBytes(field);
             }
 
-            Console.WriteLine("            }\n        }\n");
+            Console.WriteLine("            }\n");
+
+            // ToString() function
+            Console.WriteLine("            /// <summary>Serialize this block to a string</summary><returns>A string containing the serialized block</returns>");
+            Console.WriteLine("            public override string ToString()\n            {");
+            Console.WriteLine("                string output = \"-- " + block.Name + " --\\n\";");
+
+            foreach (MapField field in block.Fields)
+            {
+                if (field.Type == FieldType.Variable)
+                {
+                    Console.WriteLine("                output += Helpers.FieldToString(" + field.Name + ", \"" + field.Name + "\");");
+                }
+                else if (field.Type == FieldType.Fixed)
+                {
+                    Console.WriteLine("                output += Helpers.FieldToString(" + field.Name + ", \"" + field.Name + "\") + \"\\n\";");
+                }
+                else
+                {
+                    Console.WriteLine("                output += \"" + field.Name + ": \" + " + field.Name + ".ToString() + \"\\n\";");
+                }
+            }
+
+            Console.WriteLine("                output = output.Trim();\n                return output;\n            }");
+
+            Console.WriteLine("        }\n");
         }
 
         static void WritePacketClass(MapPacket packet)
@@ -611,7 +636,37 @@ namespace mapgenerator
             }
 
             Console.WriteLine("            if (header.AckList.Length > 0) { header.AcksToBytes(bytes, ref i); }");
-            Console.WriteLine("            return bytes;\n        }");
+            Console.WriteLine("            return bytes;\n        }\n");
+
+            // ToString() function
+            Console.WriteLine("        /// <summary>Serialize this packet to a string</summary><returns>A string containing the serialized packet</returns>");
+            Console.WriteLine("        public override string ToString()\n        {");
+            Console.WriteLine("            string output = \"--- " + packet.Name + " ---\\n\";");
+
+            foreach (MapBlock block in packet.Blocks)
+            {
+                if (block.Name == "Header") { sanitizedName = "_" + block.Name; }
+                else { sanitizedName = block.Name; }
+
+                if (block.Count == -1)
+                {
+                    // Variable count block
+                    Console.WriteLine("            for (int j = 0; j < " + sanitizedName + ".Length; j++)\n            {");
+                    Console.WriteLine("                output += " + sanitizedName + "[j].ToString() + \"\\n\";\n            }");
+                }
+                else if (block.Count == 1)
+                {
+                    Console.WriteLine("                output += " + sanitizedName + ".ToString() + \"\\n\";");
+                }
+                else
+                {
+                    // Multiple count block
+                    Console.WriteLine("            for (int j = 0; j < " + block.Count + "; j++)\n            {");
+                    Console.WriteLine("                output += " + sanitizedName + "[j].ToString() + \"\\n\";\n            }");
+                }
+            }
+
+            Console.WriteLine("            return output;\n        }\n");
 
             // Closing function bracket
             Console.WriteLine("    }\n");
@@ -627,7 +682,7 @@ namespace mapgenerator
             reader.Close();
 
             // Write the PacketType enum
-            Console.WriteLine("    <summary>Used to identify the type of a packet</summary>");
+            Console.WriteLine("    /// <summary>Used to identify the type of a packet</summary>");
             Console.WriteLine("    public enum PacketType\n    {\n" +
                 "        /// <summary>A generic value, not an actual packet type</summary>\n" +
                 "        Default,");

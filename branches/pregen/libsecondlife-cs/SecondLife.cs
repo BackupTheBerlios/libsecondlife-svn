@@ -205,13 +205,27 @@ namespace libsecondlife
         };
 
         /// <summary>
-        /// Convert a variable length field (byte array) to a string
+        /// Convert a variable length field (byte array) to a string.
         /// </summary>
         /// <remarks>If the byte array has unprintable characters in it, a 
         /// hex dump will be put in the string instead</remarks>
         /// <param name="bytes">The byte array to convert to a string</param>
         /// <returns>A UTF8 string, minus the null terminator</returns>
         public static string FieldToString(byte[] bytes)
+        {
+            return FieldToString(bytes, "");
+        }
+
+        /// <summary>
+        /// Convert a variable length field (byte array) to a string, with a
+        /// field name prepended to each line of the output.
+        /// </summary>
+        /// <remarks>If the byte array has unprintable characters in it, a 
+        /// hex dump will be put in the string instead</remarks>
+        /// <param name="bytes">The byte array to convert to a string</param>
+        /// <param name="fieldName">A field name to prepend to each line of output</param>
+        /// <returns>A UTF8 string, minus the null terminator</returns>
+        public static string FieldToString(byte[] bytes, string fieldName)
         {
             bool printable = true;
 
@@ -222,6 +236,7 @@ namespace libsecondlife
                     && bytes[i] != 0x0D && bytes[i] != 0x0A && bytes[i] != 0x00)
                 {
                     printable = false;
+                    break;
                 }
             }
 
@@ -236,6 +251,7 @@ namespace libsecondlife
                 for (int i = 0; i < bytes.Length; i += 16)
                 {
                     if (i != 0) { output += "\n"; }
+                    if (fieldName != "") { output += fieldName + ": "; }
 
                     for (int j = 0; j < 16; j++)
                     {
