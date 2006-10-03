@@ -119,6 +119,10 @@ namespace mapgenerator
                         " = (uint)(bytes[i++] + (bytes[i++] << 8) + (bytes[i++] << 16) + (bytes[i++] << 24));");
                     break;
                 case FieldType.IPPORT:
+                    // IPPORT is big endian while U16/S16 are little endian. Go figure
+                    Console.WriteLine("                    " + field.Name +
+                        " = (ushort)((bytes[i++] << 8) + bytes[i++]);");
+                    break;
                 case FieldType.U16:
                     Console.WriteLine("                    " + field.Name + 
                         " = (ushort)(bytes[i++] + (bytes[i++] << 8));");
@@ -157,10 +161,10 @@ namespace mapgenerator
                     break;
                 case FieldType.U64:
                     Console.WriteLine("                    " + field.Name +
-                        " = (ulong)(bytes[i++] + (bytes[i++] << 8) + " +
-                        "(bytes[i++] << 16) + (bytes[i++] << 24) + " +
-                        "(bytes[i++] << 32) + (bytes[i++] << 40) + " +
-                        "(bytes[i++] << 48) + (bytes[i++] << 56));");
+                        " = (ulong)((ulong)bytes[i++] + ((ulong)bytes[i++] << 8) + " +
+                        "((ulong)bytes[i++] << 16) + ((ulong)bytes[i++] << 24) + " +
+                        "((ulong)bytes[i++] << 32) + ((ulong)bytes[i++] << 40) + " +
+                        "((ulong)bytes[i++] << 48) + ((ulong)bytes[i++] << 56));");
                     break;
                 case FieldType.U8:
                     Console.WriteLine("                    " + field.Name +
@@ -209,6 +213,10 @@ namespace mapgenerator
                         "i += " + field.Count + ";");
                     break;
                 case FieldType.IPPORT:
+                    // IPPORT is big endian while U16/S16 is little endian. Go figure
+                    Console.WriteLine("bytes[i++] = (byte)((" + field.Name + " >> 8) % 256);");
+                    Console.WriteLine("                bytes[i++] = (byte)(" + field.Name + " % 256);");
+                    break;
                 case FieldType.U16:
                 case FieldType.S16:
                     Console.WriteLine("bytes[i++] = (byte)(" + field.Name + " % 256);");
@@ -724,7 +732,51 @@ namespace mapgenerator
                 "        /// <summary>Serializes the packet in to a byte array</summary>\n" +
                 "        /// <returns>A byte array containing the serialized packet payload, ready to be sent across the wire</returns>\n" +
                 "        public abstract byte[] ToBytes();\n\n" +
-                "        /// <summary>Construct a packet in it's native class from a byte array</summary>\n" +
+                "        /// <summary>Get the PacketType for a given packet id and packet frequency</summary>\n" +
+                "        /// <param name=\"id\">The packet ID from the header</param>\n" +
+                "        /// <param name=\"frequency\">Frequency of this packet</param>\n" +
+                "        /// <returns>The packet type, or PacketType.Default</returns>\n" +
+                "        public static PacketType GetType(ushort id, PacketFrequency frequency)\n        {\n" +
+                "            switch (frequency)\n            {\n                case PacketFrequency.Low:\n" +
+                "                    switch (id)\n                    {");
+
+            foreach (MapPacket packet in protocol.LowMaps)
+            {
+                if (packet != null)
+                {
+                    Console.WriteLine("                        case " + packet.ID + 
+                        ": return PacketType." + packet.Name + ";");
+                }
+            }
+
+            Console.WriteLine("                    }\n                    break;\n" +
+                "                case PacketFrequency.Medium:\n                    switch (id)\n                    {");
+
+            foreach (MapPacket packet in protocol.MediumMaps)
+            {
+                if (packet != null)
+                {
+                    Console.WriteLine("                        case " + packet.ID +
+                        ": return PacketType." + packet.Name + ";");
+                }
+            }
+
+            Console.WriteLine("                    }\n                    break;\n" +
+                "                case PacketFrequency.High:\n                    switch (id)\n                    {");
+
+            foreach (MapPacket packet in protocol.HighMaps)
+            {
+                if (packet != null)
+                {
+                    Console.WriteLine("                        case " + packet.ID +
+                        ": return PacketType." + packet.Name + ";");
+                }
+            }
+
+            Console.WriteLine("                    }\n                    break;\n            }\n\n" +
+                "            return PacketType.Default;\n        }\n");
+
+            Console.WriteLine("        /// <summary>Construct a packet in it's native class from a byte array</summary>\n" +
                 "        /// <param name=\"bytes\">Byte array containing the packet, starting at position 0</param>\n" +
                 "        /// <param name=\"packetEnd\">The last byte of the packet. If the packet was 76 bytes long, packetEnd would be 75</param>\n" +
                 "        /// <returns>The native packet class for this type of packet, typecasted to the generic Packet</returns>\n" +
@@ -743,9 +795,8 @@ namespace mapgenerator
             {
                 if (packet != null)
                 {
-                    Console.WriteLine("                        case " + packet.ID + ":");
-                    Console.WriteLine("                            return new " + packet.Name +
-                        "Packet(header, bytes, ref i);");
+                    Console.WriteLine("                        case " + packet.ID + 
+                        ": return new " + packet.Name + "Packet(header, bytes, ref i);");
                 }
             }
             Console.WriteLine("                    }\n                }\n                else\n" +
@@ -755,9 +806,8 @@ namespace mapgenerator
             {
                 if (packet != null)
                 {
-                    Console.WriteLine("                        case " + packet.ID + ":");
-                    Console.WriteLine("                            return new " + packet.Name +
-                        "Packet(header, bytes, ref i);");
+                    Console.WriteLine("                        case " + packet.ID + 
+                        ": return new " + packet.Name + "Packet(header, bytes, ref i);");
                 }
             }
             Console.WriteLine("                    }\n                }\n            }\n" + 
@@ -768,9 +818,8 @@ namespace mapgenerator
             {
                 if (packet != null)
                 {
-                    Console.WriteLine("                        case " + packet.ID + ":");
-                    Console.WriteLine("                            return new " + packet.Name +
-                        "Packet(header, bytes, ref i);");
+                    Console.WriteLine("                        case " + packet.ID + 
+                        ": return new " + packet.Name + "Packet(header, bytes, ref i);");
                 }
             }
             Console.WriteLine("                }\n            }\n\n" +
