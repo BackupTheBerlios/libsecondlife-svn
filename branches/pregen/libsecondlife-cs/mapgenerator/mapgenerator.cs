@@ -341,17 +341,28 @@ namespace mapgenerator
             {
                 length += GetFieldLength(field);
             }
-            if (block.Count == -1) { length += 1; }
-            Console.WriteLine("                    int length = " + length + ";");
-            foreach (MapField field in block.Fields)
+
+            if (!variableFields)
             {
-                if (field.Type == FieldType.Variable)
-                {
-                    Console.WriteLine("                    if (" + field.Name +
-                        " != null) { length += " + field.Count + " + " + field.Name + ".Length; }");
-                }
+                Console.WriteLine("                    return " + length + ";");
             }
-            Console.WriteLine("                    return length;\n                }\n            }\n");
+            else
+            {
+                Console.WriteLine("                    int length = " + length + ";");
+
+                foreach (MapField field in block.Fields)
+                {
+                    if (field.Type == FieldType.Variable)
+                    {
+                        Console.WriteLine("                    if (" + field.Name +
+                            " != null) { length += " + field.Count + " + " + field.Name + ".Length; }");
+                    }
+                }
+
+                Console.WriteLine("                    return length;");
+            }
+
+            Console.WriteLine("                }\n            }\n");
 
             // Default constructor
             Console.WriteLine("            /// <summary>Default constructor</summary>");
@@ -605,6 +616,7 @@ namespace mapgenerator
 
                 if (block.Count == -1)
                 {
+                    Console.WriteLine("            length++;");
                     Console.WriteLine("            for (int j = 0; j < " + sanitizedName +
                         ".Length; j++) { length += " + sanitizedName + "[j].Length; }");
                 }
