@@ -95,8 +95,10 @@
     <Compile Include="AssetSystem\AssetImage.cs" />
     <Compile Include="AssetSystem\AssetManager.cs" />
     <Compile Include="AssetSystem\AssetNotecard.cs" />
+    <Compile Include="AssetSystem\AssetPacketHelpers.cs" />
+
     <Compile Include="AssetSystem\ImageManager.cs" />
-    <Compile Include="AssetSystem\NotecardAsset.cs" />
+    <Compile Include="AssetSystem\ImagePacketHelpers.cs" />
     <Compile Include="Avatar.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -115,6 +117,8 @@
     <Compile Include="InventorySystem\InventoryItem.cs" />
     <Compile Include="InventorySystem\InventoryManager.cs" />
     <Compile Include="InventorySystem\InventoryNotecard.cs" />
+    <Compile Include="InventorySystem\InventoryPacketHelper.cs" />
+
     <Compile Include="JSON\JSONArray.cs">
       <SubType>Code</SubType>
     </Compile>

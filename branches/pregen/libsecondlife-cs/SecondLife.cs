@@ -299,10 +299,10 @@ namespace libsecondlife
             return System.Text.UTF8Encoding.UTF8.GetBytes(str);
         }
 
-        public static int GetUnixTime()
+        public static uint GetUnixTime()
         {
             TimeSpan ts = (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0));
-            return (int)ts.TotalSeconds;
+            return (uint)ts.TotalSeconds;
         }
 
         /// <summary>

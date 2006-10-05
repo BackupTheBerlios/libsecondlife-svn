@@ -20,6 +20,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SLProxy", "..\applications\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyst", "..\applications\SLProxy\Analyst.csproj", "{6222B134-AE5F-489A-8A77-423A721B7C62}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IA_SimpleInventory", "examples\IA_SimpleInventory\IA_SimpleInventory.csproj", "{E464B963-46E3-4E1A-A36F-9C640C880E68}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IA_ImageTool", "..\applications\IA_ImageTool\IA_ImageTool.csproj", "{8D2E5240-2247-42F5-AAAC-CF0CCCEE349A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -66,6 +70,14 @@ Global
 		{6222B134-AE5F-489A-8A77-423A721B7C62}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6222B134-AE5F-489A-8A77-423A721B7C62}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6222B134-AE5F-489A-8A77-423A721B7C62}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E464B963-46E3-4E1A-A36F-9C640C880E68}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E464B963-46E3-4E1A-A36F-9C640C880E68}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E464B963-46E3-4E1A-A36F-9C640C880E68}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E464B963-46E3-4E1A-A36F-9C640C880E68}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D2E5240-2247-42F5-AAAC-CF0CCCEE349A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D2E5240-2247-42F5-AAAC-CF0CCCEE349A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D2E5240-2247-42F5-AAAC-CF0CCCEE349A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D2E5240-2247-42F5-AAAC-CF0CCCEE349A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

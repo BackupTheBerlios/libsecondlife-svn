@@ -2,25 +2,25 @@
  * Copyright (c) 2006, Second Life Reverse Engineering Team
  * All rights reserved.
  *
- * - Redistribution and use in source and binary forms, with or without
+ * - Redistribution and use in source and binary forms, with or without 
  *   modification, are permitted provided that the following conditions are met:
  *
  * - Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
- * - Neither the name of the Second Life Reverse Engineering Team nor the names
+ * - Neither the name of the Second Life Reverse Engineering Team nor the names 
  *   of its contributors may be used to endorse or promote products derived from
  *   this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
@@ -28,19 +28,18 @@ using System;
 using System.Collections;
 
 using libsecondlife;
+using libsecondlife.Packets;
 
 using libsecondlife.InventorySystem;
-
-using libsecondlife.Packets;
 
 namespace libsecondlife.AssetSystem
 {
 	/// <summary>
-	/// Summary description for AssetManager.
+	/// Manages the uploading and downloading of Images from SecondLife
 	/// </summary>
 	public class ImageManager
 	{
-		private SecondLife Client;
+		private SecondLife slClient;
 
 		private Hashtable htDownloadRequests = new Hashtable();
 
@@ -52,7 +51,7 @@ namespace libsecondlife.AssetSystem
 
 			public uint Size;
 			public uint Received;
-			public int LastPacket;
+			public uint LastPacket;
 			public byte[] AssetData;
 
 			public TransferRequest()
@@ -66,41 +65,40 @@ namespace libsecondlife.AssetSystem
 			}
 		}
 
-		public ImageManager( SecondLife client )
+        /// <summary>
+        /// </summary>
+        /// <param name="client"></param>
+        public ImageManager(SecondLife client)
 		{
-			Client = client;
+			slClient = client;
 
-			// Used to upload small assets, or as an initial start packet for large transfers
 			PacketCallback ImageDataCallback = new PacketCallback(ImageDataCallbackHandler);
-			Client.Network.RegisterCallback(PacketType.ImageData, ImageDataCallback);
+			slClient.Network.RegisterCallback(PacketType.ImageData, ImageDataCallback);
 
-			// Transfer Packets for downloading large assets		
-			PacketCallback ImagePacketCallback = new PacketCallback(ImagePacketCallbackHandler);
-            Client.Network.RegisterCallback(PacketType.ImagePacket, ImagePacketCallback);
+            PacketCallback ImagePacketCallback = new PacketCallback(ImagePacketCallbackHandler);
+            slClient.Network.RegisterCallback(PacketType.ImagePacket, ImagePacketCallback);
 		}
 
-		public byte[] RequestImage( LLUUID ImageID )
+        /// <summary>
+        /// Requests an image from SecondLife and blocks until it's received.
+        /// </summary>
+        /// <param name="ImageID">The Image's AssetID</param>
+        public byte[] RequestImage(LLUUID ImageID)
 		{
 			TransferRequest tr = new TransferRequest();
 			tr.Completed  = false;
 			tr.Size		  = int.MaxValue; // Number of bytes expected
 			tr.Received   = 0; // Number of bytes received
-			tr.LastPacket = getUnixtime(); // last time we recevied a packet for this request
+			tr.LastPacket = Helpers.GetUnixTime(); // last time we recevied a packet for this request
 
 			htDownloadRequests[ImageID] = tr;
 
-            RequestImagePacket request = new RequestImagePacket();
-            request.RequestImage = new RequestImagePacket.RequestImageBlock[1];
-            request.RequestImage[0].DiscardLevel = 0;
-            request.RequestImage[0].DownloadPriority = 1215000.0F;
-            request.RequestImage[0].Image = ImageID;
-            request.RequestImage[0].Packet = 0;
-
-			Client.Network.SendPacket((Packet)request);
+            Packet packet = ImagePacketHelpers.RequestImage(ImageID);
+			slClient.Network.SendPacket(packet);
 
 			while( tr.Completed == false )
 			{
-				Client.Tick();
+				slClient.Tick();
 			}
 
 			if( tr.Status == true )
@@ -114,62 +112,74 @@ namespace libsecondlife.AssetSystem
 
 		}
 
-		public void ImageDataCallbackHandler(Packet packet, Simulator simulator)
+
+        /// <summary>
+        /// Handles the Image Data packet, which includes the ID, and Size of the image, 
+        /// along with the first block of data for the image.  If the image is small enough
+        /// there will be no additional packets.
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <param name="simulator"></param>
+        public void ImageDataCallbackHandler(Packet packet, Simulator simulator)
 		{
-            ImageDataPacket image = (ImageDataPacket)packet;
-			TransferRequest tr = (TransferRequest)htDownloadRequests[image.ImageID.ID];
+            ImageDataPacket reply = (ImageDataPacket)packet;
 
-            if (tr != null)
-            {
-                tr.Size = image.ImageID.Size;
-                tr.AssetData = new byte[tr.Size];
+			LLUUID ImageID = reply.ImageID.ID;
+			ushort Packets = reply.ImageID.Packets;
+			uint   Size    = reply.ImageID.Size;
+			byte[] Data    = reply.ImageData.Data;
 
-                Array.Copy(image.ImageData.Data, 0, tr.AssetData, tr.Received, image.ImageData.Data.Length);
-                tr.Received += (uint)image.ImageData.Data.Length;
+            // Lookup the request that this packet is for
+			TransferRequest tr = (TransferRequest)htDownloadRequests[ImageID];
+			if( tr == null )
+			{
+                // Received a packet for an image we didn't request...
+				return;
+			}
 
-                // If we've gotten all the data, mark it completed.
-                if (tr.Received >= tr.Size)
-                {
-                    tr.Completed = true;
-                    tr.Status = true;
-                }
-            }
-            else
-            {
-                Client.Log("Received an ImageData packet with an unknown ID field " + 
-                    image.ImageID.ID, Helpers.LogLevel.Warning);
-            }
+            // Initialize the request so that it's data buffer is the right size for the image
+			tr.Size = Size;
+			tr.AssetData = new byte[tr.Size];
+
+            // Copy the first block of image data into the request.
+			Array.Copy(Data, 0, tr.AssetData, tr.Received, Data.Length);
+			tr.Received += (uint)Data.Length;
+
+			// If we've gotten all the data, mark it completed.
+			if( tr.Received >= tr.Size )
+			{
+				tr.Completed = true;
+				tr.Status	 = true;
+			}
 		}
 
-		public void ImagePacketCallbackHandler(Packet packet, Simulator simulator)
+        /// <summary>
+        /// Handles the remaining Image data that did not fit in the initial ImageData packet
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <param name="simulator"></param>
+        public void ImagePacketCallbackHandler(Packet packet, Simulator simulator)
 		{
-            ImagePacketPacket image = (ImagePacketPacket)packet;
-			TransferRequest tr = (TransferRequest)htDownloadRequests[image.ImageID.ID];
+            ImagePacketPacket reply = (ImagePacketPacket)packet;
 
-            if (tr != null)
-            {
-                Array.Copy(image.ImageData.Data, 0, tr.AssetData, tr.Received, image.ImageData.Data.Length);
-                tr.Received += (uint)image.ImageData.Data.Length;
+            // Lookup the request for this packet
+			TransferRequest tr = (TransferRequest)htDownloadRequests[reply.ImageID.ID];
+			if( tr == null )
+			{
+                // Received a packet that doesn't belong to any requests in our queue, strange...
+				return;
+			}
 
-                // If we've gotten all the data, mark it completed.
-                if (tr.Received >= tr.Size)
-                {
-                    tr.Completed = true;
-                    tr.Status = true;
-                }
-            }
-            else
-            {
-                Client.Log("Received an ImagePacket packet with an unknown ID field " +
-                    image.ImageID.ID, Helpers.LogLevel.Warning);
-            }
-		}
+            // Add this packet's data to the request.
+			Array.Copy(reply.ImageData.Data, 0, tr.AssetData, tr.Received, reply.ImageData.Data.Length);
+            tr.Received += (uint)reply.ImageData.Data.Length;
 
-
-		public static int getUnixtime()
-		{
-			TimeSpan ts = (DateTime.UtcNow - new DateTime(1970,1,1,0,0,0));
-			return (int)ts.TotalSeconds;
+			// If we've gotten all the data, mark it completed.
+			if( tr.Received >= tr.Size )
+			{
+				tr.Completed = true;
+				tr.Status	 = true;
+			}		
 		}
 	}
 }
