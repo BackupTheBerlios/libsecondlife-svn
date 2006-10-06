@@ -115,15 +115,27 @@ namespace libsecondlife.InventorySystem
 			string sSecretConst = "+@#%$#$%^%^%$^$%SV$#%FR$G";
 			sFolderPath = sFolderPath.Replace("//",sSecretConst);
 
-			char[] seperators = new char[1];
-			seperators[0] = '/';
+            if (sFolderPath.StartsWith("/"))
+            {
+                sFolderPath = sFolderPath.Remove(0, 1);
+            }
+
+            if (sFolderPath.Length == 0)
+            {
+                return getRootFolder();
+            }
+
+            char[] seperators = { '/' };
 			string[] sFolderPathParts = sFolderPath.Split(seperators);
+
 			for( int i = 0; i<sFolderPathParts.Length; i++ )
 			{
 				sFolderPathParts[i] = sFolderPathParts[i].Replace(sSecretConst,"/");
 			}
 
-			return getFolder(new Queue(sFolderPathParts));
+            Queue pathParts = new Queue(sFolderPathParts);
+
+            return getFolder(pathParts);
 		}
 		private InventoryFolder getFolder( Queue qFolderPath )
 		{
