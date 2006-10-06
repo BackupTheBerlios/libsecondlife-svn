@@ -253,6 +253,11 @@ namespace libsecondlife
                 im.MessageBlock.BinaryBucket = new byte[0];
             }
 
+            // These fields are mandatory, even if we don't have valid values for them
+            im.MessageBlock.Position = new LLVector3();
+            im.MessageBlock.RegionID = new LLUUID(); //TODO: Allow region id to be correctly set by caller or fetched from Client.*
+
+
             // Send the message
             Client.Network.SendPacket((Packet)im);
         }
