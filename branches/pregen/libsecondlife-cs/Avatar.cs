@@ -60,7 +60,7 @@ namespace libsecondlife
     /// <param name="Message"></param>
     public delegate void InstantMessageCallback(LLUUID FromAgentID, string FromAgentName, 
         LLUUID ToAgentID, uint ParentEstateID, LLUUID RegionID, LLVector3 Position, 
-        bool Dialog, bool GroupIM, LLUUID IMSessionID, DateTime Timestamp, string Message);
+        bool Dialog, bool GroupIM, LLUUID IMSessionID, DateTime Timestamp, string Message, byte Offline, byte[] BinaryBucket);
 
     /// <summary>
     /// 
@@ -190,7 +190,18 @@ namespace libsecondlife
         /// <param name="message"></param>
         public void InstantMessage(LLUUID target, string message)
         {
-            InstantMessage(FirstName + " " + LastName, LLUUID.GenerateUUID(), target, message, null);
+            InstantMessage(FirstName + " " + LastName, LLUUID.GenerateUUID(), target, message, null, LLUUID.GenerateUUID());
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="message"></param>
+        /// <param name="ID"></param>
+        public void InstantMessage(LLUUID target, string message, LLUUID IMSessionID)
+        {
+            InstantMessage(FirstName + " " + LastName, LLUUID.GenerateUUID(), target, message, null, IMSessionID);
         }
 
         /// <summary>
@@ -201,7 +212,22 @@ namespace libsecondlife
         /// <param name="target"></param>
         /// <param name="message"></param>
         /// <param name="conferenceIDs"></param>
+        /// <param name="ID"></param>
         public void InstantMessage(string fromName, LLUUID sessionID, LLUUID target, string message, LLUUID[] conferenceIDs)
+        {
+            InstantMessage(fromName, sessionID, target, message, conferenceIDs, LLUUID.GenerateUUID());
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="fromName"></param>
+        /// <param name="sessionID"></param>
+        /// <param name="target"></param>
+        /// <param name="message"></param>
+        /// <param name="conferenceIDs"></param>
+        /// <param name="ID"></param>
+        public void InstantMessage(string fromName, LLUUID sessionID, LLUUID target, string message, LLUUID[] conferenceIDs, LLUUID IMSessionID)
         {
             ImprovedInstantMessagePacket im = new ImprovedInstantMessagePacket();
             im.AgentData.AgentID = this.ID;
@@ -209,7 +235,7 @@ namespace libsecondlife
             im.MessageBlock.Dialog = 0;
             im.MessageBlock.FromAgentName = Helpers.StringToField(fromName);
             im.MessageBlock.FromGroup = false;
-            im.MessageBlock.ID = LLUUID.GenerateUUID();
+            im.MessageBlock.ID = IMSessionID;
             im.MessageBlock.Message = Helpers.StringToField(message);
             im.MessageBlock.Offline = 1;
             im.MessageBlock.ToAgentID = target;
@@ -485,15 +511,25 @@ namespace libsecondlife
             if (packet.Type == PacketType.ImprovedInstantMessage)
             {
                 ImprovedInstantMessagePacket im = (ImprovedInstantMessagePacket)packet;
-
+                
                 if (OnInstantMessage != null)
                 {
                     // FIXME: I think im.AgentData.AgentID is wrong
-                    OnInstantMessage(im.AgentData.AgentID, Helpers.FieldToString(im.MessageBlock.FromAgentName),
-                        im.MessageBlock.ToAgentID, im.MessageBlock.ParentEstateID, im.MessageBlock.RegionID,
-                        im.MessageBlock.Position, Convert.ToBoolean(im.MessageBlock.Dialog), im.MessageBlock.FromGroup,
-                        im.MessageBlock.ID, new DateTime(im.MessageBlock.Timestamp), 
-                        Helpers.FieldToString(im.MessageBlock.Message));
+                    OnInstantMessage(
+                        im.AgentData.AgentID
+                        , Helpers.FieldToString(im.MessageBlock.FromAgentName),
+                        im.MessageBlock.ToAgentID
+                        , im.MessageBlock.ParentEstateID
+                        , im.MessageBlock.RegionID
+                        , im.MessageBlock.Position
+                        , Convert.ToBoolean(im.MessageBlock.Dialog)
+                        , im.MessageBlock.FromGroup
+                        , im.MessageBlock.ID
+                        , new DateTime(im.MessageBlock.Timestamp)
+                        , Helpers.FieldToString(im.MessageBlock.Message)
+                        , im.MessageBlock.Offline
+                        , im.MessageBlock.BinaryBucket
+                        );
                 }
             }
         }
