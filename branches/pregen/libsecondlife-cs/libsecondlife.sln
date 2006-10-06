@@ -24,6 +24,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IA_SimpleInventory", "examp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IA_ImageTool", "..\applications\IA_ImageTool\IA_ImageTool.csproj", "{8D2E5240-2247-42F5-AAAC-CF0CCCEE349A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "botmanager", "examples\botmanager\botmanager.csproj", "{3E891B97-7267-47D4-AAF1-7DCD2F6D60AB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -78,6 +80,10 @@ Global
 		{8D2E5240-2247-42F5-AAAC-CF0CCCEE349A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8D2E5240-2247-42F5-AAAC-CF0CCCEE349A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8D2E5240-2247-42F5-AAAC-CF0CCCEE349A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E891B97-7267-47D4-AAF1-7DCD2F6D60AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E891B97-7267-47D4-AAF1-7DCD2F6D60AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E891B97-7267-47D4-AAF1-7DCD2F6D60AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E891B97-7267-47D4-AAF1-7DCD2F6D60AB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
