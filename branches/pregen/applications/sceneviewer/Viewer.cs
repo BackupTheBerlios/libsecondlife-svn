@@ -35,19 +35,26 @@ namespace sceneviewer
 
         public Viewer()
         {
+            this.AllowUserResizing = true;
+            this.IsMouseVisible = true;
+
+            Window.ClientSizeChanged += new EventHandler(Window_ClientSizeChanged);
+            this.Exiting += new EventHandler<GameEventArgs>(Viewer_Exiting);
+
             Camera = new Camera(new Vector3(0, 0, 40), new Vector3(256, 256, 0));
             PreviousLeftButton = ButtonState.Released;
 
             Prims = new Dictionary<uint, PrimVisual>();
 
             Hashtable loginParams = NetworkManager.DefaultLoginValues("Ron", "Hubbard",
-                "getyourown", "00:00:00:00:00:00", "last", 1, 50, 50, 50, "Win", "0",
+                "weneedaloginscreen", "00:00:00:00:00:00", "last", 1, 50, 50, 50, "Win", "0",
                 "botmanager", "contact@libsecondlife.org");
 
             Client = new SecondLife();
 
             Client.Objects.OnNewPrim += new NewPrimCallback(OnNewPrim);
             Client.Objects.OnPrimMoved += new PrimMovedCallback(OnPrimMoved);
+            Client.Objects.OnObjectKilled += new KillObjectCallback(OnObjectKilled);
 
             if (!Client.Network.Login(loginParams))
             {
@@ -58,6 +65,20 @@ namespace sceneviewer
             InitializeTransform();
             InitializeEffect();
             InitializeScene();
+        }
+
+        void Viewer_Exiting(object sender, GameEventArgs e)
+        {
+            Client.Network.Logout();
+        }
+
+        void Window_ClientSizeChanged(object sender, EventArgs e)
+        {
+            // build a pretty standard projection matrix
+            Projection = Matrix.CreatePerspectiveFieldOfView(
+                (float)Math.PI / 4.0f,  // 45 degrees
+                (float)this.Window.ClientWidth / (float)this.Window.ClientHeight,
+                1.0f, 512.0f);
         }
 
         void OnNewPrim(Simulator simulator, PrimObject prim, ulong regionHandle, ushort timeDilation)
@@ -78,6 +99,18 @@ namespace sceneviewer
             if (Prims.ContainsKey(primUpdate.LocalID))
             {
                 Prims[primUpdate.LocalID].Update(primUpdate);
+            }
+            else
+            {
+                Client.Objects.RequestObject(simulator, primUpdate.LocalID);
+            }
+        }
+
+        void OnObjectKilled(Simulator simulator, uint localID)
+        {
+            lock (Prims)
+            {
+                Prims.Remove(localID);
             }
         }
 
@@ -164,7 +197,8 @@ namespace sceneviewer
 
             graphics.GraphicsDevice.VertexDeclaration = vertexDeclaration;
             graphics.GraphicsDevice.RenderState.CullMode = CullMode.None;
-            graphics.GraphicsDevice.RenderState.FillMode = FillMode.WireFrame;
+            graphics.GraphicsDevice.RenderState.FillMode = FillMode.Solid;
+            graphics.GraphicsDevice.RenderState.MultiSampleAntiAlias = true;
 
             effect.Begin(EffectStateOptions.Default);
             foreach (EffectPass pass in effect.CurrentTechnique.Passes)
