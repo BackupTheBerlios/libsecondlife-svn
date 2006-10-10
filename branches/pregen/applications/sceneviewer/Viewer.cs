@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using libsecondlife;
+using sceneviewer.Prims;
 
 namespace sceneviewer
 {
@@ -15,15 +16,13 @@ namespace sceneviewer
     partial class Viewer : Microsoft.Xna.Framework.Game
     {
         private SecondLife Client;
-        private List<PrimObject> Prims;
+        private Dictionary<uint, PrimVisual> Prims;
 
         // The shader effect that we're loading
-        private Effect Effect;
+        private Effect effect;
 
         // Variables describing the shapes being drawn
-        private VertexDeclaration VertexDeclaration;
-        private List<VertexPositionColor[]> DisplayPrims;
-        private VertexPositionColor[] surface;
+        private VertexDeclaration vertexDeclaration;
 
         // Matrices
         private Matrix WorldViewProjection;
@@ -34,23 +33,21 @@ namespace sceneviewer
         private ButtonState PreviousLeftButton;
         private Vector2 PreviousMousePosition;
 
-        private int seed = 0;
-
         public Viewer()
         {
-            Camera = new Camera(new Vector3(5.0f, 0.0f, 0.0f), Vector3.Zero);
+            Camera = new Camera(new Vector3(0, 0, 40), new Vector3(256, 256, 0));
             PreviousLeftButton = ButtonState.Released;
 
-            Prims = new List<PrimObject>();
-            DisplayPrims = new List<VertexPositionColor[]>();
+            Prims = new Dictionary<uint, PrimVisual>();
 
             Hashtable loginParams = NetworkManager.DefaultLoginValues("Ron", "Hubbard",
-                "radishes", "00:00:00:00:00:00", "last", 1, 50, 50, 50, "Win", "0",
+                "getyourown", "00:00:00:00:00:00", "last", 1, 50, 50, 50, "Win", "0",
                 "botmanager", "contact@libsecondlife.org");
 
             Client = new SecondLife();
 
             Client.Objects.OnNewPrim += new NewPrimCallback(OnNewPrim);
+            Client.Objects.OnPrimMoved += new PrimMovedCallback(OnPrimMoved);
 
             if (!Client.Network.Login(loginParams))
             {
@@ -65,137 +62,22 @@ namespace sceneviewer
 
         void OnNewPrim(Simulator simulator, PrimObject prim, ulong regionHandle, ushort timeDilation)
         {
-            Prims.Add(prim);
+            PrimVisual primVisual = PrimVisual.BuildPrimVisual(prim);
 
-            VertexPositionColor[] primDisplay = new VertexPositionColor[36];
-
-            Vector3 topLeftFront = new Vector3(
-                prim.Position.X - (prim.Scale.X / 2.0f), 
-                prim.Position.Y + (prim.Scale.Y / 2.0f), 
-                prim.Position.Z + (prim.Scale.Z / 2.0f));
-            Vector3 bottomLeftFront = new Vector3(
-                prim.Position.X - (prim.Scale.X / 2.0f),
-                prim.Position.Y - (prim.Scale.Y / 2.0f),
-                prim.Position.Z + (prim.Scale.Z / 2.0f));
-            Vector3 topRightFront = new Vector3(
-                prim.Position.X + (prim.Scale.X / 2.0f),
-                prim.Position.Y + (prim.Scale.Y / 2.0f),
-                prim.Position.Z + (prim.Scale.Z / 2.0f));
-            Vector3 bottomRightFront = new Vector3(
-                prim.Position.X + (prim.Scale.X / 2.0f),
-                prim.Position.Y - (prim.Scale.Y / 2.0f),
-                prim.Position.Z + (prim.Scale.Z / 2.0f));
-            Vector3 topLeftBack = new Vector3(
-                prim.Position.X - (prim.Scale.X / 2.0f),
-                prim.Position.Y + (prim.Scale.Y / 2.0f),
-                prim.Position.Z - (prim.Scale.Z / 2.0f));
-            Vector3 topRightBack = new Vector3(
-                prim.Position.X + (prim.Scale.X / 2.0f),
-                prim.Position.Y + (prim.Scale.Y / 2.0f),
-                prim.Position.Z - (prim.Scale.Z / 2.0f));
-            Vector3 bottomLeftBack = new Vector3(
-                prim.Position.X - (prim.Scale.X / 2.0f),
-                prim.Position.Y - (prim.Scale.Y / 2.0f),
-                prim.Position.Z - (prim.Scale.Z / 2.0f));
-            Vector3 bottomRightBack = new Vector3(
-                prim.Position.X + (prim.Scale.X / 2.0f),
-                prim.Position.Y - (prim.Scale.Y / 2.0f),
-                prim.Position.Z - (prim.Scale.Z / 2.0f));
-
-            Random rand = new Random(seed);
-            byte r = (byte)rand.Next(256);
-            byte g = (byte)rand.Next(256);
-            byte b = (byte)rand.Next(256);
-            seed = rand.Next();
-            Color color = new Color(r, g, b);
-
-            // Front face
-            primDisplay[0] =
-                new VertexPositionColor(topLeftFront, color);
-            primDisplay[1] =
-                new VertexPositionColor(bottomLeftFront, color);
-            primDisplay[2] =
-                new VertexPositionColor(topRightFront, color);
-            primDisplay[3] =
-                new VertexPositionColor(bottomLeftFront, color);
-            primDisplay[4] =
-                new VertexPositionColor(bottomRightFront, color);
-            primDisplay[5] =
-                new VertexPositionColor(topRightFront, color);
-
-            // Back face 
-            primDisplay[6] =
-                new VertexPositionColor(topLeftBack, color);
-            primDisplay[7] =
-                new VertexPositionColor(topRightBack, color);
-            primDisplay[8] =
-                new VertexPositionColor(bottomLeftBack, color);
-            primDisplay[9] =
-                new VertexPositionColor(bottomLeftBack, color);
-            primDisplay[10] =
-                new VertexPositionColor(topRightBack, color);
-            primDisplay[11] =
-                new VertexPositionColor(bottomRightBack, color);
-
-            // Top face
-            primDisplay[12] =
-                new VertexPositionColor(topLeftFront, color);
-            primDisplay[13] =
-                new VertexPositionColor(topRightBack, color);
-            primDisplay[14] =
-                new VertexPositionColor(topLeftBack, color);
-            primDisplay[15] =
-                new VertexPositionColor(topLeftFront, color);
-            primDisplay[16] =
-                new VertexPositionColor(topRightFront, color);
-            primDisplay[17] =
-                new VertexPositionColor(topRightBack, color);
-
-            // Bottom face 
-            primDisplay[18] =
-                new VertexPositionColor(bottomLeftFront, color);
-            primDisplay[19] =
-                new VertexPositionColor(bottomLeftBack, color);
-            primDisplay[20] =
-                new VertexPositionColor(bottomRightBack, color);
-            primDisplay[21] =
-                new VertexPositionColor(bottomLeftFront, color);
-            primDisplay[22] =
-                new VertexPositionColor(bottomRightBack, color);
-            primDisplay[23] =
-                new VertexPositionColor(bottomRightFront, color);
-
-            // Left face
-            primDisplay[24] =
-                new VertexPositionColor(topLeftFront, color);
-            primDisplay[25] =
-                new VertexPositionColor(bottomLeftBack, color);
-            primDisplay[26] =
-                new VertexPositionColor(bottomLeftFront, color);
-            primDisplay[27] =
-                new VertexPositionColor(topLeftBack, color);
-            primDisplay[28] =
-                new VertexPositionColor(bottomLeftBack, color);
-            primDisplay[29] =
-                new VertexPositionColor(topLeftFront, color);
-
-            // Right face 
-            primDisplay[30] =
-                new VertexPositionColor(topRightFront, color);
-            primDisplay[31] =
-                new VertexPositionColor(bottomRightFront, color);
-            primDisplay[32] =
-                new VertexPositionColor(bottomRightBack, color);
-            primDisplay[33] =
-                new VertexPositionColor(topRightBack, color);
-            primDisplay[34] =
-                new VertexPositionColor(topRightFront, color);
-            primDisplay[35] =
-                new VertexPositionColor(bottomRightBack, color);
-
-            lock (DisplayPrims)
+            if (primVisual.GetType() == typeof(PrimVisualBox))
             {
-                DisplayPrims.Add(primDisplay);
+                lock (Prims)
+                {
+                    Prims.Add(prim.LocalID, primVisual);
+                }
+            }
+        }
+
+        void OnPrimMoved(Simulator simulator, PrimUpdate primUpdate, ulong regionHandle, ushort timeDilation)
+        {
+            if (Prims.ContainsKey(primUpdate.LocalID))
+            {
+                Prims[primUpdate.LocalID].Update(primUpdate);
             }
         }
 
@@ -221,29 +103,15 @@ namespace sceneviewer
                 CompilerOptions.SkipOptimization,
                 TargetPlatform.Windows);
 
-            Effect = new Effect(graphics.GraphicsDevice,
+            effect = new Effect(graphics.GraphicsDevice,
                 compiledEffect.GetShaderCode(), CompilerOptions.None,
                 null);
         }
 
         private void InitializeScene()
         {
-            VertexDeclaration = new VertexDeclaration(
+            vertexDeclaration = new VertexDeclaration(
                 graphics.GraphicsDevice, VertexPositionColor.VertexElements);
-
-            /*surface = new VertexPositionColor[6];
-
-            Vector3 ul = new Vector3(256, 256, 0);
-            Vector3 ur = new Vector3(256, 0, 0);
-            Vector3 bl = new Vector3(0, 256, 0);
-            Vector3 br = new Vector3(0, 0, 0);
-
-            surface[0] = new VertexPositionColor(ul, Color.White);
-            surface[1] = new VertexPositionColor(bl, Color.White);
-            surface[2] = new VertexPositionColor(ur, Color.White);
-            surface[3] = new VertexPositionColor(bl, Color.White);
-            surface[4] = new VertexPositionColor(br, Color.White);
-            surface[5] = new VertexPositionColor(ur, Color.White);*/
         }
 
         protected override void Update()
@@ -290,33 +158,67 @@ namespace sceneviewer
             DrawComponents();
 
             WorldViewProjection = World * Camera.ViewMatrix * Projection;
-            Effect.Parameters["WorldViewProj"].SetValue(WorldViewProjection);
-            Effect.CurrentTechnique = Effect.Techniques["TransformTechnique"];
-            Effect.CommitChanges();
+            effect.Parameters["WorldViewProj"].SetValue(WorldViewProjection);
+            effect.CurrentTechnique = effect.Techniques["TransformTechnique"];
+            effect.CommitChanges();
 
-            graphics.GraphicsDevice.VertexDeclaration = VertexDeclaration;
-            graphics.GraphicsDevice.RenderState.CullMode = CullMode.CullClockwiseFace;
+            graphics.GraphicsDevice.VertexDeclaration = vertexDeclaration;
+            graphics.GraphicsDevice.RenderState.CullMode = CullMode.None;
+            graphics.GraphicsDevice.RenderState.FillMode = FillMode.WireFrame;
 
-            Effect.Begin(EffectStateOptions.Default);
-            foreach (EffectPass pass in Effect.CurrentTechnique.Passes)
+            effect.Begin(EffectStateOptions.Default);
+            foreach (EffectPass pass in effect.CurrentTechnique.Passes)
             {
                 pass.Begin();
 
-                //graphics.GraphicsDevice.DrawUserPrimitives<VertexPositionColor>
-                //            (PrimitiveType.TriangleList, 12, surface);
-
-                lock (DisplayPrims)
+                lock (Prims)
                 {
-                    foreach (VertexPositionColor[] vpc in DisplayPrims)
+                    foreach (PrimVisual prim in Prims.Values)
                     {
-                        graphics.GraphicsDevice.DrawUserPrimitives<VertexPositionColor>
-                            (PrimitiveType.TriangleList, 12, vpc);
+                        if (prim.Prim.ParentID != 0)
+                        {
+                            if (!Prims.ContainsKey(prim.Prim.ParentID))
+                            {
+                                // We don't have the base position for this child prim, can't render it
+                                continue;
+                            }
+                            else
+                            {
+                                // Child prim in a linkset
+
+                                // Add the base position of the parent prim and the offset position of this child
+                                LLVector3 llBasePosition = Prims[prim.Prim.ParentID].Prim.Position;
+                                LLQuaternion llBaseRotation = Prims[prim.Prim.ParentID].Prim.Rotation;
+
+                                Vector3 basePosition = new Vector3(llBasePosition.X, llBasePosition.Y, llBasePosition.Z);
+
+                                Matrix worldOffset = Matrix.CreateTranslation(basePosition);
+                                Matrix rootRotation = Matrix.FromQuaternion(new Quaternion(llBaseRotation.X, llBaseRotation.Y,
+                                    llBaseRotation.Z, llBaseRotation.W));
+
+                                effect.Parameters["WorldViewProj"].SetValue(prim.Matrix * rootRotation * worldOffset * WorldViewProjection);
+                                effect.CommitChanges();
+
+                                graphics.GraphicsDevice.DrawUserPrimitives<VertexPositionColor>(PrimitiveType.TriangleList, 
+                                    prim.VertexArray.Length / 3, prim.VertexArray);
+                            }
+                        }
+                        else
+                        {
+                            // Root prim or not part of a linkset
+
+                            effect.Parameters["WorldViewProj"].SetValue(prim.Matrix * WorldViewProjection);
+                            effect.CommitChanges();
+
+                            graphics.GraphicsDevice.DrawUserPrimitives<VertexPositionColor>(PrimitiveType.TriangleList,
+                                prim.VertexArray.Length / 3, prim.VertexArray);
+                        }
                     }
                 }
 
                 pass.End();
             }
-            Effect.End();
+            effect.End();
 
             graphics.GraphicsDevice.EndScene();
             graphics.GraphicsDevice.Present();

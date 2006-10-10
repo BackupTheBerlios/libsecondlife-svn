@@ -23,7 +23,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>..\..\bin\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -48,9 +48,17 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Camera.cs" />
-    <Compile Include="PrimVisual.cs">
-      <SubType>Component</SubType>
+    <Compile Include="Prims\CrossSection.cs" />
+    <Compile Include="Prims\LinearPrimVisual.cs" />
+    <Compile Include="Prims\PrimVisual.cs">
     </Compile>
+    <Compile Include="Prims\PrimVisualBox.cs" />
+    <Compile Include="Prims\PrimVisualCylinder.cs" />
+    <Compile Include="Prims\PrimVisualPrism.cs" />
+    <Compile Include="Prims\PrimVisualRing.cs" />
+    <Compile Include="Prims\PrimVisualSphere.cs" />
+    <Compile Include="Prims\PrimVisualTorus.cs" />
+    <Compile Include="Prims\PrimVisualTube.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Viewer.Designer.cs">
       <DependentUpon>Viewer.cs</DependentUpon>

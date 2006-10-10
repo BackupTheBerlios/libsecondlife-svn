@@ -12,7 +12,7 @@ namespace sceneviewer
     {
         #region Constants
         private static readonly float MAX_RADIANS = (float)(Math.PI * 2.0);
-        private static readonly float MAX_PHI = (float)(Math.PI); /// 2.0);
+        private static readonly float MAX_PHI = (float)((Math.PI) * 2.0);
         private static readonly float MIN_PHI = 0;
         #endregion Constants
 
@@ -53,7 +53,7 @@ namespace sceneviewer
                 newCameraPosition += GetZoomVector();
 
                 // Apply Z rotation
-                rotationMatrix = Matrix.CreateRotationZ(_phi);
+                rotationMatrix = Matrix.CreateRotationX(_phi);
                 newCameraPosition = Vector3.Transform(newCameraPosition, 
                     rotationMatrix);
 
