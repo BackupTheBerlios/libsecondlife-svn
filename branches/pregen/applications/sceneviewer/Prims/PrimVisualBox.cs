@@ -16,10 +16,10 @@ namespace sceneviewer.Prims
 
             ReferenceVertices = new Vector3[4];
 
-            ReferenceVertices[0] = new Vector3(0.5f, -0.5f, 0f);
-            ReferenceVertices[1] = new Vector3(0.5f, 0.5f, 0f);
-            ReferenceVertices[2] = new Vector3(-0.5f, 0.5f, 0f);
-            ReferenceVertices[3] = new Vector3(-0.5f, -0.5f, 0f);
+            ReferenceVertices[1] = new Vector3(0.5f, -0.5f, 0f);
+            ReferenceVertices[2] = new Vector3(0.5f, 0.5f, 0f);
+            ReferenceVertices[3] = new Vector3(-0.5f, 0.5f, 0f);
+            ReferenceVertices[0] = new Vector3(-0.5f, -0.5f, 0f);
 
             OuterFaces = new CrossSection[4];
             for (int i = 0; i < 4; i++)
@@ -62,7 +62,8 @@ namespace sceneviewer.Prims
 
         protected override float GetAngleWithXAxis(float cut)
         {
-            return (cut - 0.125f) * 2f * (float)Math.PI;
+            //return (cut - 0.125f) * 2f * (float)Math.PI;
+            return (cut + 0.125f) * 2f * (float)Math.PI;
         }
     }
 }

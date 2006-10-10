@@ -55,12 +55,7 @@ namespace sceneviewer.Prims
             Velocity = Vector3.Zero;
             RotationVelocity = Vector3.Zero;
 
-            Matrix offset = Matrix.CreateTranslation(new Vector3(Prim.Position.X, Prim.Position.Y, Prim.Position.Z));
-            Matrix rotation = Matrix.FromQuaternion(new Quaternion(Prim.Rotation.X, Prim.Rotation.Y, Prim.Rotation.Z, 
-                Prim.Rotation.W));
-            Matrix scaling = Matrix.CreateScale(Prim.Scale.X, Prim.Scale.Y, Prim.Scale.Z);
-
-            Matrix = scaling * rotation * offset;
+            BuildMatrix();
         }
 
         public void Update(PrimUpdate primUpdate)
@@ -71,12 +66,17 @@ namespace sceneviewer.Prims
             Velocity = new Vector3(primUpdate.Velocity.X, primUpdate.Velocity.Y, primUpdate.Velocity.Z);
             RotationVelocity = new Vector3(primUpdate.RotationVelocity.X, primUpdate.RotationVelocity.Y, primUpdate.RotationVelocity.Z);
 
+            BuildMatrix();
+        }
+
+        private void BuildMatrix()
+        {
             Matrix offset = Matrix.CreateTranslation(new Vector3(Prim.Position.X, Prim.Position.Y, Prim.Position.Z));
             Matrix rotation = Matrix.FromQuaternion(new Quaternion(Prim.Rotation.X, Prim.Rotation.Y, Prim.Rotation.Z,
                 Prim.Rotation.W));
             Matrix scaling = Matrix.CreateScale(Prim.Scale.X, Prim.Scale.Y, Prim.Scale.Z);
 
-            Matrix = offset * rotation * scaling;
+            Matrix = scaling * rotation * offset;
         }
 
         public static PrimVisual BuildPrimVisual(PrimObject prim)

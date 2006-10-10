@@ -207,8 +207,10 @@ namespace sceneviewer.Prims
             Vector3 cutVectorPerp = new Vector3((float)-Math.Sin(angle), (float)Math.Cos(angle), 0);
             
             // From http://softsurfer.com/Archive/algorithm_0104/algorithm_0104B.htm
-            return linestart - (lineend - linestart) * 
-                Vector3.Dot(cutVectorPerp, linestart) / Vector3.Dot(cutVectorPerp, lineend - linestart);
+            Vector3 delta = lineend - linestart;
+            Vector3 result = linestart - delta * Vector3.Dot(cutVectorPerp, linestart) / Vector3.Dot(cutVectorPerp, delta);
+
+            return result;
         }
 
         // Handles the first face in the cut, starting from cutstart, 
@@ -323,9 +325,25 @@ namespace sceneviewer.Prims
                 BuildSideVertexes(CutFaces, transforms);
             }
 
-            // Build the bottom cap
-
-            // Build the top cap
+            // Build the top and bottom end caps
+            if (hollow)
+            {
+                BuildEndCapHollow(true);
+                BuildEndCapHollow(false);
+            }
+            else
+            {
+                if (cut)
+                {
+                    BuildEndCapCutNoHollow(true);
+                    BuildEndCapCutNoHollow(false);
+                }
+                else
+                {
+                    BuildEndCapNoCutNoHollow(true);
+                    BuildEndCapNoCutNoHollow(false);
+                }
+            }
             
             VertexArray = Vertexes.ToArray();
         }
@@ -356,6 +374,12 @@ namespace sceneviewer.Prims
                         Vector3 upper2 = lower2;
                         upper2.Z += transformOffset;
 
+                        // FIXME: Perform skew, taper and twist transformations here
+                        //lower1 = Vector3.Transform(lower1, lowerTransform);
+                        //lower2 = Vector3.Transform(lower2, lowerTransform);
+                        //upper1 = Vector3.Transform(upper1, upperTransform);
+                        //upper2 = Vector3.Transform(upper2, upperTransform);
+
                         Vertexes.Add(new VertexPositionColor(lower1, color));
                         Vertexes.Add(new VertexPositionColor(lower2, color));
                         Vertexes.Add(new VertexPositionColor(upper2, color));
@@ -368,6 +392,48 @@ namespace sceneviewer.Prims
                     }
                 }
             }
+        }
+
+        private void BuildEndCapNoCutNoHollow(bool top)
+        {
+            float z = top ? 0.5f : -0.5f;
+
+            for (int i = 0; i < OuterFaces.Length; i++)
+            {
+                int pointCount = OuterFaces[i].GetNumPoints();
+
+                if (pointCount > 0)
+                {
+                    // FIXME: Perform skew, taper and twist transformations here
+                    if (top)
+                    {
+                        ;
+                    }
+                    else
+                    {
+                        ;
+                    }
+
+                    Vector3 first = OuterFaces[i].GetRawVertex(0);
+                    first.Z = z;
+                    Vector3 second = OuterFaces[i].GetRawVertex(1);
+                    second.Z = z;
+
+                    Vertexes.Add(new VertexPositionColor(first, color));
+                    Vertexes.Add(new VertexPositionColor(second, color));
+                    Vertexes.Add(new VertexPositionColor(new Vector3(0, 0, z), color));
+                }
+            }
+        }
+
+        private void BuildEndCapCutNoHollow(bool top)
+        {
+            float z = top ? 0.5f : -0.5f;
+        }
+
+        private void BuildEndCapHollow(bool top)
+        {
+            float z = top ? 0.5f : -0.5f;
         }
 
         private int NormalizeQuadrant(int quadrant)
