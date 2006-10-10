@@ -34,7 +34,7 @@ namespace libsecondlife
 	public class PrimObject
 	{
         /// <summary></summary>
-		public float PathTwistBegin = 0;
+		public int PathTwistBegin = 0;
         /// <summary></summary>
 		public float PathEnd = 0;
         /// <summary></summary>
@@ -55,6 +55,8 @@ namespace libsecondlife
 		public LLUUID ID = new LLUUID();
         /// <summary></summary>
 		public uint LocalID = 0;
+        /// <summary></summary>
+        public uint ParentID = 0;
         /// <summary></summary>
 		public LLUUID GroupID = new LLUUID();
         /// <summary></summary>
@@ -80,7 +82,7 @@ namespace libsecondlife
         /// <summary></summary>
 		public LLVector3 Scale = new LLVector3();
         /// <summary></summary>
-		public float PathTwist = 0;
+		public int PathTwist = 0;
         /// <summary></summary>
 		public LLUUID Texture = new LLUUID(); // TODO: Add multi-texture support
         /// <summary></summary>
@@ -143,7 +145,7 @@ namespace libsecondlife
 			return (byte)(temp % 256);
 		}
 
-        /// <summary>
+        /*/// <summary>
         /// 
         /// </summary>
         /// <param name="pathTwist"></param>
@@ -152,7 +154,7 @@ namespace libsecondlife
         {
             // Y = 0.5556X
             return (float)pathTwist * 0.5556F;
-        }
+        }*/
 
         /// <summary>
         /// 

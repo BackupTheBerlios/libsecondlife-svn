@@ -62,6 +62,12 @@ namespace libsecondlife
     /// <param name="regionHandle"></param>
     /// <param name="timeDilation"></param>
     public delegate void AvatarMovedCallback(Simulator simulator, AvatarUpdate avatar, ulong regionHandle, ushort timeDilation);
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="simulator"></param>
+    /// <param name="objectID"></param>
+    public delegate void KillObjectCallback(Simulator simulator, uint objectID);
 
     /// <summary>
     /// Contains all of the variables sent in an object update packet for a 
@@ -147,6 +153,11 @@ namespace libsecondlife
         /// movement-related vectors.
         /// </summary>
         public event AvatarMovedCallback OnAvatarMoved;
+        /// <summary>
+        /// This event will be raised when an object is removed from a 
+        /// simulator.
+        /// </summary>
+        public event KillObjectCallback OnObjectKilled;
 
         private SecondLife Client;
 
@@ -162,6 +173,17 @@ namespace libsecondlife
             Client.Network.RegisterCallback(PacketType.ImprovedTerseObjectUpdate, new PacketCallback(TerseUpdateHandler));
             Client.Network.RegisterCallback(PacketType.ObjectUpdateCompressed, new PacketCallback(CompressedUpdateHandler));
             Client.Network.RegisterCallback(PacketType.ObjectUpdateCached, new PacketCallback(CachedUpdateHandler));
+            Client.Network.RegisterCallback(PacketType.KillObject, new PacketCallback(KillObjectHandler));
+        }
+
+        public void RequestObject(Simulator simulator, uint localID)
+        {
+            RequestMultipleObjectsPacket request = new RequestMultipleObjectsPacket();
+            request.AgentData.AgentID = Client.Network.AgentID;
+            request.ObjectData = new RequestMultipleObjectsPacket.ObjectDataBlock[1];
+            request.ObjectData[0].ID = localID;
+
+            Client.Network.SendPacket(request, simulator);
         }
 
         private void ParseAvName(string name, ref string firstName, ref string lastName, ref string groupName)
@@ -213,7 +235,7 @@ namespace libsecondlife
                     prim.LocalID = block.ID;
                     prim.State = block.State;
                     prim.ID = block.FullID;
-                    //block.ParentID; Linked objects?
+                    prim.ParentID = block.ParentID;
                     //block.OwnerID Sound-related
                     prim.Material = block.Material;
                     prim.PathCurve = block.PathCurve;
@@ -224,8 +246,8 @@ namespace libsecondlife
                     prim.PathScaleY = PrimObject.PathScaleFloat(block.PathScaleY);
                     prim.PathShearX = PrimObject.PathShearFloat(block.PathShearX);
                     prim.PathShearY = PrimObject.PathShearFloat(block.PathShearY);
-                    prim.PathTwist = PrimObject.PathTwistFloat(block.PathTwist);
-                    prim.PathTwistBegin = PrimObject.PathTwistFloat(block.PathTwistBegin);
+                    prim.PathTwist = block.PathTwist; //PrimObject.PathTwistFloat(block.PathTwist);
+                    prim.PathTwistBegin = block.PathTwistBegin; //PrimObject.PathTwistFloat(block.PathTwistBegin);
                     prim.PathRadiusOffset = PrimObject.PathRadiusOffsetFloat(block.PathRadiusOffset);
                     prim.PathTaperX = PrimObject.PathTaperFloat((byte)block.PathTaperX);
                     prim.PathTaperY = PrimObject.PathTaperFloat((byte)block.PathTaperY);
@@ -434,12 +456,51 @@ namespace libsecondlife
 
         private void CompressedUpdateHandler(Packet packet, Simulator simulator)
         {
-            //Client.Log("Received an ObjectUpdateCompressed packet, length=" + packet.Data.Length, Helpers.LogLevel.Info);
+            ObjectUpdateCompressedPacket update = (ObjectUpdateCompressedPacket)packet;
+
+            Client.Log("Received an ObjectUpdateCompressed packet, data block count=" + update.ObjectData.Length, 
+                Helpers.LogLevel.Info);
+
+            foreach (ObjectUpdateCompressedPacket.ObjectDataBlock block in update.ObjectData)
+            {
+                Client.Log("CompressedData UpdateFlags=" + block.UpdateFlags + ", length=" + block.Data.Length, 
+                    Helpers.LogLevel.Info);
+            }
         }
 
         private void CachedUpdateHandler(Packet packet, Simulator simulator)
         {
-            //Client.Log("Received an ObjectUpdateCached packet, length=" + packet.Data.Length, Helpers.LogLevel.Info);
+            ObjectUpdateCachedPacket update = (ObjectUpdateCachedPacket)packet;
+
+            // Assume clients aren't caching objects for now, so request updates for all of these objects
+            RequestMultipleObjectsPacket request = new RequestMultipleObjectsPacket();
+            request.AgentData.AgentID = Client.Network.AgentID;
+            request.ObjectData = new RequestMultipleObjectsPacket.ObjectDataBlock[update.ObjectData.Length];
+
+            int i = 0;
+
+            foreach (ObjectUpdateCachedPacket.ObjectDataBlock block in update.ObjectData)
+            {
+                request.ObjectData[i] = new RequestMultipleObjectsPacket.ObjectDataBlock();
+                request.ObjectData[i].ID = block.ID;
+                i++;
+
+                //Client.Log("CachedData ID=" + block.ID + ", CRC=" + block.CRC + ", UpdateFlags=" + block.UpdateFlags, 
+                //Helpers.LogLevel.Info);
+            }
+
+            Client.Network.SendPacket(request);
+        }
+
+        private void KillObjectHandler(Packet packet, Simulator simulator)
+        {
+            if (OnObjectKilled != null)
+            {
+                foreach (KillObjectPacket.ObjectDataBlock block in ((KillObjectPacket)packet).ObjectData)
+                {
+                    OnObjectKilled(simulator, block.ID);
+                }
+            }
         }
 
         /// <summary>

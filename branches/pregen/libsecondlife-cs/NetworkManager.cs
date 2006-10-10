@@ -855,11 +855,22 @@ namespace libsecondlife
 
 			LoginValues = (Hashtable)result.Value;
 
-			if ((string)LoginValues["login"] == "false")
+            if ((string)LoginValues["login"] == "indeterminate")
+            {
+                //FIXME: We need to do another XML-RPC, handle this case
+                LoginError = "Got a redirect, login with the official client to update";
+                return false;
+            }
+			else if ((string)LoginValues["login"] == "false")
 			{
 				LoginError = LoginValues["reason"] + ": " + LoginValues["message"];
 				return false;
 			}
+            else if ((string)LoginValues["login"] != "true")
+            {
+                LoginError = "Unknown error";
+                return false;
+            }
 
 			System.Text.RegularExpressions.Regex LLSDtoJSON = 
 				new System.Text.RegularExpressions.Regex(@"('|r([0-9])|r(\-))");
