@@ -486,6 +486,8 @@ namespace libsecondlife
 
                 // Send an AgentUpdate packet with the new camera location
                 AgentUpdatePacket updatePacket = new AgentUpdatePacket();
+                updatePacket.AgentData.AgentID = this.ID;
+                updatePacket.AgentData.SessionID = Client.Network.SessionID;
                 updatePacket.AgentData.BodyRotation = new LLQuaternion();
                 updatePacket.AgentData.CameraAtAxis = new LLVector3();
                 updatePacket.AgentData.CameraCenter = new LLVector3();
@@ -495,17 +497,17 @@ namespace libsecondlife
                 updatePacket.AgentData.Far = 320.0F;
                 updatePacket.AgentData.Flags = 0;
                 updatePacket.AgentData.HeadRotation = new LLQuaternion();
-                updatePacket.AgentData.ID = this.ID;
                 updatePacket.AgentData.State = 0;
                 updatePacket.Header.Reliable = true;
                 Client.Network.SendPacket((Packet)updatePacket);
 
                 // Send an AgentFOV packet widening our field of vision
                 AgentFOVPacket fovPacket = new AgentFOVPacket();
-                fovPacket.Sender.ID = this.ID;
-                fovPacket.Sender.CircuitCode = simulator.CircuitCode;
-                fovPacket.Sender.GenCounter = 0;
-                fovPacket.FOVBlock.VerticalAngle = 6.28318531F;
+                fovPacket.AgentData.AgentID = this.ID;
+                fovPacket.AgentData.SessionID = Client.Network.SessionID;
+                fovPacket.AgentData.CircuitCode = simulator.CircuitCode;
+                fovPacket.FOVBlock.GenCounter = 0;
+                fovPacket.FOVBlock.VerticalAngle = 6.28318531f;
                 fovPacket.Header.Reliable = true;
                 Client.Network.SendPacket((Packet)fovPacket);
             }
@@ -519,7 +521,6 @@ namespace libsecondlife
                 
                 if (OnInstantMessage != null)
                 {
-                    // FIXME: I think im.AgentData.AgentID is wrong
                     OnInstantMessage(
                         im.AgentData.AgentID
                         , Helpers.FieldToString(im.MessageBlock.FromAgentName),
