@@ -42,21 +42,21 @@ namespace IA_NotecardTool
 
         static new void Main(string[] args)
         {
-            if (args.Length < 5)
+            if (args.Length < 6)
             {
-                Console.WriteLine("Usage: NotecardTool [first] [last] [put] [name] [notecard.txt] ");
+                Console.WriteLine("Usage: NotecardTool [first] [last] [password] [put] [name] [notecard.txt] ");
                 return;
             }
 
-            if( !File.Exists(args[4]) )
+            if( !File.Exists(args[5]) )
             {
-                Console.WriteLine("Cannot find file: " + args[4]);
+                Console.WriteLine("Cannot find file: " + args[5]);
                 return;
             }
 
             NotecardTool tool = new NotecardTool();
-            tool.NotecardName = args[3];
-            tool.FileName = args[4];
+            tool.NotecardName = args[4] + " : " + Helpers.GetUnixTime();
+            tool.FileName = args[5];
 
             tool.Connect(args[0], args[1], args[2]);
             tool.doStuff();

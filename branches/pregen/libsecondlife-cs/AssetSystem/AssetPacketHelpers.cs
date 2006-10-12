@@ -68,6 +68,7 @@ namespace libsecondlife.AssetSystem
             p.AssetBlock.TransactionID = TransactionID;
             p.AssetBlock.Type          = asset.Type;
             p.AssetBlock.Tempfile      = asset.Tempfile;
+            p.AssetBlock.AssetData     = new byte[0];
             p.AssetBlock.StoreLocal    = false;
 
             return p;

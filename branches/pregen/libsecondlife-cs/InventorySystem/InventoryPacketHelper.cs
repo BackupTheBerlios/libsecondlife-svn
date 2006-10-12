@@ -39,6 +39,7 @@ namespace libsecondlife.InventorySystem
             p.InventoryData.FetchItems   = fetchItems;
 
             p.AgentData.AgentID = AgentID;
+            p.AgentData.SessionID = SessionID;
 
             return p;
 		}
@@ -241,7 +242,10 @@ namespace libsecondlife.InventorySystem
             p.InventoryBlock.TransactionID = new LLUUID();
 
             p.InventoryBlock.WearableType  = 0; //TODO: Specify the current type here
+            p.InventoryBlock.Type    = iitem.Type;
+            p.InventoryBlock.InvType = iitem.InvType;
 
+            p.InventoryBlock.Name = Helpers.StringToField(iitem.Name);
             p.InventoryBlock.FolderID = iitem.FolderID;
             p.InventoryBlock.Description = Helpers.StringToField(iitem.Description);
 
@@ -326,7 +330,7 @@ namespace libsecondlife.InventorySystem
 			/* IDs */
             CRC += iitem.AssetID.CRC(); // AssetID
             CRC += iitem.FolderID.CRC(); // FolderID
-            CRC += iitem.ItemID.CRC(); // ItemID
+            CRC += iitem.ItemID==null?new LLUUID().CRC():iitem.ItemID.CRC(); // ItemID
 
 			/* Permission stuff */
             CRC += iitem.CreatorID.CRC(); // CreatorID

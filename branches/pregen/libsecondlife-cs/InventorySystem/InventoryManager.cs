@@ -40,6 +40,9 @@ namespace libsecondlife.InventorySystem
 	/// </summary>
 	public class InventoryManager
 	{
+        private const bool DEBUG_PACKETS = true;
+
+
 		// Reference to the SLClient Library
 		private SecondLife slClient;
 
@@ -253,6 +256,7 @@ namespace libsecondlife.InventorySystem
 
             Packet packet = InvPacketHelper.CreateInventoryItem(iitem);
             slClient.Network.SendPacket(packet);
+            if (DEBUG_PACKETS) { Console.WriteLine(packet); }
 
             while (ItemCreationInProgress)
             {
@@ -400,11 +404,38 @@ namespace libsecondlife.InventorySystem
 
         public void UpdateCreateInventoryItemHandler(Packet packet, Simulator simulator)
         {
+            if (DEBUG_PACKETS) { Console.WriteLine(packet); }
+
             if (ItemCreationInProgress)
             {
                 UpdateCreateInventoryItemPacket reply = (UpdateCreateInventoryItemPacket)packet;
 
+                // User internal variable references, so we don't fire off any update code by using the public accessors
+                
+                iiCreationInProgress._ItemID   = reply.InventoryData[0].ItemID;
 
+                iiCreationInProgress._GroupOwned = reply.InventoryData[0].GroupOwned;
+                iiCreationInProgress._SaleType = reply.InventoryData[0].SaleType;
+                iiCreationInProgress._CreationDate = reply.InventoryData[0].CreationDate;
+                iiCreationInProgress._BaseMask = reply.InventoryData[0].BaseMask;
+
+                iiCreationInProgress._Name = Helpers.FieldToString(reply.InventoryData[0].Name);
+                iiCreationInProgress._InvType = reply.InventoryData[0].InvType;
+                iiCreationInProgress._Type = reply.InventoryData[0].Type;
+                iiCreationInProgress._AssetID = reply.InventoryData[0].AssetID;
+                iiCreationInProgress._GroupID = reply.InventoryData[0].GroupID;
+                iiCreationInProgress._SalePrice = reply.InventoryData[0].SalePrice;
+                iiCreationInProgress._OwnerID = reply.InventoryData[0].OwnerID;
+                iiCreationInProgress._CreatorID = reply.InventoryData[0].CreatorID;
+                iiCreationInProgress._ItemID = reply.InventoryData[0].ItemID;
+                iiCreationInProgress._FolderID = reply.InventoryData[0].FolderID;
+                iiCreationInProgress._EveryoneMask = reply.InventoryData[0].EveryoneMask;
+                iiCreationInProgress._Description = Helpers.FieldToString(reply.InventoryData[0].Description);
+                iiCreationInProgress._NextOwnerMask = reply.InventoryData[0].NextOwnerMask;
+                iiCreationInProgress._GroupMask = reply.InventoryData[0].GroupMask;
+                iiCreationInProgress._OwnerMask = reply.InventoryData[0].OwnerMask;
+
+                // NOT USED YET: iiCreationInProgress._CallbackID = reply.InventoryData[0].CallbackID;
 
                 ItemCreationInProgress = false;
             }
