@@ -209,7 +209,8 @@ namespace mapgenerator
                         "                Array.Copy(ba, 0, bytes, i, 8); i += 8;");
                     break;
                 case FieldType.Fixed:
-                    Console.WriteLine("Array.Copy(" + field.Name + ", 0, bytes, i, " + field.Count + ");" + 
+                    Console.WriteLine("if(" + field.Name + " == null) { throw new Exception(\"" + field.Name + " is null, in \" + this.GetType()); }");
+                    Console.WriteLine("                Array.Copy(" + field.Name + ", 0, bytes, i, " + field.Count + ");" + 
                         "i += " + field.Count + ";");
                     break;
                 case FieldType.IPPORT:
@@ -225,12 +226,15 @@ namespace mapgenerator
                 case FieldType.LLQuaternion:
                 case FieldType.LLUUID:
                 case FieldType.LLVector4:
+                    Console.WriteLine("if(" + field.Name + " == null) { throw new Exception(\"" + field.Name + " is null, in \" + this.GetType()); }");
                     Console.WriteLine("Array.Copy(" + field.Name + ".GetBytes(), 0, bytes, i, 16); i += 16;");
                     break;
                 case FieldType.LLVector3:
+                    Console.WriteLine("if(" + field.Name + " == null) { throw new Exception(\"" + field.Name + " is null, in \" + this.GetType()); }");
                     Console.WriteLine("Array.Copy(" + field.Name + ".GetBytes(), 0, bytes, i, 12); i += 12;");
                     break;
                 case FieldType.LLVector3d:
+                    Console.WriteLine("if(" + field.Name + " == null) { throw new Exception(\"" + field.Name + " is null, in \" + this.GetType()); }");
                     Console.WriteLine("Array.Copy(" + field.Name + ".GetBytes(), 0, bytes, i, 24); i += 24;");
                     break;
                 case FieldType.U8:
@@ -264,6 +268,7 @@ namespace mapgenerator
                     }
                     else
                     {
+                        Console.WriteLine("if(" + field.Name + " == null) { throw new Exception(\"" + field.Name + " is null, in \" + this.GetType()); }");
                         Console.WriteLine("bytes[i++] = (byte)(" + field.Name + ".Length % 256);");
                         Console.WriteLine("                bytes[i++] = (byte)((" + 
                             field.Name + ".Length >> 8) % 256);");
