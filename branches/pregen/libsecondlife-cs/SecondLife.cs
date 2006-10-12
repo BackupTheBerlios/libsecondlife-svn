@@ -49,8 +49,6 @@ namespace libsecondlife
         /// <summary></summary>
         public Mutex AvatarsMutex;
         /// <summary></summary>
-        public Inventory Inventory;
-        /// <summary></summary>
         public Region CurrentRegion;
         /// <summary></summary>
         public GridManager Grid;
@@ -69,7 +67,6 @@ namespace libsecondlife
             Avatar = new MainAvatar(this);
             Avatars = new Hashtable();
             AvatarsMutex = new Mutex(false, "AvatarsMutex");
-            Inventory = new Inventory(this);
             Grid = new GridManager(this);
             Objects = new ObjectManager(this);
             CurrentRegion = null;

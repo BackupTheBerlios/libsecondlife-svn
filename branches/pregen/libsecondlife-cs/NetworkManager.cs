@@ -1233,6 +1233,9 @@ namespace libsecondlife
 			// Send a RegionHandshakeReply
             RegionHandshakeReplyPacket reply = new RegionHandshakeReplyPacket();
             reply.RegionInfo.Flags = 0;
+            reply.AgentData.AgentID = this.AgentID;
+            reply.AgentData.SessionID = this.SessionID;
+
 			SendPacket((Packet)reply, simulator);
 		}
 
