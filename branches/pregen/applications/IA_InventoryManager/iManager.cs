@@ -8,6 +8,15 @@ using libsecondlife.InventorySystem;
 
 namespace IA_InventoryManager
 {
+    /// <summary>
+    /// Todo:
+    /// * TYPE or VIEW (for notecards, landmarks, etc)
+    /// * RENAME
+    /// * DOWNLOAD
+    /// * COPY
+    /// * MOVE
+    /// * GIVE
+    /// </summary>
     class iManager : SimpleInventory
     {
         private char[] cmdSeperators = { ' ' };

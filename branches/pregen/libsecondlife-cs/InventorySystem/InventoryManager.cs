@@ -62,6 +62,10 @@ namespace libsecondlife.InventorySystem
 		private Hashtable htFolderDownloadStatus;
 		private ArrayList alFolderRequestQueue;
 
+        // Used to track current item being created
+        private InventoryItem iiCreationInProgress;
+        private bool ItemCreationInProgress;
+
 		private uint LastPacketRecieved;
 
 		// Each InventorySystem needs to be initialized with a client and root folder.
@@ -79,9 +83,14 @@ namespace libsecondlife.InventorySystem
 			
 			resetFoldersByUUID();
 			
-			// Setup the callback
+			// Setup the callback for Inventory Downloads
 			PacketCallback InventoryDescendentsCallback = new PacketCallback(InventoryDescendentsHandler);
 			slClient.Network.RegisterCallback(PacketType.InventoryDescendents, InventoryDescendentsCallback);
+
+            // Setup the callback for Inventory Creation Update
+            PacketCallback UpdateCreateInventoryItemCallback = new PacketCallback(UpdateCreateInventoryItemHandler);
+            slClient.Network.RegisterCallback(PacketType.UpdateCreateInventoryItem, UpdateCreateInventoryItemCallback);
+            
 		}
 
 		// Used primarily for debugging and testing
@@ -230,6 +239,27 @@ namespace libsecondlife.InventorySystem
 			slClient.Network.SendPacket(packet);
 		}
 
+        internal void ItemCreate(InventoryItem iitem)
+        {
+            if (ItemCreationInProgress)
+            {
+                throw new Exception("Can only create one item at a time, and an item creation is already in progress.");
+            }
+            else
+            {
+                ItemCreationInProgress = true;
+                iiCreationInProgress   = iitem;
+            }
+
+            Packet packet = InvPacketHelper.CreateInventoryItem(iitem);
+            slClient.Network.SendPacket(packet);
+
+            while (ItemCreationInProgress)
+            {
+                slClient.Tick();
+            }
+        }
+
 		internal void ItemUpdate( InventoryItem iitem )
 		{
             Packet packet = InvPacketHelper.UpdateInventoryItem(iitem);
@@ -269,12 +299,10 @@ namespace libsecondlife.InventorySystem
 
 		internal InventoryNotecard NewNotecard( string Name, string Description, string Body, LLUUID FolderID )
 		{
-			LLUUID ItemID = LLUUID.GenerateUUID();
-
-			InventoryNotecard iNotecard = new InventoryNotecard( this, Name, Description, ItemID, FolderID, slClient.Network.AgentID );
+			InventoryNotecard iNotecard = new InventoryNotecard( this, Name, Description, FolderID, slClient.Network.AgentID );
 
 			// Create this notecard on the server.
-			ItemUpdate( iNotecard );
+            ItemCreate(iNotecard );
 
 			if( (Body != null) && (Body.Equals("") != true) )
 			{
@@ -286,9 +314,7 @@ namespace libsecondlife.InventorySystem
 
 		internal InventoryImage NewImage( string Name, string Description, byte[] j2cdata, LLUUID FolderID )
 		{
-			LLUUID ItemID = LLUUID.GenerateUUID();
-
-			InventoryImage iImage = new InventoryImage( this, Name, Description, ItemID, FolderID, slClient.Network.AgentID );
+			InventoryImage iImage = new InventoryImage( this, Name, Description, FolderID, slClient.Network.AgentID );
 
 			// Create this image on the server.
 			ItemUpdate( iImage );
@@ -372,44 +398,24 @@ namespace libsecondlife.InventorySystem
 
 
 
+        public void UpdateCreateInventoryItemHandler(Packet packet, Simulator simulator)
+        {
+            if (ItemCreationInProgress)
+            {
+                UpdateCreateInventoryItemPacket reply = (UpdateCreateInventoryItemPacket)packet;
 
 
-		/*
-		Low 00333 - InventoryDescendents - Untrusted - Unencoded
-			1044 ItemData (Variable)
-				0047 GroupOwned (BOOL / 1)
-				0149 CRC (U32 / 1)
-				0159 CreationDate (S32 / 1)
-				0345 SaleType (U8 / 1)
-				0395 BaseMask (U32 / 1)
-				0506 Name (Variable / 1)
-				0562 InvType (S8 / 1)
-				0630 Type (S8 / 1)
-				0680 AssetID (LLUUID / 1)
-				0699 GroupID (LLUUID / 1)
-				0716 SalePrice (S32 / 1)
-				0719 OwnerID (LLUUID / 1)
-				0736 CreatorID (LLUUID / 1)
-				0968 ItemID (LLUUID / 1)
-				1025 FolderID (LLUUID / 1)
-				1084 EveryoneMask (U32 / 1)
-				1101 Description (Variable / 1)
-				1189 Flags (U32 / 1)
-				1348 NextOwnerMask (U32 / 1)
-				1452 GroupMask (U32 / 1)
-				1505 OwnerMask (U32 / 1)
-			1297 AgentData (01)
-				0219 AgentID (LLUUID / 1)
-				0366 Descendents (S32 / 1)
-				0418 Version (S32 / 1)
-				0719 OwnerID (LLUUID / 1)
-				1025 FolderID (LLUUID / 1)
-			1298 FolderData (Variable)
-				0506 Name (Variable / 1)
-				0558 ParentID (LLUUID / 1)
-				0630 Type (S8 / 1)
-				1025 FolderID (LLUUID / 1)
-		*/
+
+                ItemCreationInProgress = false;
+            }
+            else
+            {
+                Console.WriteLine(packet);
+                throw new Exception("Received a packet for item creation, but no such response was expected.  This is probably a bad thing...");
+            }
+        }
+
+
 		public void InventoryDescendentsHandler(Packet packet, Simulator simulator)
 		{
             InventoryDescendentsPacket reply = (InventoryDescendentsPacket)packet;

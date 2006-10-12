@@ -30,10 +30,9 @@ namespace libsecondlife.InventorySystem
 
 			set
 			{
-				base._Asset = new AssetNotecard( LLUUID.GenerateUUID(), value );
-				base.iManager.AssetManager.UploadAsset( Asset );
-				this.AssetID = Asset.AssetID;
-				
+				base._Asset          = new AssetNotecard( LLUUID.GenerateUUID(), value );
+				LLUUID TransactionID = base.iManager.AssetManager.UploadAsset( Asset );
+                base.SetAssetTransactionIDs(Asset.AssetID, TransactionID);
 			}
 		}
 
@@ -47,8 +46,8 @@ namespace libsecondlife.InventorySystem
         /// <param name="folderID"></param>
         /// <param name="uuidOwnerCreater"></param>
         /// 
-        internal InventoryNotecard(InventoryManager manager, string name, string description, LLUUID id, LLUUID folderID, LLUUID uuidOwnerCreater) 
-			: base(manager, name, description, id, folderID, 7, 7, uuidOwnerCreater)
+        internal InventoryNotecard(InventoryManager manager, string name, string description, LLUUID folderID, LLUUID uuidOwnerCreater) 
+			: base(manager, name, description, folderID, 7, 7, uuidOwnerCreater)
 		{
 
 		}
@@ -58,7 +57,7 @@ namespace libsecondlife.InventorySystem
         /// <param name="manager"></param>
         /// <param name="ii"></param>
         internal InventoryNotecard(InventoryManager manager, InventoryItem ii)
-			: base( manager, ii._Name, ii._Description, ii._ItemID, ii._FolderID, ii._InvType, ii._Type, ii._CreatorID)
+			: base( manager, ii._Name, ii._Description, ii._FolderID, ii._InvType, ii._Type, ii._CreatorID)
 		{
 			if( (ii.InvType != 7) || (ii.Type != Asset.ASSET_TYPE_NOTECARD) )
 			{
@@ -98,8 +97,8 @@ namespace libsecondlife.InventorySystem
 				} 
 				else 
 				{
-					_Asset = new AssetNotecard( LLUUID.GenerateUUID(), assetData );
-					AssetID = _Asset.AssetID;
+					_Asset   = new AssetNotecard( LLUUID.GenerateUUID(), assetData );
+					_AssetID = _Asset.AssetID;
 				}
 			} 
 			else 

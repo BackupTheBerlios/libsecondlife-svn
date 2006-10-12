@@ -45,10 +45,20 @@ namespace libsecondlife.InventorySystem
 			}
 		}
 
-		internal LLUUID _ItemID = new LLUUID();
+		internal LLUUID _ItemID = null;
 		public   LLUUID ItemID
 		{
-			get{ return _ItemID; }
+            set {
+                if (_ItemID == null)
+                {
+                    _ItemID = value;
+                }
+                else
+                {
+                    throw new Exception("You can not change an item's ID once it's been set.");
+                }
+            }
+			get { return _ItemID; }
 		}
 
 		internal sbyte _InvType = 0;
@@ -123,15 +133,16 @@ namespace libsecondlife.InventorySystem
 			}
 		}
 
+        internal LLUUID _TransactionID = new LLUUID();
+        public LLUUID TransactionID
+        {
+            get { return _TransactionID; }
+        }
+
 		internal LLUUID _AssetID = new LLUUID();
 		public   LLUUID AssetID
 		{
 			get { return _AssetID; }
-			set
-			{
-				_AssetID = value;
-				UpdateItem();
-			}
 		}
 
 
@@ -257,8 +268,6 @@ namespace libsecondlife.InventorySystem
             _InvType = itemData.InvType;
             _Type    = itemData.Type;
 
-
-            _ItemID   = itemData.ItemID;
             _AssetID  = itemData.AssetID;
             _FolderID = itemData.FolderID;
 
@@ -282,10 +291,9 @@ namespace libsecondlife.InventorySystem
             _CRC = itemData.CRC;
         }
 
-		internal InventoryItem( InventoryManager manager, string name, LLUUID id, LLUUID folderID, sbyte invType, sbyte type, LLUUID uuidOwnerCreater ) : base(manager)
+		internal InventoryItem( InventoryManager manager, string name,  LLUUID folderID, sbyte invType, sbyte type, LLUUID uuidOwnerCreater ) : base(manager)
 		{
 			_Name			= name;
-			_ItemID			= id;
 			_FolderID		= folderID;
 			_InvType		= invType;
 			_Type			= type;
@@ -295,11 +303,10 @@ namespace libsecondlife.InventorySystem
 			UpdateCRC();
 		}
 
-		internal InventoryItem( InventoryManager manager, string name, string description, LLUUID id, LLUUID folderID, sbyte invType, sbyte type, LLUUID uuidOwnerCreater ) : base(manager)
+		internal InventoryItem( InventoryManager manager, string name, string description, LLUUID folderID, sbyte invType, sbyte type, LLUUID uuidOwnerCreater ) : base(manager)
 		{
 			_Name			= name;
 			_Description    = description;
-			_ItemID			= id;
 			_FolderID		= folderID;
 			_InvType		= invType;
 			_Type			= type;
@@ -308,6 +315,15 @@ namespace libsecondlife.InventorySystem
 
 			UpdateCRC();
 		}
+
+        /// <summary></summary>
+        /// 
+        protected void SetAssetTransactionIDs(LLUUID assetID, LLUUID transactionID)
+        {
+            _AssetID       = assetID;
+            _TransactionID = transactionID;
+            UpdateItem();
+        }
 
         /// <summary>
         /// </summary>
@@ -411,8 +427,8 @@ namespace libsecondlife.InventorySystem
 				{
 					_Asset = new Asset( AssetID, Type, assetData );
 				} else {
-					_Asset = new Asset( LLUUID.GenerateUUID(), Type, assetData );
-					AssetID = _Asset.AssetID;
+					_Asset   = new Asset( LLUUID.GenerateUUID(), Type, assetData );
+					_AssetID = _Asset.AssetID;
 				}
 			} else {
 				_Asset.AssetData = assetData;

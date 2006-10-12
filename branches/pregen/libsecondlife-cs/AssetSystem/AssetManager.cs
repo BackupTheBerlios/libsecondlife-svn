@@ -44,7 +44,7 @@ namespace libsecondlife.AssetSystem
 
 		private SecondLife slClient;
 
-		private Hashtable htUploadRequests = new Hashtable();
+        private TransferRequest curUploadRequest = null;
 		private Hashtable htDownloadRequests = new Hashtable();
 
 		private class TransferRequest
@@ -55,8 +55,12 @@ namespace libsecondlife.AssetSystem
 
 			public int Size;
 			public int Received;
-			public uint LastPacket;
+			public uint LastPacketTime;
+            public uint LastPacketNumSent;
 			public byte[] AssetData;
+
+            public LLUUID TransactionID;
+            public LLUUID AssetID;
 		}
 
         /// <summary>
@@ -107,40 +111,51 @@ namespace libsecondlife.AssetSystem
         /// Upload an asset to SecondLife
         /// </summary>
         /// <param name="sinkType"></param>
-        public void UploadAsset(Asset asset)
+        public LLUUID UploadAsset(Asset asset)
 		{
+            if (curUploadRequest != null)
+            {
+                throw new Exception("An existing asset upload is currently in-progress.");
+            }
+
+            
+
 			Packet packet;
-			TransferRequest tr = new TransferRequest();
-			tr.Completed = false;
-			htUploadRequests[asset.AssetID] = tr;
+            curUploadRequest = new TransferRequest();
+            curUploadRequest.Completed = false;
+			curUploadRequest.TransactionID = LLUUID.GenerateUUID();
 
 			if( asset.AssetData.Length > 500 )
 			{
-				packet = AssetPacketHelpers.AssetUploadRequestHeaderOnly(asset);
+                packet = AssetPacketHelpers.AssetUploadRequestHeaderOnly(asset, curUploadRequest.TransactionID);
 				slClient.Network.SendPacket(packet);
 				Console.WriteLine(packet);
-				tr.AssetData = asset.AssetData;
+                curUploadRequest.AssetData = asset.AssetData;
 			} 
 			else 
 			{
-                packet = AssetPacketHelpers.AssetUploadRequest(asset);
+                packet = AssetPacketHelpers.AssetUploadRequest(asset, curUploadRequest.TransactionID);
 				slClient.Network.SendPacket(packet);
 				Console.WriteLine(packet);
 			}
 
-			while( tr.Completed == false )
+			while( curUploadRequest.Completed == false )
 			{
 				slClient.Tick();
 			}
 
-			if( tr.Status == false )
+            if (curUploadRequest.Status == false)
 			{
-				throw new Exception( tr.StatusMsg );
+                throw new Exception(curUploadRequest.StatusMsg);
 			} else {
 				if( asset.Type == Asset.ASSET_TYPE_IMAGE )
 				{
 					SinkFee( SINK_FEE_IMAGE );
 				}
+
+                asset.AssetID = curUploadRequest.AssetID;
+
+                return curUploadRequest.TransactionID;
 			}
 		}
 
@@ -156,7 +171,7 @@ namespace libsecondlife.AssetSystem
 			tr.Completed  = false;
 			tr.Size		  = int.MaxValue; // Number of bytes expected
 			tr.Received   = 0; // Number of bytes received
-			tr.LastPacket = Helpers.GetUnixTime(); // last time we recevied a packet for this request
+			tr.LastPacketTime = Helpers.GetUnixTime(); // last time we recevied a packet for this request
 
 			htDownloadRequests[TransferID] = tr;
 
@@ -173,6 +188,7 @@ namespace libsecondlife.AssetSystem
 
 
         /// <summary>
+        /// Uploads
         /// </summary>
         /// <param name="packet"></param>
         /// <param name="simulator"></param>
@@ -180,108 +196,25 @@ namespace libsecondlife.AssetSystem
 		{
             Packets.AssetUploadCompletePacket reply = (AssetUploadCompletePacket)packet;
 
-            LLUUID AssetID = reply.AssetBlock.UUID;
+            curUploadRequest.AssetID = reply.AssetBlock.UUID;
             bool Success = reply.AssetBlock.Success;
 
-            // Lookup the request for this packet, and mark it success or failure
-            TransferRequest tr = (TransferRequest)htUploadRequests[AssetID];
 			if( Success )
 			{
-				tr.Completed = true;
-				tr.Status    = true;
-				tr.StatusMsg = "Success";
+                curUploadRequest.Completed = true;
+                curUploadRequest.Status = true;
+                curUploadRequest.StatusMsg = "Success";
 			} 
 			else 
 			{
-				tr.Completed = true;
-				tr.Status    = false;
-				tr.StatusMsg = "Server returned failed";
+                curUploadRequest.Completed = true;
+                curUploadRequest.Status = false;
+                curUploadRequest.StatusMsg = "Server returned failed";
 			}
 		}
 
         /// <summary>
-        /// </summary>
-        /// <param name="packet"></param>
-        /// <param name="simulator"></param>
-        public void TransferInfoCallbackHandler(Packet packet, Simulator simulator)
-		{
-            TransferInfoPacket reply = (TransferInfoPacket)packet;
-			
-            LLUUID TransferID = reply.TransferInfo.TransferID;
-            int Size = reply.TransferInfo.Size;
-            int Status = reply.TransferInfo.Status;
-
-            // Lookup the request for this packet
-			TransferRequest tr = (TransferRequest)htDownloadRequests[TransferID];
-			if( tr == null )
-			{
-				return;
-			}
-
-            // Mark it as either not found or update the request information
-            if (Status == -2)
-			{
-				tr.Completed = true;
-				tr.Status    = false;
-				tr.StatusMsg = "Asset Status -2 :: Likely Status Not Found";
-
-				tr.Size = 1;
-				tr.AssetData = new byte[1];
-
-			} 
-			else 
-			{
-				tr.Size = Size;
-				tr.AssetData = new byte[Size];
-			}
-		}
-
-        /// <summary>
-        /// Transfer asset data
-        /// </summary>
-        /// <param name="packet"></param>
-        /// <param name="simulator"></param>
-        public void TransferPacketCallbackHandler(Packet packet, Simulator simulator)
-		{
-            TransferPacketPacket reply = (TransferPacketPacket)packet;
-
-            LLUUID TransferID = reply.TransferData.TransferID;
-			byte[] Data       = reply.TransferData.Data;
-
-
-			// Append data to data received.
-			TransferRequest tr = (TransferRequest)htDownloadRequests[TransferID];
-			if( tr == null )
-			{
-				return;
-			}
-
-			Array.Copy(Data, 0, tr.AssetData, tr.Received, Data.Length);
-			tr.Received += Data.Length;
-
-			// If we've gotten all the data, mark it completed.
-			if( tr.Received >= tr.Size )
-			{
-				tr.Completed = true;
-			}
-			
-		}
-
-        /// <summary>
-        /// Confirms SL's receipt of a Xfer upload packet
-        /// </summary>
-        /// <param name="packet"></param>
-        /// <param name="simulator"></param>
-        public void ConfirmXferPacketCallbackHandler(Packet packet, Simulator simulator)
-		{
-            ConfirmXferPacketPacket reply = (ConfirmXferPacketPacket)packet;
-
-			ulong XferID   = reply.XferID.ID;
-			uint PacketNum = reply.XferID.Packet;
-		}
-
-
-        /// <summary>
+        /// Uploads
         /// </summary>
         /// <param name="packet"></param>
         /// <param name="simulator"></param>
@@ -292,39 +225,135 @@ namespace libsecondlife.AssetSystem
             ulong XferID   = reply.XferID.ID;
 			LLUUID AssetID = reply.XferID.VFileID;
 
-			TransferRequest tr = (TransferRequest)htUploadRequests[AssetID];
+            // Setup to send the first packet
+            curUploadRequest.LastPacketNumSent = 0;
 
 			byte[] packetData = new byte[1004];
 
             // Prefix the first Xfer packet with the data length
             // FIXME: Apply endianness patch
-            Array.Copy(BitConverter.GetBytes((int)tr.AssetData.Length), 0, packetData, 0, 4);
-			Array.Copy(tr.AssetData, 0, packetData, 4, 1000);
+            Array.Copy(BitConverter.GetBytes((int)curUploadRequest.AssetData.Length), 0, packetData, 0, 4);
+            Array.Copy(curUploadRequest.AssetData, 0, packetData, 4, 1000);
 
             packet = AssetPacketHelpers.SendXferPacket(XferID, packetData, 0);
 			slClient.Network.SendPacket(packet);
-
-
-			// TODO: This for loop should be removed and these uploads should take place in
-			// a call back handler for ConfirmXferPacket, so that each packet is only sent
-            // after confirming SL's receipt of the previous packet
-			int numPackets = tr.AssetData.Length / 1000;
-			for( uint i = 1; i<numPackets; i++ )
-			{
-				packetData = new byte[1000];
-				Array.Copy(tr.AssetData, i*1000, packetData, 0, 1000);
-
-				packet = AssetPacketHelpers.SendXferPacket(XferID, packetData, i);
-				slClient.Network.SendPacket(packet);
-			}
-
-			int lastLen = tr.AssetData.Length - (numPackets * 1000);
-			packetData = new byte[ lastLen ];
-			Array.Copy(tr.AssetData, numPackets * 1000, packetData, 0, lastLen);
-
-			uint lastPacket = (uint)int.MaxValue + (uint)numPackets + (uint)1;
-			packet = AssetPacketHelpers.SendXferPacket(XferID, packetData, lastPacket);
-			slClient.Network.SendPacket(packet);
 		}
+
+        /// <summary>
+        /// Confirms SL's receipt of a Xfer upload packet
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <param name="simulator"></param>
+        public void ConfirmXferPacketCallbackHandler(Packet packet, Simulator simulator)
+        {
+            ConfirmXferPacketPacket reply = (ConfirmXferPacketPacket)packet;
+
+            ulong XferID = reply.XferID.ID;
+            uint PacketNumConfirmed = reply.XferID.Packet;
+
+            if (PacketNumConfirmed == curUploadRequest.LastPacketNumSent)
+            {
+                curUploadRequest.LastPacketNumSent += 1;
+
+                uint i = curUploadRequest.LastPacketNumSent;
+                int numPackets = curUploadRequest.AssetData.Length / 1000;
+
+                if (i < numPackets)
+                {
+                    byte[] packetData = new byte[1000];
+                    Array.Copy(curUploadRequest.AssetData, i * 1000, packetData, 0, 1000);
+
+                    packet = AssetPacketHelpers.SendXferPacket(XferID, packetData, i);
+                    slClient.Network.SendPacket(packet);
+                }
+                else
+                {
+                    // The last packet has to be handled slightly differently
+                    int lastLen = curUploadRequest.AssetData.Length - (numPackets * 1000);
+                    byte[] packetData = new byte[lastLen];
+                    Array.Copy(curUploadRequest.AssetData, numPackets * 1000, packetData, 0, lastLen);
+
+                    uint lastPacket = (uint)int.MaxValue + (uint)numPackets + (uint)1;
+                    packet = AssetPacketHelpers.SendXferPacket(XferID, packetData, lastPacket);
+                    slClient.Network.SendPacket(packet);
+                }
+            } else {
+                throw new Exception("Something is wrong with uploading assets, a confirmation came in for a packet we didn't send.");
+            }
+        }
+
+
+
+
+
+
+        /// <summary>
+        /// Downloads
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <param name="simulator"></param>
+        public void TransferInfoCallbackHandler(Packet packet, Simulator simulator)
+        {
+            TransferInfoPacket reply = (TransferInfoPacket)packet;
+
+            LLUUID TransferID = reply.TransferInfo.TransferID;
+            int Size = reply.TransferInfo.Size;
+            int Status = reply.TransferInfo.Status;
+
+            // Lookup the request for this packet
+            TransferRequest tr = (TransferRequest)htDownloadRequests[TransferID];
+            if (tr == null)
+            {
+                return;
+            }
+
+            // Mark it as either not found or update the request information
+            if (Status == -2)
+            {
+                tr.Completed = true;
+                tr.Status = false;
+                tr.StatusMsg = "Asset Status -2 :: Likely Status Not Found";
+
+                tr.Size = 1;
+                tr.AssetData = new byte[1];
+
+            }
+            else
+            {
+                tr.Size = Size;
+                tr.AssetData = new byte[Size];
+            }
+        }
+
+        /// <summary>
+        /// Downloads
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <param name="simulator"></param>
+        public void TransferPacketCallbackHandler(Packet packet, Simulator simulator)
+        {
+            TransferPacketPacket reply = (TransferPacketPacket)packet;
+
+            LLUUID TransferID = reply.TransferData.TransferID;
+            byte[] Data = reply.TransferData.Data;
+
+
+            // Append data to data received.
+            TransferRequest tr = (TransferRequest)htDownloadRequests[TransferID];
+            if (tr == null)
+            {
+                return;
+            }
+
+            Array.Copy(Data, 0, tr.AssetData, tr.Received, Data.Length);
+            tr.Received += Data.Length;
+
+            // If we've gotten all the data, mark it completed.
+            if (tr.Received >= tr.Size)
+            {
+                tr.Completed = true;
+            }
+
+        }
 	}
 }

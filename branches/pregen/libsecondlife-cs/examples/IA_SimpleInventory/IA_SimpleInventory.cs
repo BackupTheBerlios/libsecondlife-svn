@@ -73,6 +73,7 @@ namespace IA_SimpleInventory
 
         protected void Connect(string FirstName, string LastName, string Password)
 		{
+            Console.WriteLine("Attempting to connect and login to SecondLife.");
 
 			// Setup Login to Second Life
 			Hashtable loginParams = NetworkManager.DefaultLoginValues(FirstName, LastName, Password, "00:00:00:00:00:00",

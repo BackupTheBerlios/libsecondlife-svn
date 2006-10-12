@@ -41,7 +41,7 @@ namespace libsecondlife.AssetSystem
         /// Upload a small asset where the entire asset will fit in a single packet (less then 500 bytes)
         /// </summary>
         /// <param name="asset"></param>
-        public static Packet AssetUploadRequest(Asset asset)
+        public static Packet AssetUploadRequest(Asset asset, LLUUID TransactionID)
 		{
             if (asset.AssetData.Length > 500)
             {
@@ -49,11 +49,11 @@ namespace libsecondlife.AssetSystem
             }
 
             AssetUploadRequestPacket p = new AssetUploadRequestPacket();
-            p.AssetBlock.UUID       = asset.AssetID;
-            p.AssetBlock.Type       = asset.Type;
-            p.AssetBlock.Tempfile   = asset.Tempfile;
-            p.AssetBlock.AssetData  = asset.AssetData;
-            p.AssetBlock.StoreLocal = false;
+            p.AssetBlock.TransactionID = TransactionID;
+            p.AssetBlock.Type          = asset.Type;
+            p.AssetBlock.Tempfile      = asset.Tempfile;
+            p.AssetBlock.AssetData     = asset.AssetData;
+            p.AssetBlock.StoreLocal    = false;
 
             return p;
 		}
@@ -62,13 +62,13 @@ namespace libsecondlife.AssetSystem
         /// Send header to SL to let it know that a large asset upload is about to proceed.
         /// </summary>
         /// <param name="asset"></param>
-		public static Packet AssetUploadRequestHeaderOnly(Asset asset)
+		public static Packet AssetUploadRequestHeaderOnly(Asset asset, LLUUID TransactionID)
 		{
             AssetUploadRequestPacket p = new AssetUploadRequestPacket();
-            p.AssetBlock.UUID = asset.AssetID;
-            p.AssetBlock.Type = asset.Type;
-            p.AssetBlock.Tempfile = asset.Tempfile;
-            p.AssetBlock.StoreLocal = false;
+            p.AssetBlock.TransactionID = TransactionID;
+            p.AssetBlock.Type          = asset.Type;
+            p.AssetBlock.Tempfile      = asset.Tempfile;
+            p.AssetBlock.StoreLocal    = false;
 
             return p;
         }
