@@ -209,7 +209,6 @@ namespace mapgenerator
                         "                Array.Copy(ba, 0, bytes, i, 8); i += 8;");
                     break;
                 case FieldType.Fixed:
-                    Console.WriteLine("if(" + field.Name + " == null) { throw new Exception(\"" + field.Name + " is null, in \" + this.GetType()); }");
                     Console.WriteLine("                Array.Copy(" + field.Name + ", 0, bytes, i, " + field.Count + ");" + 
                         "i += " + field.Count + ";");
                     break;
@@ -226,15 +225,18 @@ namespace mapgenerator
                 case FieldType.LLQuaternion:
                 case FieldType.LLUUID:
                 case FieldType.LLVector4:
-                    Console.WriteLine("if(" + field.Name + " == null) { throw new Exception(\"" + field.Name + " is null, in \" + this.GetType()); }");
+                    Console.WriteLine("if(" + field.Name + " == null) { Console.WriteLine(\"Warning: " + field.Name + " is null, in \" + this.GetType()); }");
+                    Console.Write("                ");
                     Console.WriteLine("Array.Copy(" + field.Name + ".GetBytes(), 0, bytes, i, 16); i += 16;");
                     break;
                 case FieldType.LLVector3:
-                    Console.WriteLine("if(" + field.Name + " == null) { throw new Exception(\"" + field.Name + " is null, in \" + this.GetType()); }");
+                    Console.WriteLine("if(" + field.Name + " == null) { Console.WriteLine(\"Warning: " + field.Name + " is null, in \" + this.GetType()); }");
+                    Console.Write("                ");
                     Console.WriteLine("Array.Copy(" + field.Name + ".GetBytes(), 0, bytes, i, 12); i += 12;");
                     break;
                 case FieldType.LLVector3d:
-                    Console.WriteLine("if(" + field.Name + " == null) { throw new Exception(\"" + field.Name + " is null, in \" + this.GetType()); }");
+                    Console.WriteLine("if(" + field.Name + " == null) { Console.WriteLine(\"Warning: " + field.Name + " is null, in \" + this.GetType()); }");
+                    Console.Write("                ");
                     Console.WriteLine("Array.Copy(" + field.Name + ".GetBytes(), 0, bytes, i, 24); i += 24;");
                     break;
                 case FieldType.U8:
@@ -262,13 +264,14 @@ namespace mapgenerator
                     Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 56) % 256);");
                     break;
                 case FieldType.Variable:
+                    Console.WriteLine("if(" + field.Name + " == null) { Console.WriteLine(\"Warning: " + field.Name + " is null, in \" + this.GetType()); }");
+                    Console.Write("                ");
                     if (field.Count == 1)
                     {
                         Console.WriteLine("bytes[i++] = (byte)" + field.Name + ".Length;");
                     }
                     else
                     {
-                        Console.WriteLine("if(" + field.Name + " == null) { throw new Exception(\"" + field.Name + " is null, in \" + this.GetType()); }");
                         Console.WriteLine("bytes[i++] = (byte)(" + field.Name + ".Length % 256);");
                         Console.WriteLine("                bytes[i++] = (byte)((" + 
                             field.Name + ".Length >> 8) % 256);");
@@ -416,11 +419,11 @@ namespace mapgenerator
             {
                 if (field.Type == FieldType.Variable)
                 {
-                    Console.WriteLine("                output += Helpers.FieldToString(" + field.Name + ", \"" + field.Name + "\");");
+                    Console.WriteLine("                output += \"" + field.Name + ": \" + Helpers.FieldToString(" + field.Name + ", \"" + field.Name + "\") + \"\\n\";");
                 }
                 else if (field.Type == FieldType.Fixed)
                 {
-                    Console.WriteLine("                output += Helpers.FieldToString(" + field.Name + ", \"" + field.Name + "\") + \"\\n\";");
+                    Console.WriteLine("                output += \"" + field.Name + ": \" + Helpers.FieldToString(" + field.Name + ", \"" + field.Name + "\") + \"\\n\";");
                 }
                 else
                 {
