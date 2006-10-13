@@ -19,6 +19,8 @@ namespace sceneviewer
         #region Private Fields
         private Vector3 _cameraPosition;
         private Vector3 _lookatPosition;
+        private Matrix _projection;
+        private GameWindow _window;
 
         private float _theta;
         private float _phi;
@@ -31,16 +33,19 @@ namespace sceneviewer
         /// </summary>
         /// <param name="pos"></param>
         /// <param name="lookAt"></param>
-        public Camera(Vector3 pos, Vector3 lookAt)
+        public Camera(GameWindow window, Vector3 pos, Vector3 lookAt)
         {
+            _window = window;
             _cameraPosition = pos;
             _lookatPosition = lookAt;
+
+            UpdateProjection();
         }
         #endregion Constructors
 
         #region Properties
         /// <summary>
-        /// Generate the current view matrix for the camera.
+        /// Generate the current view matrix for the camera
         /// </summary>
         public Matrix ViewMatrix
         {
@@ -64,6 +69,36 @@ namespace sceneviewer
 
                 return Matrix.CreateLookAt(newCameraPosition, _lookatPosition,
                     new Vector3(0.0f, 0.0f, 1.0f)); 
+            }
+        }
+
+        public Matrix ProjectionMatrix
+        {
+            get
+            {
+                return _projection;
+            }
+        }
+
+        /// <summary>
+        /// Gets the view and projection matrices multiplied together
+        /// </summary>
+        public Matrix ViewProjectionMatrix
+        {
+            get
+            {
+                return ViewMatrix * _projection;
+            }
+        }
+
+        /// <summary>
+        /// Gets the camera position
+        /// </summary>
+        public Vector3 Position
+        {
+            get
+            {
+                return _cameraPosition;
             }
         }
 
@@ -121,6 +156,16 @@ namespace sceneviewer
             set { _zoom = value; }
         }
         #endregion Properties
+
+        /// <summary>
+        /// Call this method any time the client window changes.
+        /// </summary>
+        public void UpdateProjection()
+        {
+            _projection = Matrix.CreatePerspectiveFieldOfView((float)Math.PI / 4.0f,
+                (float)_window.ClientWidth / (float)_window.ClientHeight,
+                1.0f, 512.0f);
+        }
 
         /// <summary>
         /// Determine how far the camera should move forward

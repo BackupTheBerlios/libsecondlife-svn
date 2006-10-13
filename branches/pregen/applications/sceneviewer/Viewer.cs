@@ -25,8 +25,8 @@ namespace sceneviewer
         private VertexDeclaration vertexDeclaration;
 
         // Matrices
-        private Matrix WorldViewProjection;
-        private Matrix World, Projection;
+        //private Matrix WorldViewProjection;
+        //private Matrix World, Projection;
         private Camera Camera;
 
         // Variables for keeping track of the state of the mouse
@@ -41,7 +41,7 @@ namespace sceneviewer
             Window.ClientSizeChanged += new EventHandler(Window_ClientSizeChanged);
             this.Exiting += new EventHandler<GameEventArgs>(Viewer_Exiting);
 
-            Camera = new Camera(new Vector3(0, 0, 40), new Vector3(256, 256, 0));
+            Camera = new Camera(this.Window, new Vector3(0, 0, 40), new Vector3(256, 256, 0));
             PreviousLeftButton = ButtonState.Released;
 
             Prims = new Dictionary<uint, PrimVisual>();
@@ -74,11 +74,7 @@ namespace sceneviewer
 
         void Window_ClientSizeChanged(object sender, EventArgs e)
         {
-            // build a pretty standard projection matrix
-            Projection = Matrix.CreatePerspectiveFieldOfView(
-                (float)Math.PI / 4.0f,  // 45 degrees
-                (float)this.Window.ClientWidth / (float)this.Window.ClientHeight,
-                1.0f, 512.0f);
+            Camera.UpdateProjection();
         }
 
         void OnNewPrim(Simulator simulator, PrimObject prim, ulong regionHandle, ushort timeDilation)
@@ -117,15 +113,9 @@ namespace sceneviewer
         private void InitializeTransform()
         {
             // set the World matrix to something
-            World = Matrix.CreateTranslation(Vector3.Zero);
+            //World = Matrix.CreateTranslation(Vector3.Zero);
 
-            // build a pretty standard projection matrix
-            Projection = Matrix.CreatePerspectiveFieldOfView(
-                (float)Math.PI / 4.0f,  // 45 degrees
-                (float)this.Window.ClientWidth / (float)this.Window.ClientHeight,
-                1.0f, 512.0f);
-
-            WorldViewProjection = World * Camera.ViewMatrix * Projection;
+            //WorldViewProjection = World * Camera.ViewMatrix * Projection;
         }
 
         private void InitializeEffect()
@@ -180,6 +170,8 @@ namespace sceneviewer
 
         protected override void Draw()
         {
+            Matrix ViewProjectionMatrix = Camera.ViewProjectionMatrix;
+
             // Make sure we have a valid device
             if (!graphics.EnsureDevice())
                 return;
@@ -190,8 +182,8 @@ namespace sceneviewer
             // Let the GameComponents draw
             DrawComponents();
 
-            WorldViewProjection = World * Camera.ViewMatrix * Projection;
-            effect.Parameters["WorldViewProj"].SetValue(WorldViewProjection);
+            Matrix World = Matrix.CreateTranslation(Vector3.Zero);
+            effect.Parameters["WorldViewProj"].SetValue(World * ViewProjectionMatrix);
             effect.CurrentTechnique = effect.Techniques["TransformTechnique"];
             effect.CommitChanges();
 
@@ -230,7 +222,7 @@ namespace sceneviewer
                                 Matrix rootRotation = Matrix.FromQuaternion(new Quaternion(llBaseRotation.X, llBaseRotation.Y,
                                     llBaseRotation.Z, llBaseRotation.W));
 
-                                effect.Parameters["WorldViewProj"].SetValue(prim.Matrix * rootRotation * worldOffset * WorldViewProjection);
+                                effect.Parameters["WorldViewProj"].SetValue(prim.Matrix * rootRotation * worldOffset * ViewProjectionMatrix);
                                 effect.CommitChanges();
 
                                 graphics.GraphicsDevice.DrawUserPrimitives<VertexPositionColor>(PrimitiveType.TriangleList, 
@@ -241,7 +233,7 @@ namespace sceneviewer
                         {
                             // Root prim or not part of a linkset
 
-                            effect.Parameters["WorldViewProj"].SetValue(prim.Matrix * WorldViewProjection);
+                            effect.Parameters["WorldViewProj"].SetValue(prim.Matrix * ViewProjectionMatrix);
                             effect.CommitChanges();
 
                             graphics.GraphicsDevice.DrawUserPrimitives<VertexPositionColor>(PrimitiveType.TriangleList,

@@ -60,6 +60,7 @@
     <Compile Include="Prims\PrimVisualTorus.cs" />
     <Compile Include="Prims\PrimVisualTube.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Skybox\Skybox.cs" />
     <Compile Include="Viewer.Designer.cs">
       <DependentUpon>Viewer.cs</DependentUpon>
     </Compile>
@@ -68,9 +69,14 @@
     <Compile Include="Viewer.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Water\NoiseMaker.cs" />
+    <Compile Include="Water\WaterSurface.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ReallySimpleEffect.fx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Terrain\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
