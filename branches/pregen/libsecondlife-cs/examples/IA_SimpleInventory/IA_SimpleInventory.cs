@@ -80,12 +80,6 @@ namespace IA_SimpleInventory
 				"last", 1, 12, 12, 12, "Win", "0", "createnotecard", "static.sprocket@gmail.com");
 			Hashtable loginReply = new Hashtable();
 
-			// Request information on the Root Inventory Folder, and Inventory Skeleton
-			ArrayList alAdditionalInfo = new ArrayList();
-			alAdditionalInfo.Add("inventory-root");
-			alAdditionalInfo.Add("inventory-skeleton");
-			loginParams.Add("options",alAdditionalInfo);
-
 			// Login
 			if (!client.Network.Login(loginParams))
 			{
@@ -99,11 +93,11 @@ namespace IA_SimpleInventory
             Console.WriteLine("AgentID:   " + client.Network.AgentID);
             Console.WriteLine("SessionID: " + client.Network.SessionID);
 
-			// Get Root Inventory Folder UUID
+            // Get Root Inventory Folder UUID
             Console.WriteLine("Pulling root folder UUID from login data.");
             ArrayList alInventoryRoot = (ArrayList)client.Network.LoginValues["inventory-root"];
-			Hashtable htInventoryRoot = (Hashtable)alInventoryRoot[0];
-			LLUUID agentRootFolderID = new LLUUID( (string)htInventoryRoot["folder_id"] );
+            Hashtable htInventoryRoot = (Hashtable)alInventoryRoot[0];
+            LLUUID agentRootFolderID = new LLUUID( (string)htInventoryRoot["folder_id"] );
 
 			// Initialize Inventory Manager object
             Console.WriteLine("Initializing Inventory Manager.");

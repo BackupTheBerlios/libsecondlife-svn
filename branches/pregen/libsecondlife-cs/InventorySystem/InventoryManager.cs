@@ -321,7 +321,7 @@ namespace libsecondlife.InventorySystem
 			InventoryImage iImage = new InventoryImage( this, Name, Description, FolderID, slClient.Network.AgentID );
 
 			// Create this image on the server.
-			ItemUpdate( iImage );
+            ItemCreate(iImage);
 
 			if( (j2cdata != null) && (j2cdata.Length != 0) )
 			{
