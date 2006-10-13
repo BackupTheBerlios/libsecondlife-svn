@@ -37,7 +37,14 @@ namespace libsecondlife.AssetSystem
 	/// </summary>
     public class ImagePacketHelpers
 	{
-		private ImagePacketHelpers() { }
+        private LLUUID AgentID;
+        private LLUUID SessionID;
+
+        public ImagePacketHelpers(LLUUID AgentID, LLUUID SessionID)
+		{
+            this.AgentID   = AgentID;
+            this.SessionID = SessionID;
+		}
 
 
         /// <summary>
@@ -45,7 +52,7 @@ namespace libsecondlife.AssetSystem
         /// one ImageData packet, along with zero or more ImagePacket packets.
         /// </summary>
         /// <param name="imageID">LLUUID of the AssetID of an image.</param>
-        public static Packet RequestImage(LLUUID imageID)
+        public Packet RequestImage(LLUUID imageID)
 		{
             RequestImagePacket p = new RequestImagePacket();
             p.RequestImage    = new RequestImagePacket.RequestImageBlock[1];
@@ -54,6 +61,14 @@ namespace libsecondlife.AssetSystem
             p.RequestImage[0].DiscardLevel     = (int)0;
             p.RequestImage[0].Packet           = (uint)0;
             p.RequestImage[0].Image            = imageID;
+
+            //FIXME: Find out what the appropriate values are here.
+            Console.WriteLine("Don't know what the valid value should be for Type in RequestImage");
+            p.RequestImage[0].Type             = 0;
+
+            p.AgentData.AgentID = AgentID;
+            p.AgentData.SessionID = SessionID;
+
             return p;
 		}
 

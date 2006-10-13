@@ -44,6 +44,20 @@ namespace libsecondlife.InventorySystem
             return p;
 		}
 
+        public Packet FetchInventory(LLUUID OwnerID, LLUUID ItemID)
+        {
+            FetchInventoryPacket p = new FetchInventoryPacket();
+            p.InventoryData = new FetchInventoryPacket.InventoryDataBlock[1];
+            p.InventoryData[0] = new FetchInventoryPacket.InventoryDataBlock();
+            p.InventoryData[0].OwnerID = OwnerID;
+            p.InventoryData[0].ItemID = ItemID;
+
+            p.AgentData.AgentID = AgentID;
+            p.AgentData.SessionID = SessionID;
+
+            return p;
+        }
+
 		public Packet CreateInventoryFolder(
 			string name
 			, LLUUID parentID
@@ -53,6 +67,7 @@ namespace libsecondlife.InventorySystem
 		{
             CreateInventoryFolderPacket p = new CreateInventoryFolderPacket();
             p.AgentData.AgentID   = AgentID;
+            p.AgentData.SessionID = SessionID;
 
             p.FolderData.Name     = Helpers.StringToField(name);
             p.FolderData.ParentID = parentID;
@@ -70,7 +85,9 @@ namespace libsecondlife.InventorySystem
 			)
 		{
             MoveInventoryFolderPacket p = new MoveInventoryFolderPacket();
-            p.AgentData.AgentID = AgentID;
+            p.AgentData.AgentID   = AgentID;
+            p.AgentData.SessionID = SessionID;
+            p.AgentData.Stamp     = false;
 
             p.InventoryData = new MoveInventoryFolderPacket.InventoryDataBlock[1];
             p.InventoryData[0] = new MoveInventoryFolderPacket.InventoryDataBlock();
@@ -89,6 +106,7 @@ namespace libsecondlife.InventorySystem
 		{
             RemoveInventoryFolderPacket p = new RemoveInventoryFolderPacket();
             p.AgentData.AgentID = AgentID;
+            p.AgentData.SessionID = SessionID;
 
             p.FolderData = new RemoveInventoryFolderPacket.FolderDataBlock[1];
             p.FolderData[0] = new RemoveInventoryFolderPacket.FolderDataBlock();
@@ -109,6 +127,7 @@ namespace libsecondlife.InventorySystem
 		{
             UpdateInventoryFolderPacket p = new UpdateInventoryFolderPacket();
             p.AgentData.AgentID = AgentID;
+            p.AgentData.SessionID = SessionID;
 
             p.FolderData = new UpdateInventoryFolderPacket.FolderDataBlock[1];
             p.FolderData[0] = new UpdateInventoryFolderPacket.FolderDataBlock();
@@ -130,6 +149,7 @@ namespace libsecondlife.InventorySystem
 		{
             MoveInventoryItemPacket p = new MoveInventoryItemPacket();
             p.AgentData.AgentID = AgentID;
+            p.AgentData.SessionID = SessionID;
             p.AgentData.Stamp = true;
 
             p.InventoryData    = new MoveInventoryItemPacket.InventoryDataBlock[1];
@@ -142,39 +162,20 @@ namespace libsecondlife.InventorySystem
 
 		}
 
-		/*
-		Low 00324 - CopyInventoryItem - Untrusted - Unencoded
-			0065 InventoryData (Variable)
-				0224 NewFolderID (LLUUID / 1)
-				0991 OldItemID (LLUUID / 1)
-			1297 AgentData (01)
-				0219 AgentID (LLUUID / 1)
-		*/
 		public Packet CopyInventoryItem(
 			LLUUID itemID
 			, LLUUID folderID
 			)
 		{
-/*
-			Hashtable blocks = new Hashtable();
-			Hashtable fields;
-
-			fields = new Hashtable();
-			fields["ItemID"]	= itemID;
-			fields["FolderID"]	= folderID;
-			blocks[fields]		= "InventoryData";
-
-			fields = new Hashtable();
-			fields["AgentID"]	= agentID;
-			blocks[fields]		= "AgentData";
-
-			return PacketBuilder.BuildPacket("CopyInventoryItem", blocks, Helpers.MSG_RELIABLE);
- */
             CopyInventoryItemPacket p = new CopyInventoryItemPacket();
             p.AgentData.AgentID = AgentID;
+            p.AgentData.SessionID = SessionID;
 
             p.InventoryData = new CopyInventoryItemPacket.InventoryDataBlock[1];
             p.InventoryData[0] = new CopyInventoryItemPacket.InventoryDataBlock();
+
+            p.InventoryData[0].CallbackID = 0;
+            p.InventoryData[0].OldAgentID = AgentID; //TODO: Find out what this is supposed to be.  Added field 10/11/06, no docs in Message Template
 
             p.InventoryData[0].OldItemID   = itemID;
             p.InventoryData[0].NewFolderID = folderID;
@@ -188,6 +189,7 @@ namespace libsecondlife.InventorySystem
 		{
             RemoveInventoryItemPacket p = new RemoveInventoryItemPacket();
             p.AgentData.AgentID = AgentID;
+            p.AgentData.SessionID = SessionID;
 
             p.InventoryData = new RemoveInventoryItemPacket.InventoryDataBlock[1];
             p.InventoryData[0] = new RemoveInventoryItemPacket.InventoryDataBlock();

@@ -32,12 +32,7 @@ namespace IA_ImageTool
 
             if (args.Length < 5)
             {
-                Console.WriteLine("Usage: ImageTool [first] [last] [password] [get] [uuid] [(filename)]");
-                Console.WriteLine("Usage: ImageTool [first] [last] [password] [put] [filename]");
-
-                Console.WriteLine();
-                Console.WriteLine("Example: ImageTool John Doe Password get 0444bf21-f77e-7f63-89e9-b839ec66bc15 cloud.tif");
-                Console.WriteLine("Example: ImageTool John Doe Password put Sample.tif");
+                ImageTool.Usage();
                 return;
             }
 
@@ -52,6 +47,12 @@ namespace IA_ImageTool
             }
             else
             {
+                if (args.Length < 6)
+                {
+                    ImageTool.Usage();
+                    return;
+                }
+
                 id = new LLUUID(args[4]);
                 if (args.Length == 6)
                 {
@@ -109,5 +110,14 @@ namespace IA_ImageTool
 
         }
 
+        protected static void Usage()
+        {
+            Console.WriteLine("Usage: ImageTool [first] [last] [password] [get] [uuid] [(filename)]");
+            Console.WriteLine("Usage: ImageTool [first] [last] [password] [put] [filename]");
+
+            Console.WriteLine();
+            Console.WriteLine("Example: ImageTool John Doe Password get 0444bf21-f77e-7f63-89e9-b839ec66bc15 cloud.tif");
+            Console.WriteLine("Example: ImageTool John Doe Password put Sample.tif");
+        }
     }
 }

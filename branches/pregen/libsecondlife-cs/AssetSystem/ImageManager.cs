@@ -41,6 +41,8 @@ namespace libsecondlife.AssetSystem
 	{
 		private SecondLife slClient;
 
+        private ImagePacketHelpers ImagePacketHelper;
+
 		private Hashtable htDownloadRequests = new Hashtable();
 
 		private class TransferRequest
@@ -54,6 +56,8 @@ namespace libsecondlife.AssetSystem
 			public uint LastPacket;
 			public byte[] AssetData;
 
+            public int BaseDataReceived;
+
 			public TransferRequest()
 			{
 				Completed = false;
@@ -62,6 +66,7 @@ namespace libsecondlife.AssetSystem
 				StatusMsg	= "";
 
 				AssetData	= null;
+                BaseDataReceived = 0;
 			}
 		}
 
@@ -72,12 +77,17 @@ namespace libsecondlife.AssetSystem
 		{
 			slClient = client;
 
+            ImagePacketHelper = new ImagePacketHelpers(client.Network.AgentID, client.Network.SessionID);
+
 			PacketCallback ImageDataCallback = new PacketCallback(ImageDataCallbackHandler);
 			slClient.Network.RegisterCallback(PacketType.ImageData, ImageDataCallback);
 
             PacketCallback ImagePacketCallback = new PacketCallback(ImagePacketCallbackHandler);
             slClient.Network.RegisterCallback(PacketType.ImagePacket, ImagePacketCallback);
-		}
+
+            PacketCallback ImageNotInDatabaseCallback = new PacketCallback(ImageNotInDatabaseCallbackHandler);
+            slClient.Network.RegisterCallback(PacketType.ImageNotInDatabase, ImageNotInDatabaseCallback);
+        }
 
         /// <summary>
         /// Requests an image from SecondLife and blocks until it's received.
@@ -93,7 +103,7 @@ namespace libsecondlife.AssetSystem
 
 			htDownloadRequests[ImageID] = tr;
 
-            Packet packet = ImagePacketHelpers.RequestImage(ImageID);
+            Packet packet = ImagePacketHelper.RequestImage(ImageID);
 			slClient.Network.SendPacket(packet);
 
 			while( tr.Completed == false )
@@ -140,6 +150,7 @@ namespace libsecondlife.AssetSystem
             // Initialize the request so that it's data buffer is the right size for the image
 			tr.Size = Size;
 			tr.AssetData = new byte[tr.Size];
+            tr.BaseDataReceived = Data.Length;
 
             // Copy the first block of image data into the request.
 			Array.Copy(Data, 0, tr.AssetData, tr.Received, Data.Length);
@@ -161,6 +172,7 @@ namespace libsecondlife.AssetSystem
         public void ImagePacketCallbackHandler(Packet packet, Simulator simulator)
 		{
             ImagePacketPacket reply = (ImagePacketPacket)packet;
+            
 
             // Lookup the request for this packet
 			TransferRequest tr = (TransferRequest)htDownloadRequests[reply.ImageID.ID];
@@ -170,8 +182,14 @@ namespace libsecondlife.AssetSystem
 				return;
 			}
 
+
+            // TODO: Received data should probably be put into a temporary collection that's indected by ImageID.Packet
+            // then once we've received all data packets, it should be re-assembled into a complete array and marked
+            // completed.
+
+
             // Add this packet's data to the request.
-			Array.Copy(reply.ImageData.Data, 0, tr.AssetData, tr.Received, reply.ImageData.Data.Length);
+            Array.Copy(reply.ImageData.Data, 0, tr.AssetData, tr.BaseDataReceived + (1000 * (reply.ImageID.Packet)), reply.ImageData.Data.Length);
             tr.Received += (uint)reply.ImageData.Data.Length;
 
 			// If we've gotten all the data, mark it completed.
@@ -181,5 +199,13 @@ namespace libsecondlife.AssetSystem
 				tr.Status	 = true;
 			}		
 		}
+
+        /// <summary>
+        ///
+        /// </summary>
+        public void ImageNotInDatabaseCallbackHandler(Packet packet, Simulator simulator)
+        {
+            Console.WriteLine(packet);
+        }
 	}
 }
