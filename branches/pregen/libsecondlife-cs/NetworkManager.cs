@@ -110,6 +110,7 @@ namespace libsecondlife
         public uint CircuitCode
         {
             get { return circuitCode; }
+            set { circuitCode = value; }
         }
 
         /// <summary>
@@ -146,11 +147,13 @@ namespace libsecondlife
 		private Hashtable NeedAck;
 		private Mutex NeedAckMutex;
 		private SortedList Inbox;
+        private ArrayList PendingAcks;
 		private Mutex InboxMutex;
 		private bool connected;
 		private uint circuitCode;
 		private IPEndPoint ipEndPoint;
 		private EndPoint endPoint;
+        private System.Timers.Timer AckTimer;
 
         /// <summary>
         /// 
@@ -173,12 +176,15 @@ namespace libsecondlife
             Connection = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             connected = false;
             DisconnectCandidate = false;
+            AckTimer = new System.Timers.Timer(500);
+            AckTimer.Elapsed += new ElapsedEventHandler(AckTimer_Elapsed);
 
             // Initialize the hashtable for reliable packets waiting on ACKs from the server
             NeedAck = new Hashtable();
 
-            // Initialize the list of sequence numbers we've received so far
+            // Initialize the lists of sequence numbers we've received so far
             Inbox = new SortedList();
+            PendingAcks = new ArrayList();
 
             NeedAckMutex = new Mutex(false, "NeedAckMutex");
             InboxMutex = new Mutex(false, "InboxMutex");
@@ -201,12 +207,15 @@ namespace libsecondlife
 
                 // Send the UseCircuitCode packet to initiate the connection
                 UseCircuitCodePacket use = new UseCircuitCodePacket();
-                use.CircuitCode.Code = CircuitCode;
+                use.CircuitCode.Code = circuitCode;
                 use.CircuitCode.ID = Network.AgentID;
                 use.CircuitCode.SessionID = Network.SessionID;
 
+                // Start the ACK timer
+                AckTimer.Start();
+
                 // Send the initial packet out
-                SendPacket((Packet)use, true);
+                SendPacket(use, true);
 
                 // Track the current time for timeout purposes
                 int start = Environment.TickCount;
@@ -299,38 +308,40 @@ namespace libsecondlife
                     }
                     NeedAckMutex.ReleaseMutex();
                     #endregion NeedAckMutex
+
+                    // Append any ACKs that need to be sent out to this packet
+                    #region InboxMutex
+                    //InboxMutex.WaitOne();
+                    //try
+                    //{
+                    //    if (PendingAcks.Count > 0 && packet.Type != PacketType.PacketAck && 
+                    //        packet.Type != PacketType.LogoutRequest)
+                    //    {
+                    //        packet.Header.AckList = new uint[PendingAcks.Count];
+
+                    //        int i = 0;
+
+                    //        foreach (uint ack in PendingAcks)
+                    //        {
+                    //            packet.Header.AckList[i] = ack;
+                    //            i++;
+                    //        }
+
+                    //        PendingAcks.Clear();
+                    //        packet.Header.AppendedAcks = true;
+                    //    }
+                    //}
+                    //catch (Exception e)
+                    //{
+                    //    Client.Log(e.ToString(), Helpers.LogLevel.Error);
+                    //}
+                    //finally
+                    //{
+                    //    InboxMutex.ReleaseMutex();
+                    //}
+                    #endregion InboxMutex
                 }
             }
-
-            // TODO: Append any ACKs that need to be sent out to this packet
-            #region AckOutboxMutex
-            //AckOutboxMutex.WaitOne();
-            //try
-            //{
-            //    if (AckOutbox.Count > 0 && incrementSequence &&
-            //        packet.Type != PacketType.PacketAck &&
-            //        packet.Type != PacketType.LogoutRequest)
-            //    {
-            //        packet.Header.AckList = new uint[AckOutbox.Count];
-
-            //        for (int i = 0; i < AckOutbox.Count; i++)
-            //        {
-            //            packet.Header.AckList[i] = AckOutbox[i];
-            //        }
-
-            //        AckOutbox.Clear();
-            //        packet.Header.AppendedAcks = true;
-            //    }
-            //}
-            //catch (Exception e)
-            //{
-            //    Client.Log(e.ToString(), Helpers.LogLevel.Error);
-            //}
-            //finally
-            //{
-            //    AckOutboxMutex.ReleaseMutex();
-            //}
-            #endregion AckOutboxMutex
 
             // Serialize the packet
             buffer = packet.ToBytes();
@@ -341,6 +352,7 @@ namespace libsecondlife
             {
                 byte[] zeroBuffer = new byte[4096];
                 bytes = Helpers.ZeroEncode(buffer, bytes, zeroBuffer);
+
                 buffer = zeroBuffer;
             }
 
@@ -432,33 +444,6 @@ namespace libsecondlife
 
                 int packetEnd = numBytes - 1;
                 packet = Packet.BuildPacket(RecvBuffer, ref packetEnd);
-
-                #region NeedAckMutex
-                try
-                {
-                    NeedAckMutex.WaitOne();
-                    foreach (ushort ack in packet.Header.AckList)
-                    {
-                        if (NeedAck.ContainsKey(ack))
-                        {
-                            Client.Log("Appended ACK " + ack, Helpers.LogLevel.Info);
-                            NeedAck.Remove(ack);
-                        }
-                        else
-                        {
-                            Client.Log("Appended ACK for a packet we didn't send: " + ack, Helpers.LogLevel.Warning);
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    Client.Log(e.ToString(), Helpers.LogLevel.Error);
-                }
-                finally
-                {
-                    NeedAckMutex.ReleaseMutex();
-                }
-                #endregion NeedAckMutex
             }
             catch (Exception e)
             {
@@ -467,7 +452,14 @@ namespace libsecondlife
             finally
             {
                 RecvBufferMutex.ReleaseMutex();
-                Connection.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref endPoint, ReceivedData, null);
+
+                try
+                {
+                    Connection.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref endPoint, ReceivedData, null);
+                }
+                catch (Exception)
+                {
+                }
             }
             #endregion RecvBufferMutex
 
@@ -481,9 +473,6 @@ namespace libsecondlife
             // Track the sequence number for this packet if it's marked as reliable
             if (packet.Header.Reliable)
             {
-                // TODO: If we can make it stable, go back to the periodic ACK system
-                SendACK((uint)packet.Header.Sequence);
-
                 // Check if we already received this packet
                 #region InboxMutex
                 try
@@ -502,6 +491,7 @@ namespace libsecondlife
                     else
                     {
                         Inbox.Add(packet.Header.Sequence, packet.Header.Sequence);
+                        PendingAcks.Add((uint)packet.Header.Sequence);
                     }
                 }
                 catch (Exception e)
@@ -516,17 +506,39 @@ namespace libsecondlife
             }
 
             // Handle ACK packets
-            if (packet.Type == PacketType.PacketAck)
+            if (packet.Header.AppendedAcks || packet.Type == PacketType.PacketAck)
             {
                 #region NeedAckMutex
                 try
                 {
                     NeedAckMutex.WaitOne();
-                    PacketAckPacket ackPacket = (PacketAckPacket)packet;
 
-                    foreach (PacketAckPacket.PacketsBlock block in ackPacket.Packets)
+                    // Handle PacketAck packets
+                    if (packet.Type == PacketType.PacketAck)
                     {
-                        NeedAck.Remove((ushort)block.ID);
+                        PacketAckPacket ackPacket = (PacketAckPacket)packet;
+
+                        foreach (PacketAckPacket.PacketsBlock block in ackPacket.Packets)
+                        {
+                            NeedAck.Remove((ushort)block.ID);
+                        }
+                    }
+
+                    // Handle appended ACKs
+                    if (packet.Header.AppendedAcks)
+                    {
+                        foreach (ushort ack in packet.Header.AckList)
+                        {
+                            if (NeedAck.ContainsKey(ack))
+                            {
+                                Client.Log("Appended ACK " + ack, Helpers.LogLevel.Info);
+                                NeedAck.Remove(ack);
+                            }
+                            else
+                            {
+                                Client.Log("Appended ACK for a packet we didn't send: " + ack, Helpers.LogLevel.Warning);
+                            }
+                        }
                     }
                 }
                 catch (Exception e)
@@ -541,6 +553,7 @@ namespace libsecondlife
             }
 
             // Fire the registered packet events
+            #region FireCallbacks
             try
             {
                 if (Callbacks.ContainsKey(packet.Type))
@@ -556,7 +569,8 @@ namespace libsecondlife
                         }
                     }
                 }
-                else if (Callbacks.ContainsKey(PacketType.Default))
+                
+                if (Callbacks.ContainsKey(PacketType.Default))
                 {
                     ArrayList callbackArray = (ArrayList)Callbacks[PacketType.Default];
 
@@ -574,7 +588,51 @@ namespace libsecondlife
             {
                 Client.Log("Caught an exception in a packet callback: " + e.ToString(), Helpers.LogLevel.Warning);
             }
-		}
+            #endregion FireCallbacks
+        }
+
+        private void AckTimer_Elapsed(object sender, ElapsedEventArgs ea)
+        {
+            if (!connected)
+            {
+                AckTimer.Stop();
+                return;
+            }
+
+            #region InboxMutex
+            try
+            {
+                InboxMutex.WaitOne();
+
+                if (PendingAcks.Count > 0)
+                {
+                    int i = 0;
+                    PacketAckPacket acks = new PacketAckPacket();
+                    acks.Packets = new PacketAckPacket.PacketsBlock[PendingAcks.Count];
+                    acks.Header.Reliable = false;
+
+                    foreach (uint ack in PendingAcks)
+                    {
+                        acks.Packets[i] = new PacketAckPacket.PacketsBlock();
+                        acks.Packets[i].ID = ack;
+                        i++;
+                    }
+
+                    SendPacket(acks, true);
+
+                    PendingAcks.Clear();
+                }
+            }
+            catch (Exception e)
+            {
+                Client.Log(e.ToString(), Helpers.LogLevel.Error);
+            }
+            finally
+            {
+                InboxMutex.ReleaseMutex();
+            }
+            #endregion InboxMutex
+        }
 	}
 
     /// <summary>
@@ -807,6 +865,25 @@ namespace libsecondlife
 			values["user-agent"] = userAgent + " (" + Helpers.VERSION + ")";
 			values["author"] = author;
 
+            // Build the options array
+            ArrayList optionsArray = new ArrayList();
+            optionsArray.Add("inventory-root");
+            optionsArray.Add("inventory-skeleton");
+            optionsArray.Add("inventory-lib-root");
+            optionsArray.Add("inventory-lib-owner");
+            optionsArray.Add("inventory-skel-lib");
+            optionsArray.Add("initial-outfit");
+            optionsArray.Add("gestures");
+            optionsArray.Add("event_categories");
+            optionsArray.Add("event_notifications");
+            optionsArray.Add("classified_categories");
+            optionsArray.Add("buddy-list");
+            optionsArray.Add("ui-config");
+            optionsArray.Add("login-flags");
+            optionsArray.Add("global-textures");
+
+            values["options"] = optionsArray;
+
 			return values;
 		}
 
@@ -876,100 +953,123 @@ namespace libsecondlife
 				new System.Text.RegularExpressions.Regex(@"('|r([0-9])|r(\-))");
 			string json;
 			IDictionary jsonObject = null;
-			LLVector3d vector = null;
-			LLVector3d posVector = null;
-			LLVector3d lookatVector = null;
+			LLVector3 vector = null;
+			LLVector3 posVector = null;
+			LLVector3 lookatVector = null;
             ulong regionHandle = 0;
 
-			if (LoginValues.Contains("look_at"))
-			{
-				// Replace LLSD variables with object representations
+            try
+            {
+                if (LoginValues.Contains("look_at"))
+                {
+                    // Replace LLSD variables with object representations
 
-				// Convert LLSD string to JSON
-				json = "{vector:" + LLSDtoJSON.Replace((string)LoginValues["look_at"], "$2") + "}";
+                    // Convert LLSD string to JSON
+                    json = "{vector:" + LLSDtoJSON.Replace((string)LoginValues["look_at"], "$2") + "}";
 
-				// Convert JSON string to a JSON object
-				jsonObject = JsonFacade.fromJSON(json);
-				JSONArray jsonVector = (JSONArray)jsonObject["vector"];
+                    // Convert JSON string to a JSON object
+                    jsonObject = JsonFacade.fromJSON(json);
+                    JSONArray jsonVector = (JSONArray)jsonObject["vector"];
 
-				// Convert the JSON object to an LLVector3d
-				vector = new LLVector3d(Convert.ToDouble(jsonVector[0]), 
-					Convert.ToDouble(jsonVector[1]), Convert.ToDouble(jsonVector[2]));
+                    // Convert the JSON object to an LLVector3
+                    vector = new LLVector3(Convert.ToSingle(jsonVector[0]),
+                        Convert.ToSingle(jsonVector[1]), Convert.ToSingle(jsonVector[2]));
 
-				LoginValues["look_at"] = vector;
-			}
+                    LoginValues["look_at"] = vector;
+                }
 
-			Hashtable home = null;
+                if (LoginValues.Contains("home"))
+                {
+                    Hashtable home;
 
-			if (LoginValues.Contains("home"))
-			{
-				// Convert LLSD string to JSON
-				json = LLSDtoJSON.Replace((string)LoginValues["home"], "$2");
+                    // Convert LLSD string to JSON
+                    json = LLSDtoJSON.Replace((string)LoginValues["home"], "$2");
 
-				// Convert JSON string to an object
-				jsonObject = JsonFacade.fromJSON(json);
+                    // Convert JSON string to an object
+                    jsonObject = JsonFacade.fromJSON(json);
 
-				// Create the position vector
-				JSONArray array = (JSONArray)jsonObject["position"];
-				posVector = new LLVector3d(Convert.ToDouble(array[0]), Convert.ToDouble(array[1]), 
-					Convert.ToDouble(array[2]));
+                    // Create the position vector
+                    JSONArray array = (JSONArray)jsonObject["position"];
+                    posVector = new LLVector3(Convert.ToSingle(array[0]), Convert.ToSingle(array[1]),
+                        Convert.ToSingle(array[2]));
 
-				// Create the look_at vector
-				array = (JSONArray)jsonObject["look_at"];
-				lookatVector = new LLVector3d(Convert.ToDouble(array[0]), 
-					Convert.ToDouble(array[1]), Convert.ToDouble(array[2]));
+                    // Create the look_at vector
+                    array = (JSONArray)jsonObject["look_at"];
+                    lookatVector = new LLVector3(Convert.ToSingle(array[0]),
+                        Convert.ToSingle(array[1]), Convert.ToSingle(array[2]));
 
-				// Create the regionhandle
-				array = (JSONArray)jsonObject["region_handle"];
-                // FIXME: Helpers function needed
-				//regionHandle = new U64((int)array[0], (int)array[1]);
+                    // Create the regionhandle
+                    array = (JSONArray)jsonObject["region_handle"];
+                    // FIXME: Helpers function needed
+                    //regionHandle = new U64((int)array[0], (int)array[1]);
 
-				// Create a hashtable to hold the home values
-				home = new Hashtable();
-				home["position"] = posVector;
-				home["look_at"] = lookatVector;
-				home["region_handle"] = regionHandle;
+                    Client.Avatar.Position = posVector;
+                    Client.Avatar.LookAt = lookatVector;
+                    //Client.CurrentRegion.RegionHandle = regionHandle;
 
-				LoginValues["home"] = home;
-			}
+                    // Create a hashtable to hold the home values
+                    home = new Hashtable();
+                    home["position"] = posVector;
+                    home["look_at"] = lookatVector;
+                    home["region_handle"] = regionHandle;
+                    LoginValues["home"] = home;
+                }
 
-			AgentID = new LLUUID((string)LoginValues["agent_id"]);
-			SessionID = new LLUUID((string)LoginValues["session_id"]);
-			Client.Avatar.ID = new LLUUID((string)LoginValues["agent_id"]);
-			Client.Avatar.FirstName = (string)LoginValues["first_name"];
-			Client.Avatar.LastName = (string)LoginValues["last_name"];
-			Client.Avatar.LookAt = vector;
-			Client.Avatar.HomePosition = posVector;
-			Client.Avatar.HomeLookAt = lookatVector;
-			uint circuitCode = (uint)(int)LoginValues["circuit_code"];
+                this.AgentID = new LLUUID((string)LoginValues["agent_id"]);
+                this.SessionID = new LLUUID((string)LoginValues["session_id"]);
+                Client.Avatar.ID = this.AgentID;
+                Client.Avatar.FirstName = (string)LoginValues["first_name"];
+                Client.Avatar.LastName = (string)LoginValues["last_name"];
+                Client.Avatar.LookAt = vector;
+                Client.Avatar.HomePosition = posVector;
+                Client.Avatar.HomeLookAt = lookatVector;
 
-			// Connect to the sim given in the login reply
-			Simulator simulator = new Simulator(Client, this.Callbacks, circuitCode, 
-				IPAddress.Parse((string)LoginValues["sim_ip"]), (int)LoginValues["sim_port"]);
-			if (!simulator.Connected)
-			{
-				return false;
-			}
+                // Connect to the sim given in the login reply
+                Simulator simulator = new Simulator(Client, this.Callbacks, (uint)(int)LoginValues["circuit_code"],
+                    IPAddress.Parse((string)LoginValues["sim_ip"]), (int)LoginValues["sim_port"]);
+                if (!simulator.Connected)
+                {
+                    return false;
+                }
 
-			// Set the current region
-			Client.CurrentRegion = simulator.Region;
+                // Set the current region
+                Client.CurrentRegion = simulator.Region;
 
-            // Simulator is successfully connected, add it to the list and set it as default
-			Simulators.Add(simulator);
+                // Simulator is successfully connected, add it to the list and set it as default
+                Simulators.Add(simulator);
 
-            CurrentSim = simulator;
+                CurrentSim = simulator;
 
-			// Move our agent in to the sim to complete the connection
-            CompleteAgentMovementPacket move = new CompleteAgentMovementPacket();
-            move.AgentData.AgentID = AgentID;
-            move.AgentData.SessionID = SessionID;
-            move.AgentData.CircuitCode = circuitCode;
+                // Move our agent in to the sim to complete the connection
+                Client.Avatar.CompleteAgentMovement(simulator);
 
-			SendPacket(move, simulator);
+                // Request the economy data
+                SendPacket(new EconomyDataRequestPacket());
 
-            DisconnectTimer.Start();
-            connected = true;
-			return true;
+                // FIXME: Hack
+                ViewerEffectPacket effect = new ViewerEffectPacket();
+                effect.Effect = new ViewerEffectPacket.EffectBlock[1];
+                effect.Effect[0] = new ViewerEffectPacket.EffectBlock();
+                effect.Effect[0].Color = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF };
+                effect.Effect[0].Duration = 0.5f;
+                effect.Effect[0].ID = new LLUUID("c696075e53c6153f3d8e0c3e24541936");
+                effect.Effect[0].Type = 9;
+                effect.Effect[0].TypeData = new byte[56];
+                Array.Copy(new byte[] { 0x28, 0xF0, 0x10, 0x41 }, 0, effect.Effect[0].TypeData, 36, 4);
+                Array.Copy(new byte[] { 0x50, 0xD0, 0x0E, 0x41 }, 0, effect.Effect[0].TypeData, 44, 4);
+                Array.Copy(new byte[] { 0x24, 0x40 }, 0, effect.Effect[0].TypeData, 54, 2);
+                effect.Header.Reliable = false;
+                SendPacket(effect);
+
+                DisconnectTimer.Start();
+                connected = true;
+                return true;
+            }
+            catch (Exception e)
+            {
+                Client.Log("Login error: " + e.ToString(), Helpers.LogLevel.Error);
+                return false;
+            }
 		}
 
         /// <summary>
@@ -1022,9 +1122,9 @@ namespace libsecondlife
 		public void Logout()
         {
             // This will catch a Logout when the client is not logged in
-            if (CurrentSim == null)
+            if (CurrentSim == null || !connected)
             {
-                throw new NotConnectedException();
+                return;
             }
 
             DisconnectTimer.Stop();
@@ -1127,7 +1227,25 @@ namespace libsecondlife
             try
             {
                 SimulatorsMutex.WaitOne();
+            }
+            catch (Exception)
+            {
+                DisconnectTimer.Stop();
+                connected = false;
 
+                // Shutdown the network layer
+                Shutdown();
+
+                if (OnDisconnected != null)
+                {
+                    OnDisconnected(DisconnectType.NetworkTimeout, "");
+                }
+
+                return;
+            }
+
+            try
+            {
             Beginning:
 
                 foreach (Simulator sim in Simulators)
@@ -1198,6 +1316,58 @@ namespace libsecondlife
 
 		private void RegionHandshakeHandler(Packet packet, Simulator simulator)
 		{
+            // Send a RegionHandshakeReply
+            RegionHandshakeReplyPacket reply = new RegionHandshakeReplyPacket();
+            reply.AgentData.AgentID = AgentID;
+            reply.AgentData.SessionID = SessionID;
+            reply.RegionInfo.Flags = 0;
+
+            SendPacket(reply, simulator);
+
+            // FIXME: What a hack!
+            AgentThrottlePacket throttle = new AgentThrottlePacket();
+            throttle.AgentData.AgentID = this.AgentID;
+            throttle.AgentData.SessionID = this.SessionID;
+            throttle.AgentData.CircuitCode = simulator.CircuitCode;
+            throttle.Throttle.GenCounter = 0;
+            throttle.Throttle.Throttles = new byte[] 
+                { 0x00, 0x00, 0x96, 0x47, 0x00, 0x00, 0xAA, 0x47, 0x00, 0x00, 0x88, 0x46, 0x00, 0x00, 0x88, 0x46, 
+                  0x00, 0x00, 0x5F, 0x48, 0x00, 0x00, 0x5F, 0x48, 0x00, 0x00, 0xDC, 0x47 };
+            SendPacket(throttle, simulator);
+            Client.Avatar.SetHeightWidth(676, 909);
+            Client.Avatar.UpdateCamera(true);
+            AgentAnimationPacket animation = new AgentAnimationPacket();
+            animation.AgentData.AgentID = AgentID;
+            animation.AgentData.SessionID = SessionID;
+            animation.AnimationList = new AgentAnimationPacket.AnimationListBlock[1];
+            animation.AnimationList[0] = new AgentAnimationPacket.AnimationListBlock();
+            animation.AnimationList[0].AnimID = new LLUUID("efcf670c2d188128973a034ebc806b67");
+            animation.AnimationList[0].StartAnim = false;
+            SendPacket(animation);
+            SetAlwaysRunPacket run = new SetAlwaysRunPacket();
+            run.AgentData.AgentID = AgentID;
+            run.AgentData.SessionID = SessionID;
+            run.AgentData.AlwaysRun = false;
+            SendPacket(run);
+            MuteListRequestPacket mute = new MuteListRequestPacket();
+            mute.AgentData.AgentID = AgentID;
+            mute.AgentData.SessionID = SessionID;
+            mute.MuteData.MuteCRC = 0;
+            SendPacket(mute);
+            MoneyBalanceRequestPacket money = new MoneyBalanceRequestPacket();
+            money.AgentData.AgentID = AgentID;
+            money.AgentData.SessionID = SessionID;
+            money.MoneyData.TransactionID = new LLUUID();
+            SendPacket(money);
+            AgentDataUpdateRequestPacket update = new AgentDataUpdateRequestPacket();
+            update.AgentData.AgentID = AgentID;
+            update.AgentData.SessionID = SessionID;
+            SendPacket(update);
+            RequestGrantedProxiesPacket proxies = new RequestGrantedProxiesPacket();
+            proxies.AgentData.AgentID = AgentID;
+            proxies.AgentData.SessionID = SessionID;
+            SendPacket(proxies);
+
             RegionHandshakePacket handshake = (RegionHandshakePacket)packet;
 
             simulator.Region.ID = handshake.RegionInfo.CacheID;
@@ -1229,14 +1399,6 @@ namespace libsecondlife
             simulator.Region.WaterHeight = handshake.RegionInfo.WaterHeight;
 
             Client.Log("Received a region handshake for " + simulator.Region.Name, Helpers.LogLevel.Info);
-
-			// Send a RegionHandshakeReply
-            RegionHandshakeReplyPacket reply = new RegionHandshakeReplyPacket();
-            reply.RegionInfo.Flags = 0;
-            reply.AgentData.AgentID = this.AgentID;
-            reply.AgentData.SessionID = this.SessionID;
-
-			SendPacket((Packet)reply, simulator);
 		}
 
 		private void ParcelOverlayHandler(Packet packet, Simulator simulator)

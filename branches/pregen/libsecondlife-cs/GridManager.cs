@@ -51,8 +51,8 @@ namespace libsecondlife
 		public byte Agents;
         /// <summary></summary>
 		public LLUUID MapImageID;
-        /// <summary></summary>
-		public ulong RegionHandle; // Used for teleporting
+        /// <summary>Used for teleporting</summary>
+		public ulong RegionHandle;
 
         /// <summary>
         /// 
@@ -67,8 +67,10 @@ namespace libsecondlife
 	/// </summary>
 	public class GridManager
 	{
-        /// <summary></summary>
+        /// <summary>A hashtable of all the regions, indexed by region ID</summary>
 		public Hashtable Regions;
+        /// <summary>Current direction of the sun</summary>
+        public LLVector3 SunDirection;
 
 		private SecondLife Client;
 
@@ -80,8 +82,10 @@ namespace libsecondlife
 		{
 			Client = client;
 			Regions = new Hashtable();
-			PacketCallback callback = new PacketCallback(MapBlockReplyHandler);
-			Client.Network.RegisterCallback(PacketType.MapBlockReply, callback);
+            SunDirection = new LLVector3();
+
+			Client.Network.RegisterCallback(PacketType.MapBlockReply, new PacketCallback(MapBlockReplyHandler));
+            Client.Network.RegisterCallback(PacketType.SimulatorViewerTimeMessage, new PacketCallback(TimeMessageHandler));
 		}
 
         /// <summary>
@@ -94,6 +98,7 @@ namespace libsecondlife
 			{
                 MapNameRequestPacket map = new MapNameRequestPacket();
                 map.AgentData.AgentID = Client.Network.AgentID;
+                map.AgentData.SessionID = Client.Network.SessionID;
                 map.NameData.Name = Helpers.StringToField(name);
 
                 Client.Network.SendPacket((Packet)map);
@@ -107,6 +112,9 @@ namespace libsecondlife
 		{
             MapBlockRequestPacket request = new MapBlockRequestPacket();
             request.AgentData.AgentID = Client.Network.AgentID;
+            request.AgentData.SessionID = Client.Network.SessionID;
+            request.AgentData.EstateID = 0;
+            request.AgentData.Flags = 0;
             request.PositionData.MaxX = 65535;
             request.PositionData.MaxY = 65535;
             request.PositionData.MinX = 0;
@@ -164,5 +172,10 @@ namespace libsecondlife
                 }
             }
 		}
+
+        private void TimeMessageHandler(Packet packet, Simulator simulator)
+        {
+            SunDirection = ((SimulatorViewerTimeMessagePacket)packet).TimeInfo.SunDirection;
+        }
 	}
 }

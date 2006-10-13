@@ -647,7 +647,8 @@ namespace libsecondlife
         /// </summary>
 		public LLQuaternion()
 		{
-			X = Y = Z = W = 0.0F;
+			X = Y = Z = 0.0f;
+            W = 1.0f;
 		}
 
         /// <summary>

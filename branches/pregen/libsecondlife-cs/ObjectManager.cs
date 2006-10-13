@@ -180,8 +180,10 @@ namespace libsecondlife
         {
             RequestMultipleObjectsPacket request = new RequestMultipleObjectsPacket();
             request.AgentData.AgentID = Client.Network.AgentID;
+            request.AgentData.SessionID = Client.Network.SessionID;
             request.ObjectData = new RequestMultipleObjectsPacket.ObjectDataBlock[1];
             request.ObjectData[0].ID = localID;
+            request.ObjectData[0].CacheMissType = 0;
 
             Client.Network.SendPacket(request, simulator);
         }
@@ -470,14 +472,15 @@ namespace libsecondlife
 
         private void CachedUpdateHandler(Packet packet, Simulator simulator)
         {
+            int i = 0;
+
             ObjectUpdateCachedPacket update = (ObjectUpdateCachedPacket)packet;
 
             // Assume clients aren't caching objects for now, so request updates for all of these objects
             RequestMultipleObjectsPacket request = new RequestMultipleObjectsPacket();
             request.AgentData.AgentID = Client.Network.AgentID;
+            request.AgentData.SessionID = Client.Network.AgentID;
             request.ObjectData = new RequestMultipleObjectsPacket.ObjectDataBlock[update.ObjectData.Length];
-
-            int i = 0;
 
             foreach (ObjectUpdateCachedPacket.ObjectDataBlock block in update.ObjectData)
             {

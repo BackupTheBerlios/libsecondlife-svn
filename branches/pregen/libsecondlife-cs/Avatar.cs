@@ -41,11 +41,17 @@ namespace libsecondlife
     /// <param name="Sourcetype"></param>
     /// <param name="FromName"></param>
     /// <param name="ID"></param>
-    public delegate void ChatCallback(string Message, byte Audible, byte Type, byte Sourcetype,
-        string FromName, LLUUID ID);
+    public delegate void ChatCallback(string message, byte audible, byte type, byte sourcetype,
+        string fromName, LLUUID id);
 
     /// <summary>
-    /// 
+    /// Event is triggered when the L$ account balance for this avatar changes.
+    /// </summary>
+    /// <param name="balance">The new account balance</param>
+    public delegate void BalanceUpdated(int balance);
+
+    /// <summary>
+    /// Triggered whenever an instant message is received.
     /// </summary>
     /// <param name="FromAgentID"></param>
     /// <param name="FromAgentName"></param>
@@ -58,16 +64,17 @@ namespace libsecondlife
     /// <param name="IMSessionID"></param>
     /// <param name="Timestamp"></param>
     /// <param name="Message"></param>
-    public delegate void InstantMessageCallback(LLUUID FromAgentID, string FromAgentName, 
-        LLUUID ToAgentID, uint ParentEstateID, LLUUID RegionID, LLVector3 Position, 
-        bool Dialog, bool GroupIM, LLUUID IMSessionID, DateTime Timestamp, string Message, byte Offline, byte[] BinaryBucket);
+    public delegate void InstantMessageCallback(LLUUID fromAgentID, string fromAgentName, 
+        LLUUID toAgentID, uint parentEstateID, LLUUID regionID, LLVector3 position, 
+        bool dialog, bool groupIM, LLUUID imSessionID, DateTime timestamp, string message, 
+        byte offline, byte[] binaryBucket);
 
     /// <summary>
     /// 
     /// </summary>
     /// <param name="AgentID"></param>
     /// <param name="Online"></param>
-    public delegate void FriendNotificationCallback(LLUUID AgentID, bool Online);
+    public delegate void FriendNotificationCallback(LLUUID agentID, bool online);
 
     /// <summary>
     /// 
@@ -124,21 +131,27 @@ namespace libsecondlife
         public string TeleportMessage;
         /// <summary></summary>
         public LLVector3 Position;
-        /// <summary></summary>
+        /// <summary>Current rotation of the avatar</summary>
         public LLQuaternion Rotation;
+        /// <summary>The point the avatar is currently looking at
+        /// (may not stay updated)</summary>
+        public LLVector3 LookAt;
         /// <summary></summary>
-        public LLVector3d LookAt; // Should we even keep LookAt around? It's 
-                                  // just for setting the initial rotation 
-                                  // after login AFAIK
+        public LLVector3 HomePosition;
         /// <summary></summary>
-        public LLVector3d HomePosition;
-        /// <summary></summary>
-        public LLVector3d HomeLookAt;
+        public LLVector3 HomeLookAt;
+        /// <summary>Gets the health of the current agent</summary>
+        public float Health
+        {
+            get { return Health; }
+        }
 
         private SecondLife Client;
         private int TeleportStatus;
         private Timer TeleportTimer;
         private bool TeleportTimeout;
+        private uint HeightWidthGenCounter;
+        private float health;
 
         /// <summary>
         /// 
@@ -146,17 +159,16 @@ namespace libsecondlife
         /// <param name="client"></param>
         public MainAvatar(SecondLife client)
         {
+            PacketCallback callback;
             Client = client;
             TeleportMessage = "";
 
             // Create emtpy vectors for now
-            HomeLookAt = HomePosition = LookAt = new LLVector3d();
-            Position = new LLVector3();
+            HomeLookAt = HomePosition = Position = LookAt = new LLVector3();
             Rotation = new LLQuaternion();
 
             // Coarse location callback
-            PacketCallback callback = new PacketCallback(CoarseLocationHandler);
-            Client.Network.RegisterCallback(PacketType.CoarseLocationUpdate, callback);
+            Client.Network.RegisterCallback(PacketType.CoarseLocationUpdate, new PacketCallback(CoarseLocationHandler));
 
             // Teleport callbacks
             callback = new PacketCallback(TeleportHandler);
@@ -166,12 +178,10 @@ namespace libsecondlife
             Client.Network.RegisterCallback(PacketType.TeleportFinish, callback);
 
             // Instant Message callback
-            callback = new PacketCallback(InstantMessageHandler);
-            Client.Network.RegisterCallback(PacketType.ImprovedInstantMessage, callback);
+            Client.Network.RegisterCallback(PacketType.ImprovedInstantMessage, new PacketCallback(InstantMessageHandler));
 
             // Chat callback
-            callback = new PacketCallback(ChatHandler);
-            Client.Network.RegisterCallback(PacketType.ChatFromSimulator, callback);
+            Client.Network.RegisterCallback(PacketType.ChatFromSimulator, new PacketCallback(ChatHandler));
 
             // Friend notification callback
             callback = new PacketCallback(FriendNotificationHandler);
@@ -181,6 +191,12 @@ namespace libsecondlife
             TeleportTimer = new Timer(8000);
             TeleportTimer.Elapsed += new ElapsedEventHandler(TeleportTimerEvent);
             TeleportTimeout = false;
+
+            // Movement complete callback
+            Client.Network.RegisterCallback(PacketType.AgentMovementComplete, new PacketCallback(MovementCompleteHandler));
+
+            // Health callback
+            Client.Network.RegisterCallback(PacketType.HealthMessage, new PacketCallback(HealthHandler));
         }
 
         /// <summary>
@@ -297,6 +313,25 @@ namespace libsecondlife
             chat.ChatData.Type = (byte)type;
 
             Client.Network.SendPacket((Packet)chat);
+        }
+
+        /// <summary>
+        /// Set the height and the width of your avatar. This is used to scale
+        /// the avatar mesh.
+        /// </summary>
+        /// <param name="height">New height of the avatar</param>
+        /// <param name="width">New width of the avatar</param>
+        public void SetHeightWidth(ushort height, ushort width)
+        {
+            AgentHeightWidthPacket heightwidth = new AgentHeightWidthPacket();
+            heightwidth.AgentData.AgentID = Client.Network.AgentID;
+            heightwidth.AgentData.SessionID = Client.Network.SessionID;
+            heightwidth.AgentData.CircuitCode = Client.Network.CurrentSim.CircuitCode;
+            heightwidth.HeightWidthBlock.Height = height;
+            heightwidth.HeightWidthBlock.Width = width;
+            heightwidth.HeightWidthBlock.GenCounter = HeightWidthGenCounter++;
+
+            Client.Network.SendPacket((Packet)heightwidth);
         }
 
         /// <summary>
@@ -432,6 +467,51 @@ namespace libsecondlife
             return false;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="simulator"></param>
+        public void CompleteAgentMovement(Simulator simulator)
+        {
+            CompleteAgentMovementPacket move = new CompleteAgentMovementPacket();
+            move.AgentData.AgentID = Client.Network.AgentID;
+            move.AgentData.SessionID = Client.Network.SessionID;
+            move.AgentData.CircuitCode = simulator.CircuitCode;
+
+            Client.Network.SendPacket(move, simulator);
+        }
+
+        public void UpdateCamera(bool reliable)
+        {
+            AgentUpdatePacket update = new AgentUpdatePacket();
+            update.AgentData.AgentID = Client.Network.AgentID;
+            update.AgentData.SessionID = Client.Network.SessionID;
+            update.AgentData.State = 0;
+            update.AgentData.BodyRotation = new LLQuaternion(0, 0.6519076f, 0, 0);
+            update.AgentData.HeadRotation = new LLVector3();
+            // Semi-sane default values
+            update.AgentData.CameraCenter = new LLVector3(9.549901f, 7.033957f, 11.75f);
+            update.AgentData.CameraAtAxis = new LLVector3(0.7f, 0.7f, 0);
+            update.AgentData.CameraLeftAxis = new LLVector3(-0.7f, 0.7f, 0);
+            update.AgentData.CameraUpAxis = new LLVector3(0.1822026f, 0.9828722f, 0);
+            update.AgentData.Far = 384;
+            update.AgentData.ControlFlags = 0; // TODO: What is this?
+            update.AgentData.Flags = 0;
+            update.Header.Reliable = reliable;
+
+            Client.Network.SendPacket(update);
+
+            // Send an AgentFOV packet widening our field of vision
+            /*AgentFOVPacket fovPacket = new AgentFOVPacket();
+            fovPacket.AgentData.AgentID = this.ID;
+            fovPacket.AgentData.SessionID = Client.Network.SessionID;
+            fovPacket.AgentData.CircuitCode = simulator.CircuitCode;
+            fovPacket.FOVBlock.GenCounter = 0;
+            fovPacket.FOVBlock.VerticalAngle = 6.28318531f;
+            fovPacket.Header.Reliable = true;
+            Client.Network.SendPacket((Packet)fovPacket);*/
+        }
+
         private void FriendNotificationHandler(Packet packet, Simulator simulator)
         {
             // If the agent is online...
@@ -475,42 +555,7 @@ namespace libsecondlife
 
         private void CoarseLocationHandler(Packet packet, Simulator simulator)
         {
-            // Check if the avatar position hasn't been updated
-            if (Position.X == 0 && Position.Y == 0 && Position.Z == 0)
-            {
-                CoarseLocationUpdatePacket coarsePacket = (CoarseLocationUpdatePacket)packet;
-
-                Position.X = (float)coarsePacket.Location[0].X;
-                Position.Y = (float)coarsePacket.Location[0].Y;
-                Position.Z = (float)coarsePacket.Location[0].Z * 4; // Z is in meters / 4
-
-                // Send an AgentUpdate packet with the new camera location
-                AgentUpdatePacket updatePacket = new AgentUpdatePacket();
-                updatePacket.AgentData.AgentID = this.ID;
-                updatePacket.AgentData.SessionID = Client.Network.SessionID;
-                updatePacket.AgentData.BodyRotation = new LLQuaternion();
-                updatePacket.AgentData.CameraAtAxis = new LLVector3();
-                updatePacket.AgentData.CameraCenter = new LLVector3();
-                updatePacket.AgentData.CameraLeftAxis = new LLVector3();
-                updatePacket.AgentData.CameraUpAxis = new LLVector3();
-                updatePacket.AgentData.ControlFlags = 0;
-                updatePacket.AgentData.Far = 320.0F;
-                updatePacket.AgentData.Flags = 0;
-                updatePacket.AgentData.HeadRotation = new LLQuaternion();
-                updatePacket.AgentData.State = 0;
-                updatePacket.Header.Reliable = true;
-                Client.Network.SendPacket((Packet)updatePacket);
-
-                // Send an AgentFOV packet widening our field of vision
-                AgentFOVPacket fovPacket = new AgentFOVPacket();
-                fovPacket.AgentData.AgentID = this.ID;
-                fovPacket.AgentData.SessionID = Client.Network.SessionID;
-                fovPacket.AgentData.CircuitCode = simulator.CircuitCode;
-                fovPacket.FOVBlock.GenCounter = 0;
-                fovPacket.FOVBlock.VerticalAngle = 6.28318531f;
-                fovPacket.Header.Reliable = true;
-                Client.Network.SendPacket((Packet)fovPacket);
-            }
+            // TODO: This will be useful one day
         }
 
         private void InstantMessageHandler(Packet packet, Simulator simulator)
@@ -553,6 +598,19 @@ namespace libsecondlife
                         Helpers.FieldToString(chat.ChatData.FromName), chat.ChatData.SourceID);
                 }
             }
+        }
+
+        private void MovementCompleteHandler(Packet packet, Simulator simulator)
+        {
+            AgentMovementCompletePacket movement = (AgentMovementCompletePacket)packet;
+
+            this.Position = movement.Data.Position;
+            this.LookAt = movement.Data.LookAt;
+        }
+
+        private void HealthHandler(Packet packet, Simulator simulator)
+        {
+            health = ((HealthMessagePacket)packet).HealthData.Health;
         }
 
         private void TeleportHandler(Packet packet, Simulator simulator)

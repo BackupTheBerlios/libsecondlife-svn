@@ -220,30 +220,37 @@ namespace primexport
 
             if (prim.ProfileCurve == 1 && prim.PathCurve == 16)
             {
+                // PRIM_TYPE_BOX
                 type = 0;
             }
             else if (prim.ProfileCurve == 0 && prim.PathCurve == 16)
             {
+                // PRIM_TYPE_CYLINDER
                 type = 1;
             }
             else if (prim.ProfileCurve == 3 && prim.PathCurve == 16)
             {
+                // PRIM_TYPE_PRISM
                 type = 2;
             }
             else if (prim.ProfileCurve == 5 && prim.PathCurve == 32)
             {
+                // PRIM_TYPE_SPHERE
                 type = 3;
             }
             else if (prim.ProfileCurve == 0 && prim.PathCurve == 32)
             {
+                // PRIM_TYPE_TORUS
                 type = 4;
             }
             else if (prim.ProfileCurve == 1 && prim.PathCurve == 32)
             {
+                // PRIM_TYPE_TUBE
                 type = 5;
             }
             else if (prim.ProfileCurve == 3 && prim.PathCurve == 32)
             {
+                // PRIM_TYPE_RING
                 type = 6;
             }
             else

@@ -379,27 +379,6 @@ namespace SLAccountant
 			lstFindMutex.ReleaseMutex();
 		}
 
-        //private void AvatarAppearanceHandler(Packet packet, Simulator simulator)
-        //{
-        //    LLUUID id = null;
-        //    bool trial = false;
-
-        //    foreach (Block block in packet.Blocks())
-        //    {
-        //        foreach (Field field in block.Fields)
-        //        {
-        //            if (field.Layout.Name == "ID")
-        //            {
-        //                id = (LLUUID)field.Data;
-        //            }
-        //            else if (field.Layout.Name == "IsTrial")
-        //            {
-        //                trial = (bool)field.Data;
-        //            }
-        //        }
-        //    }
-        //}
-
 		private void frmSLAccountant_Load(object sender, System.EventArgs e)
 		{
 			lstFindMutex = new Mutex(false, "lstFindMutex");
@@ -432,30 +411,12 @@ namespace SLAccountant
 					lblName.Text = client.Network.LoginValues["first_name"] + " " + 
 						client.Network.LoginValues["last_name"];
 
-					// AgentHeightWidth
-                    AgentHeightWidthPacket heightwidth = new AgentHeightWidthPacket();
-                    heightwidth.HeightWidthBlock.Height = (ushort)rand.Next(0, 65535);
-                    heightwidth.HeightWidthBlock.Width = (ushort)rand.Next(0, 65535);
-                    heightwidth.Sender.CircuitCode = client.Network.CurrentSim.CircuitCode;
-                    heightwidth.Sender.GenCounter = 0;
-                    heightwidth.Sender.ID = client.Network.AgentID;
-
-                    client.Network.SendPacket((Packet)heightwidth);
-
-					// ConnectAgentToUserserver
-                    //blocks = new Hashtable();
-                    //fields = new Hashtable();
-                    //fields["AgentID"] = client.Network.AgentID;
-                    //fields["SessionID"] = client.Network.SessionID;
-                    //blocks[fields] = "AgentData";
-                    //packet = PacketBuilder.BuildPacket("ConnectAgentToUserserver", client.Protocol, blocks,
-                    //    Helpers.MSG_RELIABLE + Helpers.MSG_ZEROCODED);
-
-                    //client.Network.SendPacket(packet);
+                    client.Avatar.SetHeightWidth((ushort)rand.Next(0, 65535), (ushort)rand.Next(0, 65535));
 
 					// MoneyBalanceRequest
                     MoneyBalanceRequestPacket request = new MoneyBalanceRequestPacket();
                     request.AgentData.AgentID = client.Network.AgentID;
+                    request.AgentData.SessionID = client.Network.SessionID;
                     request.AgentData.SessionID = client.Network.SessionID;
                     request.MoneyData.TransactionID = LLUUID.GenerateUUID();
 
@@ -470,28 +431,13 @@ namespace SLAccountant
                         appearance.VisualParam[i] = new AgentSetAppearancePacket.VisualParamBlock();
                         appearance.VisualParam[i].ParamValue = (byte)rand.Next(255);
                     }
-                    appearance.Sender.SerialNum = 1;
-                    appearance.Sender.Size = new LLVector3(0.45F, 0.6F, 1.831094F);
-                    appearance.Sender.ID = client.Network.AgentID;
+                    appearance.AgentData.AgentID = client.Network.AgentID;
+                    appearance.AgentData.SessionID = client.Network.SessionID;
+                    appearance.AgentData.SerialNum = 1;
+                    appearance.AgentData.Size = new LLVector3(0.45F, 0.6F, 1.831094F);
                     appearance.ObjectData.TextureEntry = new byte[0];
 
-                    client.Network.SendPacket((Packet)appearance);
-
-                    //fields = new Hashtable();
-                    //byte[] byteArray = new byte[400];
-                    //fields["TextureEntry"] = byteArray;
-                    //blocks[fields] = "ObjectData";
-                    //fields = new Hashtable();
-                    //fields["SerialNum"] = (uint)1;
-                    //fields["ID"] = client.Network.AgentID;
-                    //// Setup a random avatar size
-                    //LLVector3 sizeVector = new LLVector3(0.45F, 0.6F, 1.831094F);
-                    //fields["Size"] = sizeVector;
-                    //blocks[fields] = "Sender";
-                    //packet = PacketBuilder.BuildPacket("AgentSetAppearance", client.Protocol, blocks,
-                    //    Helpers.MSG_RELIABLE);
-
-                    //client.Network.SendPacket(packet);
+                    client.Network.SendPacket(appearance);
 
 					txtFind.Enabled = cmdFind.Enabled = true;
 					txtTransfer.Enabled = cmdTransfer.Enabled = true;
