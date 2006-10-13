@@ -39,27 +39,53 @@ namespace IA_ImageTool
 		}
 
 
-		public static void Convert2Tiff( string j2c_filename, string tif_filename )
-		{
-			if( File.Exists("kdu_expand.exe") == false )
-			{
-				throw new Exception("You must have kdu_expand.exe");
-			}
+        public static void Convert2Tiff(string j2c_filename, string tif_filename)
+        {
+            if (File.Exists("kdu_expand.exe") == false)
+            {
+                throw new Exception("You must have kdu_expand.exe");
+            }
 
-			if( tif_filename.ToLower().EndsWith(".tif") == false )
-			{
-				tif_filename += ".tif";
-			}
+            if (tif_filename.ToLower().EndsWith(".tif") == false)
+            {
+                tif_filename += ".tif";
+            }
 
-			Process p = new Process();
-			p.StartInfo.UseShellExecute = false;
-			p.StartInfo.FileName  = "kdu_expand.exe";
-			p.StartInfo.Arguments = "-i " + j2c_filename + " -o " + tif_filename;
-			p.Start();
-			p.WaitForExit();
-		}
+            string args = "-i " + j2c_filename + " -o " + tif_filename;
+            Console.WriteLine(args);
 
-		public static void WriteJ2CAsTiff( string tif_filename, byte[] J2CData )
+            Process p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.FileName = "kdu_expand.exe";
+            p.StartInfo.Arguments = args;
+            p.Start();
+            p.WaitForExit();
+        }
+
+        public static void Convert2Bmp(string j2c_filename, string bmp_filename)
+        {
+            if (File.Exists("kdu_expand.exe") == false)
+            {
+                throw new Exception("You must have kdu_expand.exe");
+            }
+
+            if (bmp_filename.ToLower().EndsWith(".bmp") == false)
+            {
+                bmp_filename += ".bmp";
+            }
+
+            string args = "-i " + j2c_filename + " -o " + bmp_filename;
+            Console.WriteLine(args);
+
+            Process p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.FileName = "kdu_expand.exe";
+            p.StartInfo.Arguments = args;
+            p.Start();
+            p.WaitForExit();
+        }
+
+        public static void WriteJ2CAsTiff(string tif_filename, byte[] J2CData)
 		{
 			String tempname = tif_filename + ".j2c";
 			WriteJ2CToFile( tempname, J2CData );
@@ -67,6 +93,13 @@ namespace IA_ImageTool
 			File.Delete( tempname );
 		}
 
+        public static void WriteJ2CAsBmp(string bmp_filename, byte[] J2CData)
+        {
+            String tempname = bmp_filename + ".j2c";
+            WriteJ2CToFile(tempname, J2CData);
+            Convert2Bmp(tempname, bmp_filename);
+            File.Delete(tempname);
+        }
 
 		/*
 		 * kdu_compress -no_info -no_weights -no_palette -i TestTexture.tif -o TestTexture.J2C

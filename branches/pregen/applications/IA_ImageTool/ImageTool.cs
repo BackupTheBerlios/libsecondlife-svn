@@ -102,8 +102,11 @@ namespace IA_ImageTool
                 ImageManager im = new ImageManager(base.client);
                 byte[] j2cdata = im.RequestImage(_ImageID);
 
-                Console.WriteLine("Writing to: " + _FileName);
-                KakaduWrap.WriteJ2CAsTiff(_FileName, j2cdata);
+                Console.WriteLine("Writing to: " + _FileName + ".tif");
+                KakaduWrap.WriteJ2CAsTiff(_FileName + ".tif", j2cdata);
+
+                Console.WriteLine("Writing to: " + _FileName + ".bmp");
+                KakaduWrap.WriteJ2CAsBmp(_FileName + ".bmp", j2cdata);
             }
 
             Console.WriteLine("Done...");
@@ -117,7 +120,7 @@ namespace IA_ImageTool
 
             Console.WriteLine();
             Console.WriteLine("Example: ImageTool John Doe Password get 0444bf21-f77e-7f63-89e9-b839ec66bc15 cloud.tif");
-            Console.WriteLine("Example: ImageTool John Doe Password put Sample.tif");
+            Console.WriteLine("Example: ImageTool John Doe Password put Sample (this will output a bmp and a tiff)");
         }
     }
 }

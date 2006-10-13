@@ -192,7 +192,7 @@ namespace libsecondlife.AssetSystem
 
 
             // Add this packet's data to the request.
-            Array.Copy(reply.ImageData.Data, 0, tr.AssetData, tr.BaseDataReceived + (1000 * (reply.ImageID.Packet)), reply.ImageData.Data.Length);
+            Array.Copy(reply.ImageData.Data, 0, tr.AssetData, tr.BaseDataReceived + (1000 * (reply.ImageID.Packet - 1)), reply.ImageData.Data.Length);
             tr.Received += (uint)reply.ImageData.Data.Length;
 
 			// If we've gotten all the data, mark it completed.
