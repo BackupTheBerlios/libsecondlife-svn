@@ -44,7 +44,6 @@ namespace IA_SimpleInventory
 
         public static void Main( string[] args )
         {
-            SimpleInventory simple = new SimpleInventory();
 
             if (args.Length < 3)
             {
@@ -52,6 +51,7 @@ namespace IA_SimpleInventory
                 return;
             }
 
+            SimpleInventory simple = new SimpleInventory();
             simple.Connect(args[0], args[1], args[2]);
             simple.doStuff();
             simple.Disconnect();

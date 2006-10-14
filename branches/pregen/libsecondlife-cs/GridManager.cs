@@ -97,9 +97,10 @@ namespace libsecondlife
 			if(!Regions.ContainsKey(name)) 
 			{
                 MapNameRequestPacket map = new MapNameRequestPacket();
-                map.AgentData.AgentID = Client.Network.AgentID;
+                map.AgentData.AgentID   = Client.Network.AgentID;
                 map.AgentData.SessionID = Client.Network.SessionID;
-                map.NameData.Name = Helpers.StringToField(name);
+
+                map.NameData.Name = Helpers.StringToField(name.ToLower());
 
                 Client.Network.SendPacket((Packet)map);
 			}
@@ -163,12 +164,11 @@ namespace libsecondlife
                 region.Agents = block.Agents;
                 region.Access = block.Access;
                 region.MapImageID = block.MapImageID;
-                // FIXME: We need Helpers.UIntsToLong()
-                //region.RegionHandle = new U64(region.X * 256,region.Y * 256);
+                region.RegionHandle = Helpers.UIntsToLong((uint)region.X * (uint)256, (uint)region.Y * (uint)256);
 
                 if (region.Name != "" && region.X != 0 && region.Y != 0)
                 {
-                    Regions[region.Name] = region;
+                    Regions[region.Name.ToLower()] = region;
                 }
             }
 		}

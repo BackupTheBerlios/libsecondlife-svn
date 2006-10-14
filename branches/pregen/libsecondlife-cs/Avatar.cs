@@ -188,7 +188,7 @@ namespace libsecondlife
             Client.Network.RegisterCallback(PacketType.OnlineNotification, callback);
             Client.Network.RegisterCallback(PacketType.OfflineNotification, callback);
 
-            TeleportTimer = new Timer(8000);
+            TeleportTimer = new Timer(18000);
             TeleportTimer.Elapsed += new ElapsedEventHandler(TeleportTimerEvent);
             TeleportTimeout = false;
 
@@ -393,8 +393,8 @@ namespace libsecondlife
             teleport.AgentData.SessionID = Client.Network.SessionID;
             teleport.Info.LookAt = lookAt;
             teleport.Info.Position = position;
-            // FIXME: Uncomment me
-            //teleport.Info.RegionHandle = regionHandle;
+            
+            teleport.Info.RegionHandle = regionHandle;
             teleport.Header.Reliable = true;
 
             Client.Log("Teleporting to region " + regionHandle.ToString(), Helpers.LogLevel.Info);
@@ -432,7 +432,8 @@ namespace libsecondlife
         /// <returns></returns>
         public bool Teleport(string simName, LLVector3 position)
         {
-            return Teleport(simName, position, new LLVector3(position.X + 1.0F, position.Y, position.Z));
+            position.Z = 0;
+            return Teleport(simName, position, new LLVector3(0, 1.0F, 0));
         }
 
         /// <summary>
@@ -449,7 +450,7 @@ namespace libsecondlife
 
             while (attempts++ < 5)
             {
-                if (Client.Grid.Regions.ContainsKey(simName))
+                if (Client.Grid.Regions.ContainsKey(simName.ToLower()))
                 {
                     return Teleport(((GridRegion)Client.Grid.Regions[simName]).RegionHandle, position, lookAt);
                 }
@@ -633,8 +634,10 @@ namespace libsecondlife
                 TeleportFinishPacket finish = (TeleportFinishPacket)packet;
                 TeleportMessage = "Teleport finished";
 
-                if (Client.Network.Connect(new IPAddress((long)finish.Info.SimIP), finish.Info.SimPort, 
-                    simulator.CircuitCode, true) != null)
+                Simulator sim = Client.Network.Connect(new IPAddress((long)finish.Info.SimIP), finish.Info.SimPort, 
+                    simulator.CircuitCode, true);
+                        
+                if ( sim != null)
                 {
                     // Sync the current region and current simulator
                     Client.CurrentRegion = Client.Network.CurrentSim.Region;
@@ -645,6 +648,8 @@ namespace libsecondlife
                     move.AgentData.SessionID = Client.Network.SessionID;
                     move.AgentData.CircuitCode = simulator.CircuitCode;
                     Client.Network.SendPacket((Packet)move);
+
+                    Console.WriteLine(move);
 
                     Client.Log("Moved to new sim " + Client.Network.CurrentSim.Region.Name + "(" + 
                         Client.Network.CurrentSim.IPEndPoint.ToString() + ")",

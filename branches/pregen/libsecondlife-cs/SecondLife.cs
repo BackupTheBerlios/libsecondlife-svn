@@ -201,6 +201,12 @@ namespace libsecondlife
             Error
         };
 
+        /// <summary></summary>
+        public static ulong UIntsToLong(uint a, uint b)
+        {
+            return (ulong)(((ulong)a << 32) + (ulong)b);
+        }
+
         /// <summary>
         /// Convert a variable length field (byte array) to a string.
         /// </summary>
