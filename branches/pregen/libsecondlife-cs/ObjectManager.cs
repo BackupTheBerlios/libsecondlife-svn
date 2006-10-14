@@ -225,13 +225,8 @@ namespace libsecondlife
                     PrimObject prim = new PrimObject();
 
                     prim.Position = new LLVector3(block.ObjectData, 0);
-                    prim.Rotation = new LLQuaternion(block.ObjectData, 36);
-                    // Calculate the quaternion W value from the given X/Y/Z
-                    float xyzsum = 1.0F -
-                        prim.Rotation.X * prim.Rotation.X -
-                        prim.Rotation.Y * prim.Rotation.Y -
-                        prim.Rotation.Z * prim.Rotation.Z;
-                    prim.Rotation.W = (xyzsum > 0.0F) ? (float)Math.Sqrt(xyzsum) : 0.0F;
+                    prim.Rotation = new LLQuaternion(block.ObjectData, 36, true);
+
                     // TODO: Parse the rest of the ObjectData byte array fields
 
                     prim.LocalID = block.ID;
@@ -302,12 +297,8 @@ namespace libsecondlife
 
                     //avatar.CollisionPlane = new LLQuaternion(block.ObjectData, 0);
                     avatar.Position = new LLVector3(block.ObjectData, 16);
-                    avatar.Rotation = new LLQuaternion(block.ObjectData, 52);
-                    float xyzsum = 1.0F -
-                        avatar.Rotation.X * avatar.Rotation.X -
-                        avatar.Rotation.Y * avatar.Rotation.Y -
-                        avatar.Rotation.Z * avatar.Rotation.Z;
-                    avatar.Rotation.W = (xyzsum > 0.0F) ? (float)Math.Sqrt(xyzsum) : 0.0F;
+                    avatar.Rotation = new LLQuaternion(block.ObjectData, 52, true);
+
                     // TODO: Parse the rest of the ObjectData byte array fields
 
                     ParseAvName(Helpers.FieldToString(block.NameValue), ref FirstName, ref LastName, ref GroupName);

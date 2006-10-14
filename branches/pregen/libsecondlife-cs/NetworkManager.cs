@@ -222,7 +222,7 @@ namespace libsecondlife
 
                 while (true)
                 {
-                    if (connected || Environment.TickCount - start > 5000)
+                    if (connected || Environment.TickCount - start > 8000)
                     {
                         return;
                     }
@@ -311,34 +311,34 @@ namespace libsecondlife
 
                     // Append any ACKs that need to be sent out to this packet
                     #region InboxMutex
-                    //InboxMutex.WaitOne();
-                    //try
-                    //{
-                    //    if (PendingAcks.Count > 0 && packet.Type != PacketType.PacketAck && 
-                    //        packet.Type != PacketType.LogoutRequest)
-                    //    {
-                    //        packet.Header.AckList = new uint[PendingAcks.Count];
+                    InboxMutex.WaitOne();
+                    try
+                    {
+                        if (PendingAcks.Count > 0 && packet.Type != PacketType.PacketAck &&
+                            packet.Type != PacketType.LogoutRequest)
+                        {
+                            packet.Header.AckList = new uint[PendingAcks.Count];
 
-                    //        int i = 0;
+                            int i = 0;
 
-                    //        foreach (uint ack in PendingAcks)
-                    //        {
-                    //            packet.Header.AckList[i] = ack;
-                    //            i++;
-                    //        }
+                            foreach (uint ack in PendingAcks)
+                            {
+                                packet.Header.AckList[i] = ack;
+                                i++;
+                            }
 
-                    //        PendingAcks.Clear();
-                    //        packet.Header.AppendedAcks = true;
-                    //    }
-                    //}
-                    //catch (Exception e)
-                    //{
-                    //    Client.Log(e.ToString(), Helpers.LogLevel.Error);
-                    //}
-                    //finally
-                    //{
-                    //    InboxMutex.ReleaseMutex();
-                    //}
+                            PendingAcks.Clear();
+                            packet.Header.AppendedAcks = true;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Client.Log(e.ToString(), Helpers.LogLevel.Error);
+                    }
+                    finally
+                    {
+                        InboxMutex.ReleaseMutex();
+                    }
                     #endregion InboxMutex
                 }
             }

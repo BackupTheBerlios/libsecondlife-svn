@@ -128,8 +128,10 @@ namespace mapgenerator
                         " = (ushort)(bytes[i++] + (bytes[i++] << 8));");
                     break;
                 case FieldType.LLQuaternion:
-                    Console.WriteLine("                    " + field.Name + 
-                        " = new LLQuaternion(bytes, i); i += 16;");
+                    //Console.WriteLine("                    " + field.Name + 
+                    //    " = new LLQuaternion(bytes, i); i += 16;");
+                    Console.WriteLine("                    " + field.Name +
+                        " = new LLQuaternion(bytes, i, true); i += 12;");
                     break;
                 case FieldType.LLUUID:
                     Console.WriteLine("                    " + field.Name +
@@ -222,13 +224,14 @@ namespace mapgenerator
                     Console.WriteLine("bytes[i++] = (byte)(" + field.Name + " % 256);");
                     Console.WriteLine("                bytes[i++] = (byte)((" + field.Name + " >> 8) % 256);");
                     break;
-                case FieldType.LLQuaternion:
+                //case FieldType.LLQuaternion:
                 case FieldType.LLUUID:
                 case FieldType.LLVector4:
                     Console.WriteLine("if(" + field.Name + " == null) { Console.WriteLine(\"Warning: " + field.Name + " is null, in \" + this.GetType()); }");
                     Console.Write("                ");
                     Console.WriteLine("Array.Copy(" + field.Name + ".GetBytes(), 0, bytes, i, 16); i += 16;");
                     break;
+                case FieldType.LLQuaternion:
                 case FieldType.LLVector3:
                     Console.WriteLine("if(" + field.Name + " == null) { Console.WriteLine(\"Warning: " + field.Name + " is null, in \" + this.GetType()); }");
                     Console.Write("                ");
@@ -306,10 +309,11 @@ namespace mapgenerator
                 case FieldType.F64:
                     return 8;
                 case FieldType.LLVector3:
+                case FieldType.LLQuaternion:
                     return 12;
                 case FieldType.LLUUID:
                 case FieldType.LLVector4:
-                case FieldType.LLQuaternion:
+                //case FieldType.LLQuaternion:
                     return 16;
                 case FieldType.LLVector3d:
                     return 24;
