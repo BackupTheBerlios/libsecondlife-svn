@@ -46,7 +46,7 @@ namespace libsecondlife
     /// </summary>
     public class SecondLife
     {
-        public const string LOGIN_SERVER = "https://login.agni.lindenlab.com/cgi-bin/login.cgi";
+        public const string LOGIN_SERVER = "https://login.aditi.lindenlab.com/cgi-bin/login.cgi";
 
         /// <summary>Networking Subsystem</summary>
         public NetworkManager Network;

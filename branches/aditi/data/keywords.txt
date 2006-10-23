@@ -1499,3 +1499,6 @@ AvatarNotesReply
 CacheID
 OwnerMask
 TransferInventoryAck
+WebProfilesDisabled
+ProfileURL
+LanguagesText
