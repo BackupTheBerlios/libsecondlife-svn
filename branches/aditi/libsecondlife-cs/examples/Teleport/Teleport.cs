@@ -116,10 +116,10 @@ namespace Teleport
             Console.WriteLine();
             Console.WriteLine("Okay, hopefully all the initial connect stuff is done, trying now...");
 
-            client.Avatar.OnTeleport += new TeleportCallback(Avatar_OnTeleportMessage);
+            client.Self.OnTeleport += new TeleportCallback(Avatar_OnTeleportMessage);
 
             DoneTeleporting = false;
-            client.Avatar.Teleport(sim, coords);
+            client.Self.Teleport(sim, coords);
 
             while (!DoneTeleporting)
             {
@@ -127,10 +127,11 @@ namespace Teleport
             }
         }
 
-        protected void Avatar_OnTeleportMessage(string message)
+        protected void Avatar_OnTeleportMessage(string message, TeleportStatus status)
         {
             Console.WriteLine(message);
-            if (!message.Equals("Teleport started"))
+
+            if (status == TeleportStatus.Finished || status == TeleportStatus.Failed)
             {
                 DoneTeleporting = true;
             }
