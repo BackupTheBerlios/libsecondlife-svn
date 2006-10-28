@@ -155,6 +155,7 @@
     <Compile Include="Types.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Utils\FastImageTool.cs" />
     <Compile Include="XmlRpcCS\Logger.cs">
       <SubType>Code</SubType>
     </Compile>

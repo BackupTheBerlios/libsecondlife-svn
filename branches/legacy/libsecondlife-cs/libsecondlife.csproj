@@ -208,6 +208,7 @@
     <Compile Include="Types.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Utils\FastImageTool.cs" />
     <Compile Include="Utils\ImageTools.cs">
       <SubType>Code</SubType>
     </Compile>
