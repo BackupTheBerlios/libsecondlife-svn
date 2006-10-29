@@ -43,7 +43,10 @@ namespace libsecondlife
     /// </summary>
     /// <param name="names"></param>
     public delegate void AgentNamesCallback(Dictionary<LLUUID, string> names);
-
+    public delegate void AvatarPropertiesCallback(Avatar avatar);
+    public delegate void AvatarNameCallback(Avatar avatar);
+    public delegate void AvatarStatisticsCallback(Avatar avatar);
+    public delegate void AvatarIntrestsCallback(Avatar avatar);
     /// <summary>
     /// 
     /// </summary>
@@ -54,21 +57,28 @@ namespace libsecondlife
 
         private SecondLife Client;
         private Dictionary<LLUUID, Avatar> Avatars;
-        private Mutex AvatarsMutex;
         private AgentNamesCallback OnAgentNames;
-
+        private Dictionary<LLUUID, AvatarPropertiesCallback> AvatarPropertiesCallbacks;
+	    private Dictionary<LLUUID, AvatarStatisticsCallback> AvatarStatisticsCallbacks;
+        private Dictionary<LLUUID, AvatarIntrestsCallback> AvatarIntrestsCallbacks;
         public AvatarManager(SecondLife client)
         {
             Client = client;
             Avatars = new Dictionary<LLUUID, Avatar>();
-            AvatarsMutex = new Mutex(false, "AvatarsMutex");
-
+            //Callback Dictionaries
+            AvatarPropertiesCallbacks = new Dictionary<LLUUID, AvatarPropertiesCallback>();
+	        AvatarStatisticsCallbacks = new Dictionary<LLUUID, AvatarStatisticsCallback>();
+            AvatarIntrestsCallbacks = new Dictionary<LLUUID, AvatarIntrestsCallback>();
             // Friend notification callback
             PacketCallback callback = new PacketCallback(FriendNotificationHandler);
             Client.Network.RegisterCallback(PacketType.OnlineNotification, callback);
             Client.Network.RegisterCallback(PacketType.OfflineNotification, callback);
             Client.Network.RegisterCallback(PacketType.UUIDNameReply, new PacketCallback(GetAgentNameHandler));
+            Client.Network.RegisterCallback(PacketType.AvatarPropertiesReply, new PacketCallback(AvatarPropertiesHandler));
+	        Client.Network.RegisterCallback(PacketType.AvatarStatisticsReply, new PacketCallback(AvatarStatisticsHandler));
+            Client.Network.RegisterCallback(PacketType.AvatarInterestsReply, new PacketCallback(AvatarIntrestsHandler));
         }
+              
 
         /// <summary>
         /// Add an Avatar into the Avatars Dictionary
@@ -76,26 +86,15 @@ namespace libsecondlife
         /// <param name="avatar">Filled-out Avatar class to insert</param>
         public void AddAvatar(Avatar avatar)
         {
-            #region AvatarsMutex
-            AvatarsMutex.WaitOne();
-
-            Avatars[avatar.ID] = avatar;
-
-            AvatarsMutex.ReleaseMutex();
-            #endregion AvatarsMutex
+            lock (Avatars)
+            {
+                Avatars[avatar.ID] = avatar;
+            }
         }
 
         public bool Contains(LLUUID id)
         {
-            #region AvatarsMutex
-            AvatarsMutex.WaitOne();
-
-            bool contains = Avatars.ContainsKey(id);
-
-            #endregion AvatarsMutex
-            AvatarsMutex.ReleaseMutex();
-
-            return contains;
+            return Avatars.ContainsKey(id);
         }
 
         /// <summary>
@@ -105,22 +104,15 @@ namespace libsecondlife
         /// <returns>The avatar name, or an empty string if it's not found</returns>
         public string LocalAvatarNameLookup(LLUUID id)
         {
-            string name;
+            string name = "";
 
-            #region AvatarsMutex
-            AvatarsMutex.WaitOne();
-
-            if (Avatars.ContainsKey(id))
+            lock (Avatars)
             {
-                name = Avatars[id].Name;
+                if (Avatars.ContainsKey(id))
+                {
+                    name = Avatars[id].Name;
+                }
             }
-            else
-            {
-                name = "";
-            }
-
-            #endregion AvatarsMutex
-            AvatarsMutex.ReleaseMutex();
 
             return name;
         }
@@ -166,7 +158,7 @@ namespace libsecondlife
                 }
             }
 
-            if (havenames.Count > 0)
+            if (havenames.Count > 0 && OnAgentNames != null)
             {
                 OnAgentNames(havenames);
             }
@@ -197,25 +189,22 @@ namespace libsecondlife
             Dictionary<LLUUID, string> names = new Dictionary<LLUUID, string>();
             UUIDNameReplyPacket reply = (UUIDNameReplyPacket)packet;
 
-            #region AvatarsMutex
-            AvatarsMutex.WaitOne();
-
-            foreach (UUIDNameReplyPacket.UUIDNameBlockBlock block in reply.UUIDNameBlock)
+            lock (Avatars)
             {
-                if (!Avatars.ContainsKey(block.ID))
+                foreach (UUIDNameReplyPacket.UUIDNameBlockBlock block in reply.UUIDNameBlock)
                 {
-                    Avatars[block.ID] = new Avatar();
-                    Avatars[block.ID].ID = block.ID;
+                    if (!Avatars.ContainsKey(block.ID))
+                    {
+                        Avatars[block.ID] = new Avatar();
+                        Avatars[block.ID].ID = block.ID;
+                    }
+
+                    Avatars[block.ID].Name = Helpers.FieldToString(block.FirstName) +
+                        " " + Helpers.FieldToString(block.LastName);
+
+                    names[block.ID] = Avatars[block.ID].Name;
                 }
-
-                Avatars[block.ID].Name = Helpers.FieldToString(block.FirstName) +
-                    " " + Helpers.FieldToString(block.LastName);
-
-                names[block.ID] = Avatars[block.ID].Name;
             }
-
-            AvatarsMutex.ReleaseMutex();
-            #endregion AvatarsMutex
 
             if (OnAgentNames != null)
             {
@@ -232,22 +221,19 @@ namespace libsecondlife
                 // If the agent is online...
                 foreach (OnlineNotificationPacket.AgentBlockBlock block in ((OnlineNotificationPacket)packet).AgentBlock)
                 {
-                    #region AvatarsMutex
-                    AvatarsMutex.WaitOne();
-
-                    if (!Avatars.ContainsKey(block.AgentID))
+                    lock (Avatars)
                     {
-                        // Mark this avatar for a name request
-                        requestids.Add(block.AgentID);
+                        if (!Avatars.ContainsKey(block.AgentID))
+                        {
+                            // Mark this avatar for a name request
+                            requestids.Add(block.AgentID);
 
-                        Avatars[block.AgentID] = new Avatar();
-                        Avatars[block.AgentID].ID = block.AgentID;
+                            Avatars[block.AgentID] = new Avatar();
+                            Avatars[block.AgentID].ID = block.AgentID;
+                        }
+
+                        Avatars[block.AgentID].Online = true;
                     }
-
-                    Avatars[block.AgentID].Online = true;
-
-                    AvatarsMutex.ReleaseMutex();
-                    #endregion AvatarsMutex
 
                     if (OnFriendNotification != null)
                     {
@@ -260,22 +246,19 @@ namespace libsecondlife
                 // If the agent is Offline...
                 foreach (OfflineNotificationPacket.AgentBlockBlock block in ((OfflineNotificationPacket)packet).AgentBlock)
                 {
-                    #region AvatarsMutex
-                    AvatarsMutex.WaitOne();
-
-                    if (!Avatars.ContainsKey(block.AgentID))
+                    lock (Avatars)
                     {
-                        // Mark this avatar for a name request
-                        requestids.Add(block.AgentID);
+                        if (!Avatars.ContainsKey(block.AgentID))
+                        {
+                            // Mark this avatar for a name request
+                            requestids.Add(block.AgentID);
 
-                        Avatars[block.AgentID] = new Avatar();
-                        Avatars[block.AgentID].ID = block.AgentID;
+                            Avatars[block.AgentID] = new Avatar();
+                            Avatars[block.AgentID].ID = block.AgentID;
+                        }
+
+                        Avatars[block.AgentID].Online = false;
                     }
-
-                    Avatars[block.AgentID].Online = false;
-
-                    AvatarsMutex.ReleaseMutex();
-                    #endregion AvatarsMutex
 
                     if (OnFriendNotification != null)
                     {
@@ -288,6 +271,128 @@ namespace libsecondlife
             {
                 BeginGetAvatarNames(requestids, null);
             }
+        }
+
+        private void AvatarStatisticsHandler(Packet packet, Simulator simulator)
+        {
+	    AvatarStatisticsReplyPacket asr = (AvatarStatisticsReplyPacket)packet;
+            lock(Avatars)
+            {
+		Avatar av;
+		if (!Avatars.ContainsKey(asr.AvatarData.AvatarID))
+		{
+			 av = new Avatar();
+			 av.ID = asr.AvatarData.AvatarID;
+		}
+		else
+		{
+			 av = Avatars[asr.AvatarData.AvatarID];
+		}
+
+                foreach(AvatarStatisticsReplyPacket.StatisticsDataBlock b in asr.StatisticsData)
+		{
+			string n = Helpers.FieldToString(b.Name);
+			if(n.Equals("Behavior"))
+			{
+				av.Behavior = b.Positive;
+			}
+			else if(n.Equals("Appearance"))
+			{
+				av.Appearance = b.Positive;
+			}
+			else if(n.Equals("Building"))
+			{
+				av.Building = b.Positive;
+			}
+		}
+		
+		//Call it
+        if (AvatarStatisticsCallbacks.ContainsKey(av.ID) && AvatarStatisticsCallbacks[av.ID] != null)
+	                AvatarStatisticsCallbacks[av.ID](av);
+            }
+        }
+
+        private void AvatarPropertiesHandler(Packet packet, Simulator sim)
+        {
+            Avatar av;
+            AvatarPropertiesReplyPacket reply = (AvatarPropertiesReplyPacket)packet;
+            lock(Avatars)
+            {
+            if (!Avatars.ContainsKey(reply.AgentData.AvatarID))
+            {
+                //not in our "cache", create a new object
+                av = new Avatar();
+            }
+            else
+            {
+                //Cache hit, modify existing avatar
+                av = Avatars[reply.AgentData.AvatarID];
+            }
+            av.ID = reply.AgentData.AvatarID;
+            av.ProfileImage = reply.PropertiesData.ImageID;
+            av.FirstLifeImage = reply.PropertiesData.FLImageID;
+            av.PartnerID = reply.PropertiesData.PartnerID;
+            av.AboutText = Helpers.FieldToString(reply.PropertiesData.AboutText);
+	    
+            av.FirstLifeText = Helpers.FieldToString(reply.PropertiesData.FLAboutText);
+            av.BornOn = Helpers.FieldToString(reply.PropertiesData.BornOn);
+            av.CharterMember = Helpers.FieldToString(reply.PropertiesData.CharterMember);
+            av.AllowPublish = reply.PropertiesData.AllowPublish;
+            av.MaturePublish = reply.PropertiesData.MaturePublish;
+            av.Identified = reply.PropertiesData.Identified;
+            av.Transacted = reply.PropertiesData.Transacted;
+            //reassign in the cache
+            Avatars[av.ID] = av;
+            //Heaven forbid that we actually get a packet we didn't ask for.
+            if (AvatarPropertiesCallbacks.ContainsKey(av.ID) && AvatarPropertiesCallbacks[av.ID] != null)
+                AvatarPropertiesCallbacks[av.ID](av);
+            }
+        }
+
+        public void BeginAvatarPropertiesRequest(LLUUID avatarid, AvatarPropertiesCallback apc, AvatarStatisticsCallback asc, AvatarIntrestsCallback aic)
+        {
+            //Set teh callback!
+            AvatarPropertiesCallbacks[avatarid] = apc;
+	        AvatarStatisticsCallbacks[avatarid] = asc;
+            AvatarIntrestsCallbacks[avatarid] = aic;
+            //Oh noes
+            //Packet construction, good times
+            AvatarPropertiesRequestPacket aprp = new AvatarPropertiesRequestPacket();
+            AvatarPropertiesRequestPacket.AgentDataBlock adb = new AvatarPropertiesRequestPacket.AgentDataBlock();
+            adb.AgentID = Client.Network.AgentID;
+            adb.SessionID = Client.Network.SessionID;
+            adb.AvatarID = avatarid;
+            aprp.AgentData = adb;
+            //send the packet!
+            Client.Network.SendPacket(aprp);
+        }
+
+        public void AvatarIntrestsHandler(Packet packet, Simulator simulator)
+        {
+            AvatarInterestsReplyPacket airp = (AvatarInterestsReplyPacket)packet;
+            Avatar av;
+            lock (Avatars)
+            {
+                if (!Avatars.ContainsKey(airp.AgentData.AvatarID))
+                {
+                    //not in our "cache", create a new object
+                    av = new Avatar();
+                    av.ID = airp.AgentData.AvatarID;
+                }
+                else
+                {
+                    //Cache hit, modify existing avatar
+                    av = Avatars[airp.AgentData.AvatarID];
+                }
+                //The rest of the properties, thanks LL.
+                av.WantToMask = airp.PropertiesData.WantToMask;
+                av.WantToText = Helpers.FieldToString(airp.PropertiesData.WantToText);
+                av.SkillsMask = airp.PropertiesData.SkillsMask;
+                av.SkillsText = Helpers.FieldToString(airp.PropertiesData.SkillsText);
+                av.LanguagesText = Helpers.FieldToString(airp.PropertiesData.LanguagesText);
+            }
+            if (AvatarIntrestsCallbacks.ContainsKey(airp.AgentData.AvatarID) && AvatarIntrestsCallbacks[airp.AgentData.AvatarID] != null)
+                AvatarIntrestsCallbacks[airp.AgentData.AvatarID](av);
         }
     }
 }

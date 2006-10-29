@@ -182,8 +182,30 @@ namespace libsecondlife
             request.AgentData.AgentID = Client.Network.AgentID;
             request.AgentData.SessionID = Client.Network.SessionID;
             request.ObjectData = new RequestMultipleObjectsPacket.ObjectDataBlock[1];
+            request.ObjectData[0] = new RequestMultipleObjectsPacket.ObjectDataBlock();
             request.ObjectData[0].ID = localID;
             request.ObjectData[0].CacheMissType = 0;
+
+            Client.Network.SendPacket(request, simulator);
+        }
+
+        public void RequestObjects(Simulator simulator, List<uint> localIDs)
+        {
+            int i = 0;
+
+            RequestMultipleObjectsPacket request = new RequestMultipleObjectsPacket();
+            request.AgentData.AgentID = Client.Network.AgentID;
+            request.AgentData.SessionID = Client.Network.SessionID;
+            request.ObjectData = new RequestMultipleObjectsPacket.ObjectDataBlock[localIDs.Count];
+
+            foreach (uint localID in localIDs)
+            {
+                request.ObjectData[i] = new RequestMultipleObjectsPacket.ObjectDataBlock();
+                request.ObjectData[i].ID = localID;
+                request.ObjectData[i].CacheMissType = 0;
+
+                i++;
+            }
 
             Client.Network.SendPacket(request, simulator);
         }
@@ -222,7 +244,7 @@ namespace libsecondlife
                 if (block.ObjectData.Length == 60)
                 {
                     // New prim spotted
-                    PrimObject prim = new PrimObject();
+                    PrimObject prim = new PrimObject(Client);
 
                     prim.Position = new LLVector3(block.ObjectData, 0);
                     prim.Rotation = new LLQuaternion(block.ObjectData, 36, true);
@@ -258,15 +280,7 @@ namespace libsecondlife
                     //block.Text Hovering text
                     //block.TextColor LLColor4U of the hovering text
                     //block.MediaURL Quicktime stream
-                    // TODO: Multi-texture support
-                    if (block.TextureEntry.Length >= 16)
-                    {
-                        prim.Texture = new LLUUID(block.TextureEntry, 0);
-                    }
-                    else
-                    {
-                        prim.Texture = new LLUUID();
-                    }
+                    prim.Textures = new TextureEntry(Client, block.TextureEntry, 0);
                     //block.TextureAnim ?
                     //block.JointType ?
                     //block.JointPivot ?
@@ -455,12 +469,19 @@ namespace libsecondlife
             foreach (ObjectUpdateCompressedPacket.ObjectDataBlock block in update.ObjectData)
             {
                 int i = 0;
-                prim = new PrimObject();
+                prim = new PrimObject(Client);
 
                 prim.ID = new LLUUID(block.Data, 0);
                 i += 16;
                 prim.LocalID = (uint)(block.Data[i++] + (block.Data[i++] << 8) +
                     (block.Data[i++] << 16) + (block.Data[i++] << 24));
+
+                i++; //PCode
+                prim.State = (uint)block.Data[i++];
+                i += 4; //CRC
+                prim.Material = (uint)block.Data[i++];
+                i++; //ClickAction
+
                 prim.Scale = new LLVector3(block.Data, i);
                 i += 12;
                 prim.Position = new LLVector3(block.Data, i);
@@ -468,9 +489,99 @@ namespace libsecondlife
                 prim.Rotation = new LLQuaternion(block.Data, i, true);
                 i += 12;
 
-                // FIXME: Fill in the rest of these fields
-                prim.PathCurve = (uint)block.Data[69];
-                prim.ProfileCurve = (uint)block.Data[83];
+                uint flags = (uint)(block.Data[i++] + (block.Data[i++] << 8) +
+                    (block.Data[i++] << 16) + (block.Data[i++] << 24));
+
+                if ((flags & 0x02) != 0)
+                {
+                    //Unknown 2 bytes
+                    i += 2;
+
+                    if (OnNewPrim != null)
+                    {
+                        OnNewPrim(simulator, prim, update.RegionData.RegionHandle, update.RegionData.TimeDilation);
+                    }
+                    continue;
+                }
+
+                if ((flags & 0x20) != 0)
+                {
+                    prim.ParentID = (uint)(block.Data[i++] + (block.Data[i++] << 8) +
+                    (block.Data[i++] << 16) + (block.Data[i++] << 24));
+                }
+                else
+                {
+                    prim.ParentID = 0;
+                }
+
+                //Unknown field
+                if ((flags & 0x80) != 0)
+                {
+                    i += 12;
+                }
+
+                // TODO: This seems kind of odd, isn't there a flag to identify
+                // whether this block is text (or 24 unknown bytes)?
+                byte unknownByte = block.Data[i];
+                if (unknownByte == 1)
+                {
+                    //Unknown
+                    i += 23;
+                }
+                else
+                {
+                    string text = "";
+                    while (block.Data[i] != 0)
+                    {
+                        text += (char)block.Data[i];
+                        i++;
+                    }
+                    prim.Text = text;
+                    i++;
+                }
+
+                //Unknown field, possibly text color.
+                if ((flags & 0x04) != 0)
+                {
+                    i += 5;
+                }
+
+                //Indicates that this is an attachment?
+                if ((flags & 0x100) != 0)
+                {
+                    //A string
+                    //Example: "AttachItemID STRING RW SV fa9a5ab8-1bad-b449-9873-cf5b803e664e"
+                    while (block.Data[i] != 0)
+                    {
+                        i++;
+                    }
+                    i++;
+                }
+
+                prim.PathCurve = (uint)block.Data[i++];
+                prim.PathBegin = PrimObject.PathBeginFloat(block.Data[i++]);
+                prim.PathEnd = PrimObject.PathEndFloat(block.Data[i++]);
+                prim.PathScaleX = PrimObject.PathScaleFloat(block.Data[i++]);
+                prim.PathScaleY = PrimObject.PathScaleFloat(block.Data[i++]);
+                prim.PathShearX = PrimObject.PathShearFloat(block.Data[i++]);
+                prim.PathShearY = PrimObject.PathShearFloat(block.Data[i++]);
+                prim.PathTwist = (int)block.Data[i++];
+                prim.PathTwistBegin = (int)block.Data[i++];
+                prim.PathRadiusOffset = PrimObject.PathRadiusOffsetFloat((sbyte)block.Data[i++]);
+                prim.PathTaperX = PrimObject.PathTaperFloat(block.Data[i++]);
+                prim.PathTaperY = PrimObject.PathTaperFloat(block.Data[i++]);
+                prim.PathRevolutions = PrimObject.PathRevolutionsFloat(block.Data[i++]);
+                prim.PathSkew = PrimObject.PathSkewFloat(block.Data[i++]);
+               
+                prim.ProfileCurve = (uint)block.Data[i++];
+                prim.ProfileBegin = PrimObject.ProfileBeginFloat(block.Data[i++]);
+                prim.ProfileEnd = PrimObject.ProfileEndFloat(block.Data[i++]);
+                prim.ProfileHollow = (uint)block.Data[i++];
+
+                //Unknown field
+                i += 4;
+
+                prim.Textures = new TextureEntry(Client, block.Data, i);
 
                 if (OnNewPrim != null)
                 {
@@ -481,27 +592,16 @@ namespace libsecondlife
 
         private void CachedUpdateHandler(Packet packet, Simulator simulator)
         {
-            int i = 0;
-
+            List<uint> ids = new List<uint>();
             ObjectUpdateCachedPacket update = (ObjectUpdateCachedPacket)packet;
 
             // Assume clients aren't caching objects for now, so request updates for all of these objects
-            RequestMultipleObjectsPacket request = new RequestMultipleObjectsPacket();
-            request.AgentData.AgentID = Client.Network.AgentID;
-            request.AgentData.SessionID = Client.Network.AgentID;
-            request.ObjectData = new RequestMultipleObjectsPacket.ObjectDataBlock[update.ObjectData.Length];
-
             foreach (ObjectUpdateCachedPacket.ObjectDataBlock block in update.ObjectData)
             {
-                request.ObjectData[i] = new RequestMultipleObjectsPacket.ObjectDataBlock();
-                request.ObjectData[i].ID = block.ID;
-                i++;
-
-                //Client.Log("CachedData ID=" + block.ID + ", CRC=" + block.CRC + ", UpdateFlags=" + block.UpdateFlags, 
-                //Helpers.LogLevel.Info);
+                ids.Add(block.ID);
             }
 
-            Client.Network.SendPacket(request);
+            RequestObjects(simulator, ids);
         }
 
         private void KillObjectHandler(Packet packet, Simulator simulator)

@@ -11,16 +11,6 @@ using libsecondlife.AssetSystem;
 
 namespace groupmanager
 {
-    public class GroupMemberData
-    {
-        public LLUUID ID;
-        public string Name;
-        public string Title;
-        public string LastOnline;
-        public ulong Powers;
-        public bool IsOwner;
-    }
-
     public partial class frmGroupInfo : Form
     {
         Group Group;
@@ -83,7 +73,6 @@ namespace groupmanager
             chkFee.Checked = (Profile.MembershipFee != 0);
             numFee.Value = Profile.MembershipFee;
             chkMature.Checked = Profile.MaturePublish;
-            lblMemberTitle.Text = Profile.MemberTitle;
 
             Client.Avatars.BeginGetAvatarName(Profile.FounderID, new AgentNamesCallback(AgentNamesHandler));
         }
@@ -132,6 +121,7 @@ namespace groupmanager
 
         private void UpdateMemberList()
         {
+            // General tab list
             lock (lstMembers)
             {
                 lstMembers.Items.Clear();
@@ -150,6 +140,28 @@ namespace groupmanager
                     lvi.SubItems.Add(lvsi);
 
                     lstMembers.Items.Add(lvi);
+                }
+            }
+
+            // Members tab list
+            lock (lstMembers2)
+            {
+                lstMembers2.Items.Clear();
+
+                foreach (GroupMemberData entry in MemberData.Values)
+                {
+                    ListViewItem lvi = new ListViewItem();
+                    lvi.Text = entry.Name;
+
+                    ListViewItem.ListViewSubItem lvsi = new ListViewItem.ListViewSubItem();
+                    lvsi.Text = entry.Contribution.ToString();
+                    lvi.SubItems.Add(lvsi);
+
+                    lvsi = new ListViewItem.ListViewSubItem();
+                    lvsi.Text = entry.LastOnline;
+                    lvi.SubItems.Add(lvsi);
+
+                    lstMembers2.Items.Add(lvi);
                 }
             }
         }
@@ -177,6 +189,7 @@ namespace groupmanager
                         memberData.LastOnline = member.OnlineStatus;
                         memberData.Powers = member.Powers;
                         memberData.Title = member.Title;
+                        memberData.Contribution = member.Contribution;
 
                         MemberData[member.ID] = memberData;
 
@@ -209,5 +222,16 @@ namespace groupmanager
         //    writer.Close();
         //    filestream.Close();
         //}
+    }
+
+    public class GroupMemberData
+    {
+        public LLUUID ID;
+        public string Name;
+        public string Title;
+        public string LastOnline;
+        public ulong Powers;
+        public bool IsOwner;
+        public int Contribution;
     }
 }

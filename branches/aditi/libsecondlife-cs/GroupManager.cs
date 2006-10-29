@@ -26,43 +26,72 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using libsecondlife.Packets;
 
 namespace libsecondlife
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class GroupMember
     {
+        /// <summary></summary>
         public LLUUID ID;
+        /// <summary></summary>
         public int Contribution;
+        /// <summary></summary>
         public string OnlineStatus;
+        /// <summary></summary>
         public ulong Powers;
+        /// <summary></summary>
         public string Title;
+        /// <summary></summary>
         public bool IsOwner;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="id"></param>
         public GroupMember(LLUUID id)
         {
             ID = id;
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class GroupRole
     {
+        /// <summary></summary>
         public LLUUID ID;
+        /// <summary></summary>
         public string Name;
+        /// <summary></summary>
         public string Title;
+        /// <summary></summary>
         public string Description;
+        /// <summary></summary>
         public ulong Powers;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="id"></param>
         public GroupRole(LLUUID id)
         {
             ID = id;
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class GroupTitle
     {
+        /// <summary></summary>
         public string Title;
+        /// <summary></summary>
         public bool Selected;
     }
 
@@ -71,57 +100,210 @@ namespace libsecondlife
     /// </summary>
     public class Group
     {
+        /// <summary></summary>
         public LLUUID ID;
+        /// <summary></summary>
         public LLUUID InsigniaID;
+        /// <summary></summary>
         public LLUUID FounderID;
+        /// <summary></summary>
         public LLUUID OwnerRole;
+        /// <summary></summary>
         public string Name;
+        /// <summary></summary>
         public string Charter;
+        /// <summary></summary>
         public string MemberTitle;
+        /// <summary></summary>
         public bool OpenEnrollment;
+        /// <summary></summary>
         public bool ShowInList;
+        /// <summary></summary>
         public ulong Powers;
+        /// <summary></summary>
         public bool AcceptNotices;
+        /// <summary></summary>
         public bool AllowPublish;
+        /// <summary></summary>
         public bool MaturePublish;
+        /// <summary></summary>
         public int MembershipFee;
+        /// <summary></summary>
         public int Money;
+        /// <summary></summary>
         public int Contribution;
+        /// <summary></summary>
         public int GroupMembershipCount;
+        /// <summary></summary>
         public int GroupRolesCount;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="id"></param>
         public Group(LLUUID id)
         {
             ID = id;
             InsigniaID = new LLUUID();
         }
 
+        /// <summary>
+        /// Returns the name of the group
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             return Name;
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class GroupProfile
     {
+        /// <summary></summary>
         public LLUUID ID;
+        /// <summary></summary>
         public LLUUID InsigniaID;
+        /// <summary></summary>
         public LLUUID FounderID;
+        /// <summary></summary>
         public LLUUID OwnerRole;
+        /// <summary></summary>
         public string Name;
+        /// <summary></summary>
         public string Charter;
+        /// <summary></summary>
         public string MemberTitle;
+        /// <summary></summary>
         public bool OpenEnrollment;
+        /// <summary></summary>
         public bool ShowInList;
+        /// <summary></summary>
         public ulong Powers;
+        /// <summary></summary>
         public bool AcceptNotices;
+        /// <summary></summary>
         public bool AllowPublish;
+        /// <summary></summary>
         public bool MaturePublish;
+        /// <summary></summary>
         public int MembershipFee;
+        /// <summary></summary>
         public int Money;
+        /// <summary></summary>
         public int Contribution;
+        /// <summary></summary>
         public int GroupMembershipCount;
+        /// <summary></summary>
         public int GroupRolesCount;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public class Vote
+    {
+        /// <summary></summary>
+        public LLUUID Candidate;
+        /// <summary></summary>
+        public string VoteString;
+        /// <summary></summary>
+        public int NumVotes;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public class GroupAccountSummary
+    {
+        /// <summary></summary>
+        public int IntervalDays;
+        /// <summary></summary>
+        public int CurrentInterval;
+        /// <summary></summary>
+        public string StartDate;
+        /// <summary></summary>
+        public int Balance;
+        /// <summary></summary>
+        public int TotalCredits;
+        /// <summary></summary>
+        public int TotalDebits;
+        /// <summary></summary>
+        public int ObjectTaxCurrent;
+        /// <summary></summary>
+        public int LightTaxCurrent;
+        /// <summary></summary>
+        public int LandTaxCurrent;
+        /// <summary></summary>
+        public int GroupTaxCurrent;
+        /// <summary></summary>
+        public int ParcelDirFeeCurrent;
+        /// <summary></summary>
+        public int ObjectTaxEstimate;
+        /// <summary></summary>
+        public int LightTaxEstimate;
+        /// <summary></summary>
+        public int LandTaxEstimate;
+        /// <summary></summary>
+        public int GroupTaxEstimate;
+        /// <summary></summary>
+        public int ParcelDirFeeEstimate;
+        /// <summary></summary>
+        public int NonExemptMembers;
+        /// <summary></summary>
+        public string LastTaxDate;
+        /// <summary></summary>
+        public string TaxDate;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public class GroupAccountDetails
+    {
+        /// <summary></summary>
+        public int IntervalDays;
+        /// <summary></summary>
+        public int CurrentInterval;
+        /// <summary></summary>
+        public string StartDate;
+        /// <summary>A list of description/amount pairs making up the account 
+        /// history</summary>
+        public List<KeyValuePair<string, int>> HistoryItems;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public class GroupAccountTransactions
+    {
+        /// <summary></summary>
+        public int IntervalDays;
+        /// <summary></summary>
+        public int CurrentInterval;
+        /// <summary></summary>
+        public string StartDate;
+        /// <summary>List of all the transactions for this group</summary>
+        public List<Transaction> Transactions;
+    }
+
+    /// <summary>
+    /// A single transaction made by a group
+    /// </summary>
+    public class Transaction
+    {
+        /// <summary></summary>
+        public string Time;
+        /// <summary></summary>
+        public string User;
+        /// <summary></summary>
+        public int Type;
+        /// <summary></summary>
+        public string Item;
+        /// <summary></summary>
+        public int Amount;
     }
 
     /// <summary>
@@ -134,7 +316,7 @@ namespace libsecondlife
         /// Callback for the list of groups the avatar is currently a member of
         /// </summary>
         /// <param name="groups"></param>
-        public delegate void CurrentGroupsCallback(Dictionary<LLUUID,Group> groups);
+        public delegate void CurrentGroupsCallback(Dictionary<LLUUID, Group> groups);
         /// <summary>
         /// Callback for the profile of a group
         /// </summary>
@@ -151,10 +333,30 @@ namespace libsecondlife
         /// <param name="roles"></param>
         public delegate void GroupRolesCallback(Dictionary<LLUUID, GroupRole> roles);
         /// <summary>
+        /// Callback for a pairing of roles to members
+        /// </summary>
+        /// <param name="rolesMembers"></param>
+        public delegate void GroupRolesMembersCallback(List<KeyValuePair<LLUUID, LLUUID>> rolesMembers);
+        /// <summary>
         /// Callback for the title list of a group
         /// </summary>
         /// <param name="titles"></param>
         public delegate void GroupTitlesCallback(Dictionary<LLUUID, GroupTitle> titles);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="summary"></param>
+        public delegate void GroupAccountSummaryCallback(GroupAccountSummary summary);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="details"></param>
+        public delegate void GroupAccountDetailsCallback(GroupAccountDetails details);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="transactions"></param>
+        public delegate void GroupAccountTransactionsCallback(GroupAccountTransactions transactions);
 
         private SecondLife Client;
         // No need for concurrency with the current group list request
@@ -162,13 +364,17 @@ namespace libsecondlife
         private Dictionary<LLUUID, GroupProfileCallback> GroupProfileCallbacks;
         private Dictionary<LLUUID, GroupMembersCallback> GroupMembersCallbacks;
         private Dictionary<LLUUID, GroupRolesCallback> GroupRolesCallbacks;
+        private Dictionary<LLUUID, GroupRolesMembersCallback> GroupRolesMembersCallbacks;
         private Dictionary<LLUUID, GroupTitlesCallback> GroupTitlesCallbacks;
+        private Dictionary<LLUUID, GroupAccountSummaryCallback> GroupAccountSummaryCallbacks;
+        private Dictionary<LLUUID, GroupAccountDetailsCallback> GroupAccountDetailsCallbacks;
+        private Dictionary<LLUUID, GroupAccountTransactionsCallback> GroupAccountTransactionsCallbacks;
         /// <summary>A list of all the lists of group members, indexed by the request ID</summary>
         private Dictionary<LLUUID, Dictionary<LLUUID, GroupMember>> GroupMembersCaches;
-        private Mutex GroupMembersCachesMutex;
         /// <summary>A list of all the lists of group roles, indexed by the request ID</summary>
         private Dictionary<LLUUID, Dictionary<LLUUID, GroupRole>> GroupRolesCaches;
-        private Mutex GroupRolesCachesMutex;
+        /// <summary>A list of all the role to member mappings</summary>
+        private Dictionary<LLUUID, List<KeyValuePair<LLUUID, LLUUID>>> GroupRolesMembersCaches;
 
         /// <summary>
         /// 
@@ -181,12 +387,15 @@ namespace libsecondlife
             GroupProfileCallbacks = new Dictionary<LLUUID, GroupProfileCallback>();
             GroupMembersCallbacks = new Dictionary<LLUUID, GroupMembersCallback>();
             GroupRolesCallbacks = new Dictionary<LLUUID, GroupRolesCallback>();
+            GroupRolesMembersCallbacks = new Dictionary<LLUUID, GroupRolesMembersCallback>();
             GroupTitlesCallbacks = new Dictionary<LLUUID, GroupTitlesCallback>();
+            GroupAccountSummaryCallbacks = new Dictionary<LLUUID, GroupAccountSummaryCallback>();
+            GroupAccountDetailsCallbacks = new Dictionary<LLUUID, GroupAccountDetailsCallback>();
+            GroupAccountTransactionsCallbacks = new Dictionary<LLUUID, GroupAccountTransactionsCallback>();
 
             GroupMembersCaches = new Dictionary<LLUUID, Dictionary<LLUUID, GroupMember>>();
-            GroupMembersCachesMutex = new Mutex(false, "GroupMembersCachesMutex");
             GroupRolesCaches = new Dictionary<LLUUID, Dictionary<LLUUID, GroupRole>>();
-            GroupRolesCachesMutex = new Mutex(false, "GroupRolesCachesMutex");
+            GroupRolesMembersCaches = new Dictionary<LLUUID, List<KeyValuePair<LLUUID, LLUUID>>>();
 
             Client.Network.RegisterCallback(PacketType.AgentGroupDataUpdate, new PacketCallback(GroupDataHandler));
             Client.Network.RegisterCallback(PacketType.GroupTitlesReply, new PacketCallback(GroupTitlesHandler));
@@ -244,11 +453,10 @@ namespace libsecondlife
         {
             LLUUID requestID = LLUUID.GenerateUUID();
 
-            #region GroupMembersCachesMutex
-            GroupMembersCachesMutex.WaitOne();
-            GroupMembersCaches[requestID] = new Dictionary<LLUUID,GroupMember>();
-            GroupMembersCachesMutex.ReleaseMutex();
-            #endregion GroupMembersCachesMutex
+            lock (GroupMembersCaches)
+            {
+                GroupMembersCaches[requestID] = new Dictionary<LLUUID, GroupMember>();
+            }
 
             GroupMembersCallbacks[group] = gmc;
 
@@ -262,15 +470,19 @@ namespace libsecondlife
             Client.Network.SendPacket(request);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="group"></param>
+        /// <param name="grc"></param>
         public void BeginGetGroupRoles(LLUUID group, GroupRolesCallback grc)
         {
             LLUUID requestID = LLUUID.GenerateUUID();
 
-            #region GroupRolesCachesMutex
-            GroupRolesCachesMutex.WaitOne();
-            GroupRolesCaches[requestID] = new Dictionary<LLUUID, GroupRole>();
-            GroupRolesCachesMutex.ReleaseMutex();
-            #endregion GroupRolesCachesMutex
+            lock (GroupRolesCaches)
+            {
+                GroupRolesCaches[requestID] = new Dictionary<LLUUID, GroupRole>();
+            }
 
             GroupRolesCallbacks[group] = grc;
 
@@ -284,6 +496,11 @@ namespace libsecondlife
             Client.Network.SendPacket(request);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="group"></param>
+        /// <param name="gtc"></param>
         public void BeginGetGroupTitles(LLUUID group, GroupTitlesCallback gtc)
         {
             LLUUID requestID = LLUUID.GenerateUUID();
@@ -321,7 +538,10 @@ namespace libsecondlife
                     currentGroups[block.GroupID] = group;
                 }
 
-                OnCurrentGroups(currentGroups);
+                if (OnCurrentGroups != null)
+                {
+                    OnCurrentGroups(currentGroups);
+                }
             }
         }
 
@@ -375,115 +595,186 @@ namespace libsecondlife
         private void GroupMembersHandler(Packet packet, Simulator simulator)
         {
             GroupMembersReplyPacket members = (GroupMembersReplyPacket)packet;
+            Dictionary<LLUUID, GroupMember> groupMemberCache = null;
 
-            #region GroupMembersCachesMutex
-            GroupMembersCachesMutex.WaitOne();
-
-            // If nothing is registered to receive this RequestID drop the data
-            if (GroupMembersCaches.ContainsKey(members.GroupData.RequestID))
+            lock (GroupMembersCaches)
             {
-                Dictionary<LLUUID, GroupMember> groupMemberCache = GroupMembersCaches[members.GroupData.RequestID];
-
-                foreach (GroupMembersReplyPacket.MemberDataBlock block in members.MemberData)
+                // If nothing is registered to receive this RequestID drop the data
+                if (GroupMembersCaches.ContainsKey(members.GroupData.RequestID))
                 {
-                    GroupMember groupMember = new GroupMember(block.AgentID);
+                    groupMemberCache = GroupMembersCaches[members.GroupData.RequestID];
 
-                    groupMember.Contribution = block.Contribution;
-                    groupMember.IsOwner = block.IsOwner;
-                    groupMember.OnlineStatus = Helpers.FieldToString(block.OnlineStatus);
-                    groupMember.Powers = block.AgentPowers;
-                    groupMember.Title = Helpers.FieldToString(block.Title);
+                    foreach (GroupMembersReplyPacket.MemberDataBlock block in members.MemberData)
+                    {
+                        GroupMember groupMember = new GroupMember(block.AgentID);
 
-                    groupMemberCache[block.AgentID] = groupMember;
-                }
+                        groupMember.Contribution = block.Contribution;
+                        groupMember.IsOwner = block.IsOwner;
+                        groupMember.OnlineStatus = Helpers.FieldToString(block.OnlineStatus);
+                        groupMember.Powers = block.AgentPowers;
+                        groupMember.Title = Helpers.FieldToString(block.Title);
 
-                // Release the mutex before the callback
-                GroupMembersCachesMutex.ReleaseMutex();
-
-                // Check if we've received all the group members that are showing up
-                if (groupMemberCache.Count >= members.GroupData.MemberCount)
-                {
-                    GroupMembersCallbacks[members.GroupData.GroupID](groupMemberCache);
+                        groupMemberCache[block.AgentID] = groupMember;
+                    }
                 }
             }
-            else
-            {
-                GroupMembersCachesMutex.ReleaseMutex();
-            }
 
-            #endregion GroupMembersCachesMutex
+            // Check if we've received all the group members that are showing up
+            if (groupMemberCache != null && groupMemberCache.Count >= members.GroupData.MemberCount)
+            {
+                GroupMembersCallbacks[members.GroupData.GroupID](groupMemberCache);
+            }
         }
 
         private void GroupRoleDataHandler(Packet packet, Simulator simulator)
         {
             GroupRoleDataReplyPacket roles = (GroupRoleDataReplyPacket)packet;
+            Dictionary<LLUUID, GroupRole> groupRoleCache = null;
 
-            #region GroupRolesCachesMutex
-            GroupRolesCachesMutex.WaitOne();
-
-            // If nothing is registered to receive this RequestID drop the data
-            if (GroupRolesCaches.ContainsKey(roles.GroupData.RequestID))
+            lock (GroupRolesCaches)
             {
-                Dictionary<LLUUID, GroupRole> groupRoleCache = GroupRolesCaches[roles.GroupData.RequestID];
-
-                foreach (GroupRoleDataReplyPacket.RoleDataBlock block in roles.RoleData)
+                // If nothing is registered to receive this RequestID drop the data
+                if (GroupRolesCaches.ContainsKey(roles.GroupData.RequestID))
                 {
-                    GroupRole groupRole = new GroupRole(block.RoleID);
+                    groupRoleCache = GroupRolesCaches[roles.GroupData.RequestID];
 
-                    groupRole.Description = Helpers.FieldToString(block.Description);
-                    groupRole.Name = Helpers.FieldToString(block.Name);
-                    groupRole.Powers = block.Powers;
-                    groupRole.Title = Helpers.FieldToString(block.Title);
+                    foreach (GroupRoleDataReplyPacket.RoleDataBlock block in roles.RoleData)
+                    {
+                        GroupRole groupRole = new GroupRole(block.RoleID);
 
-                    groupRoleCache[block.RoleID] = groupRole;
-                }
+                        groupRole.Description = Helpers.FieldToString(block.Description);
+                        groupRole.Name = Helpers.FieldToString(block.Name);
+                        groupRole.Powers = block.Powers;
+                        groupRole.Title = Helpers.FieldToString(block.Title);
 
-                // Release the mutex before the callback
-                GroupRolesCachesMutex.ReleaseMutex();
-
-                // Check if we've received all the group members that are showing up
-                if (groupRoleCache.Count >= roles.GroupData.RoleCount)
-                {
-                    GroupRolesCallbacks[roles.GroupData.GroupID](groupRoleCache);
+                        groupRoleCache[block.RoleID] = groupRole;
+                    }
                 }
             }
-            else
-            {
-                GroupRolesCachesMutex.ReleaseMutex();
-            }
 
-            GroupRolesCachesMutex.ReleaseMutex();
-            #endregion GroupRolesCachesMutex
+            // Check if we've received all the group members that are showing up
+            if (groupRoleCache != null && groupRoleCache.Count >= roles.GroupData.RoleCount)
+            {
+                GroupRolesCallbacks[roles.GroupData.GroupID](groupRoleCache);
+            }
         }
 
         private void GroupRoleMembersHandler(Packet packet, Simulator simulator)
         {
             GroupRoleMembersReplyPacket members = (GroupRoleMembersReplyPacket)packet;
+            List<KeyValuePair<LLUUID, LLUUID>> groupRoleMemberCache = null;
+
+            lock (GroupRolesMembersCaches)
+            {
+                // If nothing is registered to receive this RequestID drop the data
+                if (GroupRolesMembersCaches.ContainsKey(members.AgentData.RequestID))
+                {
+                    groupRoleMemberCache = GroupRolesMembersCaches[members.AgentData.RequestID];
+                    int i = 0;
+
+                    foreach (GroupRoleMembersReplyPacket.MemberDataBlock block in members.MemberData)
+                    {
+                        KeyValuePair<LLUUID, LLUUID> rolemember = 
+                            new KeyValuePair<LLUUID, LLUUID>(block.RoleID, block.MemberID);
+
+                        groupRoleMemberCache[i++] = rolemember;
+                    }
+                }
+            }
+
+            // Check if we've received all the pairs that are showing up
+            if (groupRoleMemberCache != null && groupRoleMemberCache.Count >= members.AgentData.TotalPairs)
+            {
+                GroupRolesMembersCallbacks[members.AgentData.GroupID](groupRoleMemberCache);
+            }
         }
 
         private void GroupActiveProposalItemHandler(Packet packet, Simulator simulator)
         {
-            ;
+            //GroupActiveProposalItemReplyPacket proposal = (GroupActiveProposalItemReplyPacket)packet;
+
+            // TODO: Create a proposal class to represent the fields in a proposal item
         }
 
         private void GroupVoteHistoryItemHandler(Packet packet, Simulator simulator)
         {
-            ;
+            //GroupVoteHistoryItemReplyPacket history = (GroupVoteHistoryItemReplyPacket)packet;
+
+            // TODO: This was broken in the official viewer when I was last trying to work  on it
         }
 
         private void GroupAccountSummaryHandler(Packet packet, Simulator simulator)
         {
-            ;
+            GroupAccountSummaryReplyPacket summary = (GroupAccountSummaryReplyPacket)packet;
+
+            if (GroupAccountSummaryCallbacks.ContainsKey(summary.AgentData.GroupID))
+            {
+                GroupAccountSummary account = new GroupAccountSummary();
+
+                account.Balance = summary.MoneyData.Balance;
+                account.CurrentInterval = summary.MoneyData.CurrentInterval;
+                account.GroupTaxCurrent = summary.MoneyData.GroupTaxCurrent;
+                account.GroupTaxEstimate = summary.MoneyData.GroupTaxEstimate;
+                account.IntervalDays = summary.MoneyData.IntervalDays;
+                account.LandTaxCurrent = summary.MoneyData.LandTaxCurrent;
+                account.LandTaxEstimate = summary.MoneyData.LandTaxEstimate;
+                account.LastTaxDate = Helpers.FieldToString(summary.MoneyData.LastTaxDate);
+                account.LightTaxCurrent = summary.MoneyData.LightTaxCurrent;
+                account.LightTaxEstimate = summary.MoneyData.LightTaxEstimate;
+                account.NonExemptMembers = summary.MoneyData.NonExemptMembers;
+                account.ObjectTaxCurrent = summary.MoneyData.ObjectTaxCurrent;
+                account.ObjectTaxEstimate = summary.MoneyData.ObjectTaxEstimate;
+                account.ParcelDirFeeCurrent = summary.MoneyData.ParcelDirFeeCurrent;
+                account.ParcelDirFeeEstimate = summary.MoneyData.ParcelDirFeeEstimate;
+                account.StartDate = Helpers.FieldToString(summary.MoneyData.StartDate);
+                account.TaxDate = Helpers.FieldToString(summary.MoneyData.TaxDate);
+                account.TotalCredits = summary.MoneyData.TotalCredits;
+                account.TotalDebits = summary.MoneyData.TotalDebits;
+
+                GroupAccountSummaryCallbacks[summary.AgentData.GroupID](account);
+            }
         }
 
         private void GroupAccountDetailsHandler(Packet packet, Simulator simulator)
         {
-            ;
+            GroupAccountDetailsReplyPacket details = (GroupAccountDetailsReplyPacket)packet;
+
+            if (GroupAccountDetailsCallbacks.ContainsKey(details.AgentData.GroupID))
+            {
+                GroupAccountDetails account = new GroupAccountDetails();
+
+                account.CurrentInterval = details.MoneyData.CurrentInterval;
+                account.IntervalDays = details.MoneyData.IntervalDays;
+                account.StartDate = Helpers.FieldToString(details.MoneyData.StartDate);
+
+                account.HistoryItems = new List<KeyValuePair<string, int>>();
+
+                foreach (GroupAccountDetailsReplyPacket.HistoryDataBlock block in details.HistoryData)
+                {
+                    KeyValuePair<string, int> item = 
+                        new KeyValuePair<string, int>(Helpers.FieldToString(block.Description), block.Amount);
+
+                    account.HistoryItems.Add(item);
+                }
+
+                GroupAccountDetailsCallbacks[details.AgentData.GroupID](account);
+            }
         }
 
         private void GroupAccountTransactionsHandler(Packet packet, Simulator simulator)
         {
-            ;
+            //GroupAccountTransactionsReplyPacket transactions = (GroupAccountTransactionsReplyPacket)packet;
+
+            // TODO: This one is slightly different than the previous two
+
+            //if (GroupAccountTransactionsCallbacks.ContainsKey(transactions.AgentData.GroupID))
+            //{
+            //    GroupAccountTransactions account = new GroupAccountTransactions();
+
+            //    ;
+
+            //    GroupAccountTransactionsCallbacks[transactions.AgentData.GroupID](account);
+            //}
         }
     }
 }

@@ -346,9 +346,6 @@ namespace libsecondlife
     /// </summary>
     public class ParcelManager
     {
-        /// <summary></summary>
-        public List<DirectoryParcel> ParcelsForSale;
-
         private SecondLife Client;
         private bool ReservedNewbie;
         private bool ForSale;
@@ -358,6 +355,7 @@ namespace libsecondlife
         private bool DirLandTimeout;
         private bool ParcelInfoTimeout;
         private DirectoryParcel ParcelInfoParcel;
+        private List<DirectoryParcel> ParcelsForSale;
 
         /// <summary>
         /// 
@@ -368,13 +366,18 @@ namespace libsecondlife
             Client = client;
             ParcelsForSale = new List<DirectoryParcel>();
 
+            // Setup the timer
+            DirLandTimer = new Timer(8000);
+            DirLandTimer.Elapsed += new ElapsedEventHandler(DirLandTimerEvent);
+            DirLandTimeout = false;
+
             // Setup the callbacks
             Client.Network.RegisterCallback(PacketType.DirLandReply, new PacketCallback(DirLandReplyHandler));
             Client.Network.RegisterCallback(PacketType.ParcelInfoReply, new PacketCallback(ParcelInfoReplyHandler));
             Client.Network.RegisterCallback(PacketType.ParcelProperties, new PacketCallback(ParcelPropertiesHandler));
             Client.Network.RegisterCallback(PacketType.ParcelDwellReply, new PacketCallback(ParcelDwellReplyHandler));
 
-            ParcelInfoParcel = new DirectoryParcel();
+            ParcelInfoParcel = null;
         }
 
         /// <summary>
@@ -452,9 +455,7 @@ namespace libsecondlife
             // Clear the list
             ParcelsForSale.Clear();
 
-            // Setup the timer
-            DirLandTimer = new Timer(15000);
-            DirLandTimer.Elapsed += new ElapsedEventHandler(DirLandTimerEvent);
+            // Start the timer
             DirLandTimeout = false;
             DirLandTimer.Start();
 
@@ -510,7 +511,7 @@ namespace libsecondlife
 
             // Fire off the next request, if we are downloading the whole sim
             bool hasTriggered = false;
-            if (simulator.Region.ParcelDownloading == true)
+            if (simulator.Region.ParcelDownloading)
             {
                 for (x = 0; x < 64; x++)
                 {
@@ -540,117 +541,123 @@ namespace libsecondlife
             }
 
             // This map is complete, fire callback
-            if (hasTriggered == false)
+            if (!hasTriggered)
             {
                 simulator.Region.FilledParcels();
             }
 
-            // Save this parcels data
-            // TODO: Lots of values are not being stored, Parcel needs to be expanded to take all the data.
-            simulator.Region.ParcelsMutex.WaitOne();
+            Parcel parcel = null;
 
-            if (!simulator.Region.Parcels.ContainsKey(LocalID))
+            lock (simulator.Region.Parcels)
             {
-                simulator.Region.Parcels[LocalID] = new Parcel(simulator);
+                if (!simulator.Region.Parcels.ContainsKey(LocalID))
+                {
+                    simulator.Region.Parcels[LocalID] = new Parcel(simulator);
+                }
+
+                parcel = simulator.Region.Parcels[LocalID];
             }
 
+            // Save this parcels data
+            // TODO: Lots of values are not being stored, Parcel needs to be expanded to take all the data.
             // August2006:  God help me should I have to type this out again... argh.
             // October2006: I really shouldnt have typed that.
-            ((Parcel)simulator.Region.Parcels[LocalID]).RequestResult       = properties.ParcelData.RequestResult;
-            ((Parcel)simulator.Region.Parcels[LocalID]).SequenceID          = properties.ParcelData.SequenceID;
-            ((Parcel)simulator.Region.Parcels[LocalID]).SnapSelection       = properties.ParcelData.SnapSelection;
-            ((Parcel)simulator.Region.Parcels[LocalID]).SelfCount           = properties.ParcelData.SelfCount;
-            ((Parcel)simulator.Region.Parcels[LocalID]).OtherCount          = properties.ParcelData.OtherCount;
-            ((Parcel)simulator.Region.Parcels[LocalID]).PublicCount         = properties.ParcelData.PublicCount;
-            ((Parcel)simulator.Region.Parcels[LocalID]).LocalID             = LocalID;
-            ((Parcel)simulator.Region.Parcels[LocalID]).OwnerID             = properties.ParcelData.OwnerID;
-            ((Parcel)simulator.Region.Parcels[LocalID]).IsGroupOwned        = properties.ParcelData.IsGroupOwned;
-            ((Parcel)simulator.Region.Parcels[LocalID]).AuctionID           = properties.ParcelData.AuctionID;
-            ((Parcel)simulator.Region.Parcels[LocalID]).ReservedNewbie      = properties.ParcelData.ReservedNewbie;
-            ((Parcel)simulator.Region.Parcels[LocalID]).ClaimDate           = properties.ParcelData.ClaimDate;
-            ((Parcel)simulator.Region.Parcels[LocalID]).ClaimPrice          = properties.ParcelData.ClaimPrice;
-            ((Parcel)simulator.Region.Parcels[LocalID]).RentPrice           = properties.ParcelData.RentPrice;
-            ((Parcel)simulator.Region.Parcels[LocalID]).AABBMin             = properties.ParcelData.AABBMin;
-            ((Parcel)simulator.Region.Parcels[LocalID]).AABBMax             = properties.ParcelData.AABBMax;
-            ((Parcel)simulator.Region.Parcels[LocalID]).Bitmap              = properties.ParcelData.Bitmap;
-            ((Parcel)simulator.Region.Parcels[LocalID]).Area                = properties.ParcelData.Area;
-            ((Parcel)simulator.Region.Parcels[LocalID]).Status              = properties.ParcelData.Status;
-            ((Parcel)simulator.Region.Parcels[LocalID]).SimWideMaxObjects   = properties.ParcelData.SimWideMaxPrims;
-            ((Parcel)simulator.Region.Parcels[LocalID]).SimWideTotalObjects = properties.ParcelData.SimWideTotalPrims;
-            ((Parcel)simulator.Region.Parcels[LocalID]).MaxObjects          = properties.ParcelData.MaxPrims;
-            ((Parcel)simulator.Region.Parcels[LocalID]).TotalObjects        = properties.ParcelData.TotalPrims;
-            ((Parcel)simulator.Region.Parcels[LocalID]).OwnerObjects        = properties.ParcelData.OwnerPrims;
-            ((Parcel)simulator.Region.Parcels[LocalID]).GroupObjects        = properties.ParcelData.GroupPrims;
-            ((Parcel)simulator.Region.Parcels[LocalID]).OtherObjects        = properties.ParcelData.OtherPrims;
-            ((Parcel)simulator.Region.Parcels[LocalID]).ParcelObjectBonus   = properties.ParcelData.ParcelPrimBonus;
-            ((Parcel)simulator.Region.Parcels[LocalID]).OtherCleanTime      = properties.ParcelData.OtherCleanTime;
-            ((Parcel)simulator.Region.Parcels[LocalID]).ParcelFlags         = properties.ParcelData.ParcelFlags;
-            ((Parcel)simulator.Region.Parcels[LocalID]).SalePrice           = properties.ParcelData.SalePrice;
-            ((Parcel)simulator.Region.Parcels[LocalID]).Name                = Helpers.FieldToString(properties.ParcelData.Name);
-            ((Parcel)simulator.Region.Parcels[LocalID]).Desc                = Helpers.FieldToString(properties.ParcelData.Desc);
-            ((Parcel)simulator.Region.Parcels[LocalID]).MusicURL            = Helpers.FieldToString(properties.ParcelData.MusicURL);
-            ((Parcel)simulator.Region.Parcels[LocalID]).MediaURL            = Helpers.FieldToString(properties.ParcelData.MediaURL);
-            ((Parcel)simulator.Region.Parcels[LocalID]).MediaID             = properties.ParcelData.MediaID;
-            ((Parcel)simulator.Region.Parcels[LocalID]).MediaAutoScale      = properties.ParcelData.MediaAutoScale;
-            ((Parcel)simulator.Region.Parcels[LocalID]).GroupID             = properties.ParcelData.GroupID;
-            ((Parcel)simulator.Region.Parcels[LocalID]).PassPrice           = properties.ParcelData.PassPrice;
-            ((Parcel)simulator.Region.Parcels[LocalID]).PassHours           = properties.ParcelData.PassHours;
-            ((Parcel)simulator.Region.Parcels[LocalID]).Category            = properties.ParcelData.Category;
-            ((Parcel)simulator.Region.Parcels[LocalID]).AuthBuyerID         = properties.ParcelData.AuthBuyerID;
-            ((Parcel)simulator.Region.Parcels[LocalID]).SnapshotID          = properties.ParcelData.SnapshotID;
-            ((Parcel)simulator.Region.Parcels[LocalID]).UserLocation        = properties.ParcelData.UserLocation;
-            ((Parcel)simulator.Region.Parcels[LocalID]).UserLookAt          = properties.ParcelData.UserLookAt;
-            ((Parcel)simulator.Region.Parcels[LocalID]).LandingType         = properties.ParcelData.LandingType;
-
-            simulator.Region.ParcelsMutex.ReleaseMutex();
+            parcel.RequestResult       = properties.ParcelData.RequestResult;
+            parcel.SequenceID          = properties.ParcelData.SequenceID;
+            parcel.SnapSelection       = properties.ParcelData.SnapSelection;
+            parcel.SelfCount           = properties.ParcelData.SelfCount;
+            parcel.OtherCount          = properties.ParcelData.OtherCount;
+            parcel.PublicCount         = properties.ParcelData.PublicCount;
+            parcel.LocalID             = LocalID;
+            parcel.OwnerID             = properties.ParcelData.OwnerID;
+            parcel.IsGroupOwned        = properties.ParcelData.IsGroupOwned;
+            parcel.AuctionID           = properties.ParcelData.AuctionID;
+            parcel.ReservedNewbie      = properties.ParcelData.ReservedNewbie;
+            parcel.ClaimDate           = properties.ParcelData.ClaimDate;
+            parcel.ClaimPrice          = properties.ParcelData.ClaimPrice;
+            parcel.RentPrice           = properties.ParcelData.RentPrice;
+            parcel.AABBMin             = properties.ParcelData.AABBMin;
+            parcel.AABBMax             = properties.ParcelData.AABBMax;
+            parcel.Bitmap              = properties.ParcelData.Bitmap;
+            parcel.Area                = properties.ParcelData.Area;
+            parcel.Status              = properties.ParcelData.Status;
+            parcel.SimWideMaxObjects   = properties.ParcelData.SimWideMaxPrims;
+            parcel.SimWideTotalObjects = properties.ParcelData.SimWideTotalPrims;
+            parcel.MaxObjects          = properties.ParcelData.MaxPrims;
+            parcel.TotalObjects        = properties.ParcelData.TotalPrims;
+            parcel.OwnerObjects        = properties.ParcelData.OwnerPrims;
+            parcel.GroupObjects        = properties.ParcelData.GroupPrims;
+            parcel.OtherObjects        = properties.ParcelData.OtherPrims;
+            parcel.ParcelObjectBonus   = properties.ParcelData.ParcelPrimBonus;
+            parcel.OtherCleanTime      = properties.ParcelData.OtherCleanTime;
+            parcel.ParcelFlags         = properties.ParcelData.ParcelFlags;
+            parcel.SalePrice           = properties.ParcelData.SalePrice;
+            parcel.Name                = Helpers.FieldToString(properties.ParcelData.Name);
+            parcel.Desc                = Helpers.FieldToString(properties.ParcelData.Desc);
+            parcel.MusicURL            = Helpers.FieldToString(properties.ParcelData.MusicURL);
+            parcel.MediaURL            = Helpers.FieldToString(properties.ParcelData.MediaURL);
+            parcel.MediaID             = properties.ParcelData.MediaID;
+            parcel.MediaAutoScale      = properties.ParcelData.MediaAutoScale;
+            parcel.GroupID             = properties.ParcelData.GroupID;
+            parcel.PassPrice           = properties.ParcelData.PassPrice;
+            parcel.PassHours           = properties.ParcelData.PassHours;
+            parcel.Category            = properties.ParcelData.Category;
+            parcel.AuthBuyerID         = properties.ParcelData.AuthBuyerID;
+            parcel.SnapshotID          = properties.ParcelData.SnapshotID;
+            parcel.UserLocation        = properties.ParcelData.UserLocation;
+            parcel.UserLookAt          = properties.ParcelData.UserLookAt;
+            parcel.LandingType         = properties.ParcelData.LandingType;
         }
 
         private void ParcelInfoReplyHandler(Packet packet, Simulator simulator)
         {
-            ParcelInfoReplyPacket reply = (ParcelInfoReplyPacket)packet;
-
-            if (!reply.Data.ParcelID.Equals(ParcelInfoParcel.ID))
+            if (ParcelInfoParcel != null)
             {
-                Client.Log("Received a ParcelInfoReply for " + reply.Data.ParcelID.ToString() +
-                        ", looking for " + ParcelInfoParcel.ID.ToString(), Helpers.LogLevel.Warning);
+                ParcelInfoReplyPacket reply = (ParcelInfoReplyPacket)packet;
 
-                // Build and resend the ParcelInfoRequest packet
-                ParcelInfoRequestPacket request = new ParcelInfoRequestPacket();
-                request.AgentData.AgentID = Client.Network.AgentID;
-                request.AgentData.SessionID = Client.Network.SessionID;
-                request.Data.ParcelID = ParcelInfoParcel.ID;
+                if (!reply.Data.ParcelID.Equals(ParcelInfoParcel.ID))
+                {
+                    Client.Log("Received a ParcelInfoReply for " + reply.Data.ParcelID.ToString() +
+                            ", looking for " + ParcelInfoParcel.ID.ToString(), Helpers.LogLevel.Warning);
 
-                Client.Network.SendPacket(request);
+                    // Build and resend the ParcelInfoRequest packet
+                    ParcelInfoRequestPacket request = new ParcelInfoRequestPacket();
+                    request.AgentData.AgentID = Client.Network.AgentID;
+                    request.AgentData.SessionID = Client.Network.SessionID;
+                    request.Data.ParcelID = ParcelInfoParcel.ID;
 
-                return;
+                    Client.Network.SendPacket(request);
+
+                    return;
+                }
+
+                ParcelInfoParcel.SimName = Helpers.FieldToString(reply.Data.SimName);
+                ParcelInfoParcel.ActualArea = reply.Data.ActualArea;
+                ParcelInfoParcel.GlobalPosition.X = reply.Data.GlobalX;
+                ParcelInfoParcel.GlobalPosition.Y = reply.Data.GlobalY;
+                ParcelInfoParcel.GlobalPosition.Z = reply.Data.GlobalZ;
+                ParcelInfoParcel.Name = Helpers.FieldToString(reply.Data.Name);
+                ParcelInfoParcel.Desc = Helpers.FieldToString(reply.Data.Desc);
+                ParcelInfoParcel.SalePrice = reply.Data.SalePrice;
+                ParcelInfoParcel.OwnerID = reply.Data.OwnerID;
+                ParcelInfoParcel.SnapshotID = reply.Data.SnapshotID;
+                ParcelInfoParcel.Dwell = reply.Data.Dwell;
+
+                // Get RegionHandle from GlobalX/GlobalY
+                uint handleX = (uint)Math.Floor(ParcelInfoParcel.GlobalPosition.X / 256.0F);
+                handleX *= 256;
+                uint handleY = (uint)Math.Floor(ParcelInfoParcel.GlobalPosition.Y / 256.0F);
+                handleY *= 256;
+                // FIXME: Helpers function needed
+                //ParcelInfoParcel.RegionHandle = new U64(handleX, handleY);
+
+                // Get SimPosition from GlobalX/GlobalY and RegionHandle
+                ParcelInfoParcel.SimPosition.X = ParcelInfoParcel.GlobalPosition.X - (float)handleX;
+                ParcelInfoParcel.SimPosition.Y = ParcelInfoParcel.GlobalPosition.Y - (float)handleY;
+                ParcelInfoParcel.SimPosition.Z = ParcelInfoParcel.GlobalPosition.Z;
+
+                Finished = true;
             }
-
-            ParcelInfoParcel.SimName = Helpers.FieldToString(reply.Data.SimName);
-            ParcelInfoParcel.ActualArea = reply.Data.ActualArea;
-            ParcelInfoParcel.GlobalPosition.X = reply.Data.GlobalX;
-            ParcelInfoParcel.GlobalPosition.Y = reply.Data.GlobalY;
-            ParcelInfoParcel.GlobalPosition.Z = reply.Data.GlobalZ;
-            ParcelInfoParcel.Name = Helpers.FieldToString(reply.Data.Name);
-            ParcelInfoParcel.Desc = Helpers.FieldToString(reply.Data.Desc);
-            ParcelInfoParcel.SalePrice = reply.Data.SalePrice;
-            ParcelInfoParcel.OwnerID = reply.Data.OwnerID;
-            ParcelInfoParcel.SnapshotID = reply.Data.SnapshotID;
-            ParcelInfoParcel.Dwell = reply.Data.Dwell;
-
-            // Get RegionHandle from GlobalX/GlobalY
-            uint handleX = (uint)Math.Floor(ParcelInfoParcel.GlobalPosition.X / 256.0F);
-            handleX *= 256;
-            uint handleY = (uint)Math.Floor(ParcelInfoParcel.GlobalPosition.Y / 256.0F);
-            handleY *= 256;
-            // FIXME: Helpers function needed
-            //ParcelInfoParcel.RegionHandle = new U64(handleX, handleY);
-
-            // Get SimPosition from GlobalX/GlobalY and RegionHandle
-            ParcelInfoParcel.SimPosition.X = ParcelInfoParcel.GlobalPosition.X - (float)handleX;
-            ParcelInfoParcel.SimPosition.Y = ParcelInfoParcel.GlobalPosition.Y - (float)handleY;
-            ParcelInfoParcel.SimPosition.Z = ParcelInfoParcel.GlobalPosition.Z;
-
-            Finished = true;
         }
 
         //private void ParcelInfoTimerEvent(object source, System.Timers.ElapsedEventArgs ea)

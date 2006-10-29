@@ -84,7 +84,7 @@ namespace libsecondlife
         /// <summary></summary>
 		public int PathTwist = 0;
         /// <summary></summary>
-		public LLUUID Texture = new LLUUID(); // TODO: Add multi-texture support
+        public TextureEntry Textures;
         /// <summary></summary>
 		public uint ProfileHollow = 0;
         /// <summary></summary>
@@ -93,22 +93,29 @@ namespace libsecondlife
 		public LLQuaternion Rotation = new LLQuaternion();
         /// <summary></summary>
 		public uint State;
+        /// <summary></summary>
+        public string Text;
+
+        private SecondLife Client;
 
         /// <summary>
         /// 
         /// </summary>
-        public PrimObject()
+        public PrimObject(SecondLife client)
         {
-            Texture = new LLUUID();
+            Client = client;
+            Textures = new TextureEntry(Client);
         }
 		
         /// <summary>
         /// 
         /// </summary>
         /// <param name="texture"></param>
-		public PrimObject(LLUUID texture)
+		public PrimObject(SecondLife client, LLUUID texture)
 		{
-			Texture = texture;
+            Client = client;
+            Textures = new TextureEntry(Client);
+            Textures.DefaultTexture.TextureID = texture;
 		}
 
         /// <summary>
