@@ -91,13 +91,7 @@
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="AssetSystem\Asset.cs" />
-    <Compile Include="AssetSystem\AssetImage.cs" />
-    <Compile Include="AssetSystem\AssetManager.cs" />
-    <Compile Include="AssetSystem\AssetNotecard.cs" />
-    <Compile Include="AssetSystem\AssetPacketHelpers.cs" />
-    <Compile Include="AssetSystem\ImageManager.cs" />
-    <Compile Include="AssetSystem\ImagePacketHelpers.cs" />
+    <Compile Include="AssetSystem\NewAssetManager.cs" />
     <Compile Include="Avatar.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -105,18 +99,11 @@
     <Compile Include="EstateTools.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="AssetSystem\FastImageTool.cs" />
     <Compile Include="GridManager.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="GroupManager.cs" />
-    <Compile Include="InventorySystem\InventoryBase.cs" />
-    <Compile Include="InventorySystem\InventoryFolder.cs" />
-    <Compile Include="InventorySystem\InventoryImage.cs" />
-    <Compile Include="InventorySystem\InventoryItem.cs" />
-    <Compile Include="InventorySystem\InventoryManager.cs" />
-    <Compile Include="InventorySystem\InventoryNotecard.cs" />
-    <Compile Include="InventorySystem\InventoryPacketHelper.cs" />
+    <Compile Include="Helpers.cs" />
     <Compile Include="JSON\JSONArray.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -144,9 +131,7 @@
     <Compile Include="ProtocolManager.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Region.cs">
-      <SubType>Code</SubType>
-    </Compile>
+    <Compile Include="RegionManager.cs" />
     <Compile Include="SecondLife.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -193,6 +178,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="_Packets_.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="InventorySystem\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

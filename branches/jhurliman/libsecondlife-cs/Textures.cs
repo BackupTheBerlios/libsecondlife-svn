@@ -149,7 +149,7 @@ namespace libsecondlife
             if (data.Length < 40)
             {
                 Client.Log("Skipping a TextureEntry, too short (" + data.Length + " bytes)", 
-                    Helpers.LogLevel.Warning);
+                    LogLevel.Warning);
                 return;
             }
 
@@ -305,7 +305,7 @@ namespace libsecondlife
             catch (Exception e)
             {
                 Client.Log("Had a problem decoding a TextureEntry: " + e.ToString(),
-                    Helpers.LogLevel.Warning);
+                    LogLevel.Warning);
             }
         }
     }

@@ -563,7 +563,7 @@ namespace libsecondlife
 									}
 									else
 									{
-										//Client.Log("Unknown packet frequency", Helpers.LogLevel.Error);
+										//Client.Log("Unknown packet frequency", LogLevel.Error);
                                         throw new Exception("Unknown packet frequency");
 									}
 								}
@@ -635,7 +635,7 @@ namespace libsecondlife
 								}
 								else
 								{
-									//Client.Log("Unknown block frequency", Helpers.LogLevel.Error);
+									//Client.Log("Unknown block frequency", LogLevel.Error);
                                     throw new Exception("Unknown block frequency");
 								}
 

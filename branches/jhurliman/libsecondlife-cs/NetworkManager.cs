@@ -167,7 +167,7 @@ namespace libsecondlife
             Inbox = new SortedList<ushort, ushort>();
             PendingAcks = new List<uint>();
 
-            Client.Log("Connecting to " + ip.ToString() + ":" + port, Helpers.LogLevel.Info);
+            Client.Log("Connecting to " + ip.ToString() + ":" + port, LogLevel.Info);
 
             try
             {
@@ -210,7 +210,7 @@ namespace libsecondlife
             catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
-                Client.Log(e.ToString(), Helpers.LogLevel.Error);
+                Client.Log(e.ToString(), LogLevel.Error);
             }
 		}
 
@@ -239,7 +239,7 @@ namespace libsecondlife
             }
             catch (SocketException e)
             {
-                Client.Log(e.ToString(), Helpers.LogLevel.Error);
+                Client.Log(e.ToString(), LogLevel.Error);
             }
 
             connected = false;
@@ -258,7 +258,7 @@ namespace libsecondlife
 			if (!connected && packet.Type != PacketType.UseCircuitCode)
 			{
 				Client.Log("Trying to send a " + packet.Type.ToString() + " packet when the socket is closed",
-					Helpers.LogLevel.Warning);
+					LogLevel.Warning);
 				
 				throw new NotConnectedException();
 			}
@@ -283,7 +283,7 @@ namespace libsecondlife
                         {
                             Client.Log("Attempted to add a duplicate sequence number (" +
                                 packet.Header.Sequence + ") to the NeedAck dictionary for packet type " +
-                                packet.Type.ToString(), Helpers.LogLevel.Warning);
+                                packet.Type.ToString(), LogLevel.Warning);
                         }
                     }
 
@@ -329,7 +329,7 @@ namespace libsecondlife
             }
             catch (SocketException e)
             {
-                Client.Log(e.ToString(), Helpers.LogLevel.Error);
+                Client.Log(e.ToString(), LogLevel.Error);
             }
 		}
 
@@ -350,7 +350,7 @@ namespace libsecondlife
             }
             catch (SocketException e)
             {
-                Client.Log(e.ToString(), Helpers.LogLevel.Error);
+                Client.Log(e.ToString(), LogLevel.Error);
             }
         }
 
@@ -426,7 +426,7 @@ namespace libsecondlife
                 catch (SocketException)
                 {
                     Client.Log(endPoint.ToString() + " socket is closed, shutting down " + this.Region.Name, 
-                        Helpers.LogLevel.Info);
+                        LogLevel.Info);
 
                     connected = false;
                     Network.DisconnectSim(this);
@@ -437,7 +437,7 @@ namespace libsecondlife
             // Fail-safe check
             if (packet == null)
             {
-                Client.Log("Couldn't build a message from the incoming data", Helpers.LogLevel.Warning);
+                Client.Log("Couldn't build a message from the incoming data", LogLevel.Warning);
                 return;
             }
 
@@ -456,7 +456,7 @@ namespace libsecondlife
                     {
                         Client.Log("Received a duplicate " + packet.Type.ToString() + ", sequence=" +
                             packet.Header.Sequence + ", resent=" + ((packet.Header.Resent) ? "Yes" : "No"),
-                            Helpers.LogLevel.Info);
+                            LogLevel.Info);
 
                         // Send an ACK for this packet immediately
                         SendAck(packet.Header.Sequence);
@@ -489,7 +489,7 @@ namespace libsecondlife
                         }
                         else
                         {
-                            Client.Log("Appended ACK for a packet we didn't send: " + ack, Helpers.LogLevel.Warning);
+                            Client.Log("Appended ACK for a packet we didn't send: " + ack, LogLevel.Warning);
                         }
                     }
                 }
@@ -543,7 +543,7 @@ namespace libsecondlife
             }
             catch (Exception e)
             {
-                Client.Log("Caught an exception in a packet callback: " + e.ToString(), Helpers.LogLevel.Warning);
+                Client.Log("Caught an exception in a packet callback: " + e.ToString(), LogLevel.Warning);
             }
             #endregion FireCallbacks
         }
@@ -628,9 +628,7 @@ namespace libsecondlife
 			LoginValues = null;
 
 			// Register the internal callbacks
-			RegisterCallback(PacketType.RegionHandshake, new PacketCallback(RegionHandshakeHandler));
 			RegisterCallback(PacketType.StartPingCheck, new PacketCallback(StartPingCheckHandler));
-			RegisterCallback(PacketType.ParcelOverlay, new PacketCallback(ParcelOverlayHandler));
 			RegisterCallback(PacketType.EnableSimulator, new PacketCallback(EnableSimulatorHandler));
             RegisterCallback(PacketType.KickUser, new PacketCallback(KickUserHandler));
 
@@ -665,7 +663,7 @@ namespace libsecondlife
 			if (!Callbacks.ContainsKey(type))
 			{
 				Client.Log("Trying to unregister a callback for packet " + type.ToString() + 
-					" when no callbacks are setup for that packet", Helpers.LogLevel.Info);
+					" when no callbacks are setup for that packet", LogLevel.Info);
 				return;
 			}
 
@@ -678,7 +676,7 @@ namespace libsecondlife
 			else
 			{
                 Client.Log("Trying to unregister a non-existant callback for packet " + type.ToString(),
-					Helpers.LogLevel.Info);
+					LogLevel.Info);
 			}
 		}
 
@@ -862,7 +860,7 @@ namespace libsecondlife
 
 			if (result.IsFault)
 			{
-				Client.Log("Fault " + result.FaultCode + ": " + result.FaultString, Helpers.LogLevel.Error);
+				Client.Log("Fault " + result.FaultCode + ": " + result.FaultString, LogLevel.Error);
 				LoginError = "Fault " + result.FaultCode + ": " + result.FaultString;
 				LoginValues = null;
 				return false;
@@ -985,7 +983,7 @@ namespace libsecondlife
             }
             catch (Exception e)
             {
-                Client.Log("Login error: " + e.ToString(), Helpers.LogLevel.Error);
+                Client.Log("Login error: " + e.ToString(), LogLevel.Error);
                 return false;
             }
 		}
@@ -1034,7 +1032,7 @@ namespace libsecondlife
                 return;
             }
 
-            Client.Log("Logging out", Helpers.LogLevel.Info);
+            Client.Log("Logging out", LogLevel.Info);
 
             DisconnectTimer.Stop();
             connected = false;
@@ -1195,7 +1193,7 @@ namespace libsecondlife
             if (CurrentSim.DisconnectCandidate)
             {
                 Client.Log("Network timeout for the current simulator (" +
-                    CurrentSim.Region.Name + "), logging out", Helpers.LogLevel.Warning);
+                    CurrentSim.Region.Name + "), logging out", LogLevel.Warning);
 
                 DisconnectTimer.Stop();
                 connected = false;
@@ -1243,7 +1241,7 @@ namespace libsecondlife
                     // This sim hasn't received any network traffic since the 
                     // timer last elapsed, consider it disconnected
                     Client.Log("Network timeout for simulator " + sim.Region.Name +
-                        ", disconnecting", Helpers.LogLevel.Warning);
+                        ", disconnecting", LogLevel.Warning);
 
                     DisconnectSim(sim);
                 }
@@ -1259,73 +1257,6 @@ namespace libsecondlife
             // TODO: We can use OldestUnacked to correct transmission errors
 
             SendPacket((Packet)ping, simulator);
-		}
-
-		private void RegionHandshakeHandler(Packet packet, Simulator simulator)
-		{
-            // Send a RegionHandshakeReply
-            RegionHandshakeReplyPacket reply = new RegionHandshakeReplyPacket();
-            reply.AgentData.AgentID = AgentID;
-            reply.AgentData.SessionID = SessionID;
-            reply.RegionInfo.Flags = 0;
-            SendPacket(reply, simulator);
-
-            // TODO: Do we need to send an AgentUpdate to each sim upon connection?
-
-            RegionHandshakePacket handshake = (RegionHandshakePacket)packet;
-
-            simulator.Region.ID = handshake.RegionInfo.CacheID;
-
-            // FIXME:
-            //handshake.RegionInfo.BillableFactor;
-            //handshake.RegionInfo.RegionFlags;
-            //handshake.RegionInfo.SimAccess;
-
-            simulator.Region.IsEstateManager = handshake.RegionInfo.IsEstateManager;
-            simulator.Region.Name = Helpers.FieldToString(handshake.RegionInfo.SimName);
-            simulator.Region.SimOwner = handshake.RegionInfo.SimOwner;
-            simulator.Region.TerrainBase0 = handshake.RegionInfo.TerrainBase0;
-            simulator.Region.TerrainBase1 = handshake.RegionInfo.TerrainBase1;
-            simulator.Region.TerrainBase2 = handshake.RegionInfo.TerrainBase2;
-            simulator.Region.TerrainBase3 = handshake.RegionInfo.TerrainBase3;
-            simulator.Region.TerrainDetail0 = handshake.RegionInfo.TerrainDetail0;
-            simulator.Region.TerrainDetail1 = handshake.RegionInfo.TerrainDetail1;
-            simulator.Region.TerrainDetail2 = handshake.RegionInfo.TerrainDetail2;
-            simulator.Region.TerrainDetail3 = handshake.RegionInfo.TerrainDetail3;
-            simulator.Region.TerrainHeightRange00 = handshake.RegionInfo.TerrainHeightRange00;
-            simulator.Region.TerrainHeightRange01 = handshake.RegionInfo.TerrainHeightRange01;
-            simulator.Region.TerrainHeightRange10 = handshake.RegionInfo.TerrainHeightRange10;
-            simulator.Region.TerrainHeightRange11 = handshake.RegionInfo.TerrainHeightRange11;
-            simulator.Region.TerrainStartHeight00 = handshake.RegionInfo.TerrainStartHeight00;
-            simulator.Region.TerrainStartHeight01 = handshake.RegionInfo.TerrainStartHeight01;
-            simulator.Region.TerrainStartHeight10 = handshake.RegionInfo.TerrainStartHeight10;
-            simulator.Region.TerrainStartHeight11 = handshake.RegionInfo.TerrainStartHeight11;
-            simulator.Region.WaterHeight = handshake.RegionInfo.WaterHeight;
-
-            Client.Log("Received a region handshake for " + simulator.Region.Name, Helpers.LogLevel.Info);
-		}
-
-		private void ParcelOverlayHandler(Packet packet, Simulator simulator)
-		{
-            ParcelOverlayPacket overlay = (ParcelOverlayPacket)packet;
-
-            if (overlay.ParcelData.SequenceID >= 0 && overlay.ParcelData.SequenceID <= 3)
-            {
-                Array.Copy(overlay.ParcelData.Data, 0, simulator.Region.ParcelOverlay,
-                    overlay.ParcelData.SequenceID * 1024, 1024);
-                simulator.Region.ParcelOverlaysReceived++;
-
-                if (simulator.Region.ParcelOverlaysReceived > 3)
-                {
-                    Client.Log("Finished building the " + simulator.Region.Name + " parcel overlay",
-                        Helpers.LogLevel.Info);
-                }
-            }
-            else
-            {
-                Client.Log("Parcel overlay with sequence ID of " + overlay.ParcelData.SequenceID + 
-                    " received from " + simulator.Region.Name, Helpers.LogLevel.Warning);
-            }
 		}
 
 		private void EnableSimulatorHandler(Packet packet, Simulator simulator)

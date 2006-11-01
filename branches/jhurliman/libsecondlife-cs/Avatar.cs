@@ -455,7 +455,7 @@ namespace libsecondlife
             teleport.Info.Position = position;
             teleport.Info.RegionHandle = regionHandle;
 
-            Client.Log("Teleporting to region " + regionHandle.ToString(), Helpers.LogLevel.Info);
+            Client.Log("Teleporting to region " + regionHandle.ToString(), LogLevel.Info);
 
             Client.Network.SendPacket(teleport);
         }
@@ -490,7 +490,7 @@ namespace libsecondlife
             
             teleport.Info.RegionHandle = regionHandle;
 
-            Client.Log("Teleporting to region " + regionHandle.ToString(), Helpers.LogLevel.Info);
+            Client.Log("Teleporting to region " + regionHandle.ToString(), LogLevel.Info);
 
             // Start the timeout check
             TeleportTimeout = false;
@@ -809,7 +809,7 @@ namespace libsecondlife
 
                     Client.Log("Moved to new sim " + Client.Network.CurrentSim.Region.Name + "(" + 
                         Client.Network.CurrentSim.IPEndPoint.ToString() + ")",
-                        Helpers.LogLevel.Info);
+                        LogLevel.Info);
 
                     if (OnBeginTeleport != null)
                     {
@@ -826,7 +826,7 @@ namespace libsecondlife
                     TeleportMessage = "Failed to connect to the new sim after a teleport";
                     TeleportStat = TeleportStatus.Failed;
 
-                    Client.Log(TeleportMessage, Helpers.LogLevel.Warning);
+                    Client.Log(TeleportMessage, LogLevel.Warning);
 
                     if (OnBeginTeleport != null)
                     {

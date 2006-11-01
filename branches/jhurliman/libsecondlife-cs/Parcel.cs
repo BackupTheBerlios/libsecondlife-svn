@@ -618,7 +618,7 @@ namespace libsecondlife
                 if (!reply.Data.ParcelID.Equals(ParcelInfoParcel.ID))
                 {
                     Client.Log("Received a ParcelInfoReply for " + reply.Data.ParcelID.ToString() +
-                            ", looking for " + ParcelInfoParcel.ID.ToString(), Helpers.LogLevel.Warning);
+                            ", looking for " + ParcelInfoParcel.ID.ToString(), LogLevel.Warning);
 
                     // Build and resend the ParcelInfoRequest packet
                     ParcelInfoRequestPacket request = new ParcelInfoRequestPacket();
@@ -694,7 +694,7 @@ namespace libsecondlife
             }
             else
             {
-                Client.Log("Received a DirLandReply after the timeout, ignoring", Helpers.LogLevel.Warning);
+                Client.Log("Received a DirLandReply after the timeout, ignoring", LogLevel.Warning);
             }
         }
 

@@ -7,7 +7,6 @@ using System.Text;
 using System.Windows.Forms;
 using System.IO;
 using libsecondlife;
-using libsecondlife.AssetSystem;
 
 namespace groupmanager
 {
@@ -51,7 +50,7 @@ namespace groupmanager
             Invoke(new MethodInvoker(UpdateProfile));
 
             // Waterdrop: new LLUUID("c77a1c21-e604-7d2c-2c89-5539ce853466")
-            ImageManager im = new ImageManager(Client);
+            /*ImageManager im = new ImageManager(Client);
             byte[] j2cdata = im.RequestImage(Group.InsigniaID);
             //
             JasperWrapper.jas_init();
@@ -60,7 +59,7 @@ namespace groupmanager
             MemoryStream imageStream = new MemoryStream(imagedata, false);
             Image image = Image.FromStream(imageStream, false, false);
             //
-            picInsignia.Image = image;
+            picInsignia.Image = image;*/
         }
 
         private void UpdateProfile()

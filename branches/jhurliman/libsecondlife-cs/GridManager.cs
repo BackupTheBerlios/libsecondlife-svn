@@ -224,7 +224,7 @@ namespace libsecondlife
                 }
                 else
                 {
-                    Client.Log("Couldn't find region " + name, Helpers.LogLevel.Warning);
+                    Client.Log("Couldn't find region " + name, LogLevel.Warning);
                     return null;
                 }
             }

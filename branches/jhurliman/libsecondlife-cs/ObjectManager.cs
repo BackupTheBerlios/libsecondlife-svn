@@ -230,7 +230,7 @@ namespace libsecondlife
                 }
                 else
                 {
-                    Client.Log("Unhandled line in an avatar name: " + line, Helpers.LogLevel.Warning);
+                    Client.Log("Unhandled line in an avatar name: " + line, LogLevel.Warning);
                 }
             }
         }
@@ -345,7 +345,7 @@ namespace libsecondlife
                 {
                     // Unknown
                     Client.Log("Unhandled ObjectData.ObjectData length:\n" + block.ObjectData.Length, 
-                        Helpers.LogLevel.Warning);
+                        LogLevel.Warning);
                 }
             }
         }
