@@ -37,6 +37,15 @@ namespace libsecondlife
     /// <param name="region"></param>
     public delegate void ParcelCompleteCallback(Region region);
 
+    public enum LayerType
+    {
+        // FIXME:
+        Land = 76,
+        Wind = 0,
+        Unknown1 = 55,
+        Unknown2 = 56
+    }
+
     public class LayerBlock
     {
         public byte[] CompressedData;
@@ -382,6 +391,9 @@ namespace libsecondlife
     {
         private SecondLife Client;
 
+        // FIXME: Temporary hack because we don't know how to figure out what LayerData packet goes where
+        private int x = 0;
+
         public RegionManager(SecondLife client)
         {
             Client = client;
@@ -458,7 +470,26 @@ namespace libsecondlife
         {
             LayerDataPacket layer = (LayerDataPacket)packet;
 
+            lock (this)
+            {
+                // FIXME: Parse the data in to blocks (should be simple enough, eh!)
+                string filename = simulator.Region.Name + x.ToString("00") + ".ter";
 
+                if (layer.LayerID.Type == (byte)LayerType.Land)
+                {
+                    File.WriteAllBytes(filename, layer.LayerData.Data);
+                    x++;
+                }
+                else if (layer.LayerID.Type == (byte)LayerType.Wind)
+                {
+                    ;
+                }
+                else
+                {
+                    Client.Log("Received a " + layer.LayerData.Data.Length + " byte LayerData with unknown type " +
+                        layer.LayerID.Type, LogLevel.Warning);
+                }
+            }
         }
     }
 }
