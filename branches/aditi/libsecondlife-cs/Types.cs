@@ -161,9 +161,17 @@ namespace libsecondlife
         /// <returns></returns>
 		public static bool operator==(LLUUID lhs, LLUUID rhs)
 		{
-			if(object.ReferenceEquals(lhs, rhs))  return true;
-			if(object.ReferenceEquals(lhs, null)) return false;
-			if(object.ReferenceEquals(rhs, null)) return false;
+            // If both are null, or both are same instance, return true
+            if (System.Object.ReferenceEquals(lhs, rhs))
+            {
+                return true;
+            }
+
+            // If one is null, but not both, return false.
+            if (((object)lhs == null) || ((object)rhs == null))
+            {
+                return false;
+            }
 
 			for (int i = 0; i < 16; ++i)
 			{
@@ -239,16 +247,19 @@ namespace libsecondlife
 			for (int i = 0; i < 16; ++i)
 			{
 				uuid += Data[i].ToString("x2");
-
 			}
 			uuid = uuid.Insert(20,"-");
 			uuid = uuid.Insert(16,"-");
 			uuid = uuid.Insert(12,"-");
 			uuid = uuid.Insert(8,"-");
 			
-
 			return uuid;
 		}
+
+        /// <summary>
+        /// An LLUUID with a value of all zeroes
+        /// </summary>
+        public readonly static LLUUID Zero = new LLUUID();
 	}
 
     /// <summary>
@@ -336,6 +347,16 @@ namespace libsecondlife
 		}
 
         /// <summary>
+        /// Convert to a single xml node
+        /// </summary>
+        /// <param name="name">The desired name of the xml node</param>
+        /// <returns>A line of xml data containing the values for this data type</returns>
+        public string GetXml(string name)
+        {
+            return "<" + name + " x=\"" + X + "\" y=\"" + Y + "\" z=\"" + Z + "\" />";
+        }
+
+        /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
@@ -379,9 +400,17 @@ namespace libsecondlife
         /// <returns></returns>
 		public static bool operator==(LLVector3 lhs, LLVector3 rhs)
 		{
-			if(object.ReferenceEquals(lhs, rhs))  return true;
-			if(object.ReferenceEquals(lhs, null)) return false;
-			if(object.ReferenceEquals(rhs, null)) return false;
+            // If both are null, or both are same instance, return true
+            if (System.Object.ReferenceEquals(lhs, rhs))
+            {
+                return true;
+            }
+
+            // If one is null, but not both, return false.
+            if (((object)lhs == null) || ((object)rhs == null))
+            {
+                return false;
+            }
 
 			return (lhs.X == rhs.X && lhs.Y == rhs.Y && lhs.Z == rhs.Z);
 		}
@@ -397,6 +426,11 @@ namespace libsecondlife
 			return !(lhs == rhs);
 		}
 
+        public static LLVector3 operator +(LLVector3 lhs, LLVector3 rhs)
+        {
+            return new LLVector3(lhs.X + rhs.X, lhs.Y + rhs.Y, lhs.Z + rhs.Z);
+        }
+
         /// <summary>
         /// 
         /// </summary>
@@ -407,6 +441,21 @@ namespace libsecondlife
         {
             return new LLVector3(lhs.X - rhs.X,lhs.Y - rhs.Y, lhs.Z - rhs.Z);
         }
+
+        public static LLVector3 operator *(LLVector3 vec, LLQuaternion quat)
+        {
+            LLQuaternion vq = new LLQuaternion(vec.X, vec.Y, vec.Z, 0);
+            LLQuaternion nq = new LLQuaternion(-quat.X, -quat.Y, -quat.Z, quat.W);
+
+            LLQuaternion result = (quat * vq) * nq;
+
+            return new LLVector3(result.X, result.Y, result.Z);
+        }
+
+        /// <summary>
+        /// An LLVector3 with a value of 0,0,0
+        /// </summary>
+        public readonly static LLVector3 Zero = new LLVector3();
 	}
 
     /// <summary>
@@ -489,6 +538,11 @@ namespace libsecondlife
 		{
 			return X.ToString() + " " + Y.ToString() + " " + Z.ToString();
 		}
+
+        /// <summary>
+        /// An LLVector3d with a value of 0,0,0
+        /// </summary>
+        public readonly static LLVector3d Zero = new LLVector3d();
 	}
 
     /// <summary>
@@ -564,6 +618,11 @@ namespace libsecondlife
 		{
 			return X.ToString() + " " + Y.ToString() + " " + Z.ToString() + " " + S.ToString();
 		}
+
+        /// <summary>
+        /// An LLVector4 with a value of 0,0,0,0
+        /// </summary>
+        public readonly static LLVector4 Zero = new LLVector4();
 	}
 
     /// <summary>
@@ -633,6 +692,22 @@ namespace libsecondlife
         }
 
         /// <summary>
+        /// Build a quaternion from normalized float values
+        /// </summary>
+        /// <param name="x">X value from -1.0 to 1.0</param>
+        /// <param name="y">Y value from -1.0 to 1.0</param>
+        /// <param name="z">Z value from -1.0 to 1.0</param>
+        public LLQuaternion(float x, float y, float z)
+        {
+            X = x;
+            Y = y;
+            Z = z;
+
+            float xyzsum = 1 - X * X - Y * Y - Z * Z;
+            W = (xyzsum > 0) ? (float)Math.Sqrt(xyzsum) : 0;
+        }
+
+        /// <summary>
         /// 
         /// </summary>
         /// <param name="x"></param>
@@ -653,20 +728,6 @@ namespace libsecondlife
         /// <returns></returns>
 		public byte[] GetBytes()
 		{
-            //byte[] byteArray = new byte[16];
-
-            //Array.Copy(BitConverter.GetBytes(X), 0, byteArray, 0, 4);
-            //Array.Copy(BitConverter.GetBytes(Y), 0, byteArray, 4, 4);
-            //Array.Copy(BitConverter.GetBytes(Z), 0, byteArray, 8, 4);
-            //Array.Copy(BitConverter.GetBytes(W), 0, byteArray, 12, 4);
-
-            //if(!BitConverter.IsLittleEndian) {
-            //    Array.Reverse(byteArray, 0, 4);
-            //    Array.Reverse(byteArray, 4, 4);
-            //    Array.Reverse(byteArray, 8, 4);
-            //    Array.Reverse(byteArray, 12, 4);
-            //}
-
             byte[] bytes = new byte[12];
             float norm;
 
@@ -696,12 +757,75 @@ namespace libsecondlife
 		}
 
         /// <summary>
+        /// Convert to a single xml node
+        /// </summary>
+        /// <param name="name">The desired name of the xml node</param>
+        /// <returns>A line of xml data containing the values for this data type</returns>
+        public string GetXml(string name)
+        {
+            return "<" + name + " x=\"" + X + "\" y=\"" + Y + "\" z=\"" + Z + "\" w=\"" + W + "\" />";
+        }
+
+        public override int GetHashCode()
+        {
+            float sum = X + Y + Z + W;
+            return sum.GetHashCode();
+        }
+
+        public override bool Equals(object o)
+        {
+            if (!(o is LLQuaternion)) return false;
+
+            LLQuaternion quaternion = (LLQuaternion)o;
+
+            return X == quaternion.X && Y == quaternion.Y && Z == quaternion.Z && W == quaternion.W;
+        }
+
+        public static bool operator ==(LLQuaternion lhs, LLQuaternion rhs)
+        {
+            // If both are null, or both are same instance, return true
+            if (System.Object.ReferenceEquals(lhs, rhs))
+            {
+                return true;
+            }
+
+            // If one is null, but not both, return false.
+            if (((object)lhs == null) || ((object)rhs == null))
+            {
+                return false;
+            }
+
+            // Return true if the fields match:
+            return lhs.X == rhs.X && lhs.Y == rhs.Y && lhs.Z == rhs.Z && lhs.W == rhs.W;
+        }
+
+        public static bool operator !=(LLQuaternion lhs, LLQuaternion rhs)
+        {
+            return !(lhs == rhs);
+        }
+
+        public static LLQuaternion operator *(LLQuaternion lhs, LLQuaternion rhs)
+        {
+            LLQuaternion ret = new LLQuaternion();
+            ret.W = lhs.W * rhs.W - lhs.X * rhs.X - lhs.Y * rhs.Y - lhs.Z * rhs.Z;
+            ret.X = lhs.W * rhs.X + lhs.X * rhs.W + lhs.Y * rhs.Z - lhs.Z * rhs.Y;
+            ret.Y = lhs.W * rhs.Y + lhs.Y * rhs.W + lhs.Z * rhs.X - lhs.X * rhs.Z;
+            ret.Z = lhs.W * rhs.Z + lhs.Z * rhs.W + lhs.X * rhs.Y - lhs.Y * rhs.X;
+            return ret;
+        }
+
+        /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
 		public override string ToString()
 		{
-			return X.ToString() + " " + Y.ToString() + " " + Z.ToString() + " " + W.ToString();
+			return "<" + X.ToString() + ", " + Y.ToString() + ", " + Z.ToString() + ", " + W.ToString() + ">";
 		}
+
+        /// <summary>
+        /// An LLQuaternion with a value of 0,0,0,1
+        /// </summary>
+        public readonly static LLQuaternion Identity = new LLQuaternion();
 	}
 }

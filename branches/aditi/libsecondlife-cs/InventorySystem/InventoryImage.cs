@@ -21,7 +21,7 @@ namespace libsecondlife.InventorySystem
 				} 
 				else 
 				{
-					if( (AssetID != null) && (AssetID != new LLUUID()) )
+                    if ((AssetID != null) && (AssetID != LLUUID.Zero))
 					{
 						base.iManager.AssetManager.GetInventoryAsset( this );
 						return ((AssetImage)Asset).J2CData;
@@ -55,6 +55,7 @@ namespace libsecondlife.InventorySystem
 			}
 
 			this.iManager = manager;
+            this._ItemID = ii._ItemID;
 			this._Asset = ii._Asset;
 			this._AssetID = ii._AssetID;
 			this._BaseMask = ii._BaseMask;

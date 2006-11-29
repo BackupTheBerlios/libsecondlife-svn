@@ -1,3 +1,29 @@
+/*
+ * Copyright (c) 2006, Second Life Reverse Engineering Team
+ * All rights reserved.
+ *
+ * - Redistribution and use in source and binary forms, with or without
+ *   modification, are permitted provided that the following conditions are met:
+ *
+ * - Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ * - Neither the name of the Second Life Reverse Engineering Team nor the names
+ *   of its contributors may be used to endorse or promote products derived from
+ *   this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -10,72 +36,27 @@ namespace sceneviewer
     /// </summary>
     public class Camera
     {
-        #region Constants
-        private static readonly float MAX_RADIANS = (float)(Math.PI * 2.0);
-        private static readonly float MAX_PHI = (float)((Math.PI) * 2.0);
-        private static readonly float MIN_PHI = 0;
-        #endregion Constants
+        public const float FOV = MathHelper.PiOver4;
+        public const float NearClip = 1.0f;
+        public const float FarClip = 1024.0f;
 
-        #region Private Fields
-        private Vector3 _cameraPosition;
+        public Vector3 _position;
         private Vector3 _lookatPosition;
         private Matrix _projection;
+        private Matrix _view;
 
-        private float _theta;
-        private float _phi;
-        private float _zoom;
-        #endregion Private Fields
+        private float _theta = 0;
+        private float _phi = 0;
+        private float _zoom = 0;
 
-        #region Constructors
-        /// <summary>
-        /// Default constructor. Assumes the camera should be oriented up.
-        /// </summary>
-        /// <param name="pos"></param>
-        /// <param name="lookAt"></param>
-        public Camera(GameWindow window, Vector3 pos, Vector3 lookAt)
-        {
-            _cameraPosition = pos;
-            _lookatPosition = lookAt;
-
-            UpdateProjection(window);
-        }
-        #endregion Constructors
-
-        #region Properties
-        /// <summary>
-        /// Generate the current view matrix for the camera
-        /// </summary>
         public Matrix ViewMatrix
         {
-            get 
-            {
-                Vector3 newCameraPosition = _cameraPosition;
-                Matrix rotationMatrix;
-
-                // Apply zoom
-                newCameraPosition += GetZoomVector();
-
-                // Apply Z rotation
-                rotationMatrix = Matrix.CreateRotationX(_phi);
-                newCameraPosition = Vector3.Transform(newCameraPosition, 
-                    rotationMatrix);
-
-                // Apply Y rotation
-                rotationMatrix = Matrix.CreateRotationY( _theta);
-                newCameraPosition = Vector3.Transform(newCameraPosition,
-                    rotationMatrix);
-
-                return Matrix.CreateLookAt(newCameraPosition, _lookatPosition,
-                    new Vector3(0.0f, 0.0f, 1.0f)); 
-            }
+            get { return _view; }
         }
 
         public Matrix ProjectionMatrix
         {
-            get
-            {
-                return _projection;
-            }
+            get { return _projection; }
         }
 
         /// <summary>
@@ -83,10 +64,12 @@ namespace sceneviewer
         /// </summary>
         public Matrix ViewProjectionMatrix
         {
-            get
-            {
-                return ViewMatrix * _projection;
-            }
+            get { return _view * _projection; }
+        }
+
+        public BoundingFrustum Frustum
+        {
+            get { return new BoundingFrustum(ViewProjectionMatrix); }
         }
 
         /// <summary>
@@ -94,10 +77,7 @@ namespace sceneviewer
         /// </summary>
         public Vector3 Position
         {
-            get
-            {
-                return _cameraPosition;
-            }
+            get { return _position; }
         }
 
         /// <summary>
@@ -107,10 +87,10 @@ namespace sceneviewer
         public float Theta
         {
             get { return _theta; }
-            set 
-            {
-                _theta = value % MAX_RADIANS;
-            }
+            //set 
+            //{
+            //    _theta = value; //% MAX_RADIANS;
+            //}
         }
 
         /// <summary>
@@ -122,21 +102,6 @@ namespace sceneviewer
         public float Phi
         {
             get { return _phi; }
-            set 
-            {
-                if (value > MAX_PHI)
-                {
-                    _phi = MAX_PHI;
-                }
-                else if (value < MIN_PHI)
-                {
-                    _phi = MIN_PHI;
-                }
-                else
-                {
-                    _phi = value;
-                }
-            }
         }
 
         /// <summary>
@@ -151,38 +116,60 @@ namespace sceneviewer
             get { return _zoom; }
 
             // TODO: Add a hard limit on zoom amount.
-            set { _zoom = value; }
+            //set { _zoom = value; }
         }
-        #endregion Properties
+
+
+        /// <summary>
+        /// Default constructor. Assumes the camera should be oriented up.
+        /// </summary>
+        /// <param name="pos"></param>
+        /// <param name="lookAt"></param>
+        public Camera(GameWindow window, Vector3 pos, Vector3 lookAt)
+        {
+            _position = pos;
+            _lookatPosition = lookAt;
+
+            UpdateProjection(window);
+            Update();
+        }
+
+        public void Rotate(float angle)
+        {
+            _theta += angle;
+            Update();
+        }
+
+        public void Translate(Vector3 distance)
+        {
+            _position += Vector3.Transform(distance, Matrix.CreateRotationZ(_theta));
+            Update();
+        }
 
         /// <summary>
         /// Call this method any time the client window changes.
         /// </summary>
         public void UpdateProjection(GameWindow window)
         {
-            _projection = Matrix.CreatePerspectiveFieldOfView((float)Math.PI / 4.0f,
-                (float)window.ClientWidth / (float)window.ClientHeight,
-                1.0f, 512.0f);
+            _projection = Matrix.CreatePerspectiveFieldOfView(FOV,
+                (float)window.ClientBounds.Width / (float)window.ClientBounds.Height,
+                NearClip, FarClip);
         }
 
-        /// <summary>
-        /// Determine how far the camera should move forward
-        /// or backward based on the current zoom value.
-        /// 
-        /// This is calculated by finding the normal vector
-        /// between the camera's position and the LookAt
-        /// point and multiplying this vector by the zoom
-        /// amount.
-        /// </summary>
-        /// <returns></returns>
-        private Vector3 GetZoomVector()
+        public void Update()
         {
-            Vector3 diff = _cameraPosition - _lookatPosition;
+            Vector3 newCameraPosition = _position;
+            Matrix rotationMatrix;
 
-            diff.Normalize();
-            diff *= _zoom;
+            rotationMatrix = Matrix.CreateRotationZ(_theta);
 
-            return diff;
+            Vector3 cameraReference = Vector3.UnitY;
+            Vector3 transformedReference = Vector3.Transform(cameraReference, rotationMatrix);
+
+            _lookatPosition = transformedReference + _position;
+
+            _view = Matrix.CreateLookAt(newCameraPosition, _lookatPosition,
+                Vector3.UnitZ);
         }
     }
 }

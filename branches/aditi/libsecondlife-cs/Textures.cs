@@ -27,9 +27,55 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.IO;
 
 namespace libsecondlife
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    public enum Bumpiness
+    {
+        None = 0,
+        Brightness = 1,
+        Darkness = 2,
+        Woodgrain = 3,
+        Bark = 4,
+        Bricks = 5,
+        Checker = 6,
+        Concrete = 7,
+        Crustytile = 8,
+        Cutstone = 9,
+        Discs = 10,
+        Gravel = 11,
+        Petridish = 12,
+        Siding = 13,
+        Stonetile = 14,
+        Stucco = 15,
+        Suction = 16,
+        Weave = 17
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public enum Shininess
+    {
+        None = 0,
+        Low = 0x40,
+        Medium = 0x80,
+        High = 0xC0
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public enum Mapping
+    {
+        Default = 0,
+        Planar = 2
+    }
+
     /// <summary>
     /// 
     /// </summary>
@@ -38,19 +84,23 @@ namespace libsecondlife
         /// <summary></summary>
         public TextureEntryFace DefaultTexture;
         /// <summary></summary>
-        public TextureEntryAnimation Animation;
-
-        private SecondLife Client;
-        private Dictionary<uint, TextureEntryFace> Textures;
+        public Dictionary<uint, TextureEntryFace> FaceTextures;
 
         /// <summary>
         /// 
         /// </summary>
-        public TextureEntry(SecondLife client)
+        public TextureEntry()
         {
-            Client = client;
-            Textures = new Dictionary<uint, TextureEntryFace>();
+            FaceTextures = new Dictionary<uint, TextureEntryFace>();
+            //DefaultTexture = new TextureEntryFace(null);
+            DefaultTexture = null;
+        }
+
+        public TextureEntry(LLUUID textureID)
+        {
+            FaceTextures = new Dictionary<uint, TextureEntryFace>();
             DefaultTexture = new TextureEntryFace(null);
+            DefaultTexture.TextureID = textureID;
         }
 
         /// <summary>
@@ -58,16 +108,15 @@ namespace libsecondlife
         /// </summary>
         /// <param name="data"></param>
         /// <param name="pos"></param>
-        public TextureEntry(SecondLife client, byte[] data, int pos)
+        public TextureEntry(byte[] data, int pos, int length)
         {
-            Client = client;
-            FromBytes(data, pos);
+            FromBytes(data, pos, length);
         }
 
         public TextureEntryFace GetFace(uint index)
         {
-            if (Textures.ContainsKey(index))
-                return Textures[index];
+            if (FaceTextures.ContainsKey(index))
+                return FaceTextures[index];
             else
                 return DefaultTexture;
         }
@@ -79,20 +128,232 @@ namespace libsecondlife
         /// <returns></returns>
         public TextureEntryFace SetFace(uint index)
         {
-            if (!Textures.ContainsKey(index))
-                Textures[index] = new TextureEntryFace(this.DefaultTexture);
+            if (!FaceTextures.ContainsKey(index))
+                FaceTextures[index] = new TextureEntryFace(this.DefaultTexture);
 
-            return Textures[index];
+            return FaceTextures[index];
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public byte[] ToBytes()
+        public byte[] GetBytes()
         {
-            byte[] bytes = new byte[0];
+            if (DefaultTexture == null)
+            {
+                return new byte[0];
+            }
+
+            MemoryStream memStream = new MemoryStream();
+            BinaryWriter binWriter = new BinaryWriter(memStream);
+
+            Dictionary<LLUUID, uint> TextureIDs = new Dictionary<LLUUID,uint>();
+            Dictionary<uint, uint> RGBAs = new Dictionary<uint, uint>();
+            Dictionary<short, uint> RepeatUs = new Dictionary<short, uint>();
+            Dictionary<short, uint> RepeatVs = new Dictionary<short, uint>();
+            Dictionary<short, uint> OffsetUs = new Dictionary<short, uint>();
+            Dictionary<short, uint> OffsetVs = new Dictionary<short, uint>();
+            Dictionary<short, uint> Rotations = new Dictionary<short, uint>();
+            Dictionary<byte, uint> Flag1s = new Dictionary<byte, uint>();
+            Dictionary<byte, uint> Flag2s = new Dictionary<byte, uint>();
+            foreach (KeyValuePair<uint,TextureEntryFace> face in FaceTextures)
+            {
+                if (face.Value.TextureID != DefaultTexture.TextureID)
+                {
+                    if (TextureIDs.ContainsKey(face.Value.TextureID))
+                        TextureIDs[face.Value.TextureID] |= (uint)(1 << (int)face.Key);
+                    else
+                        TextureIDs[face.Value.TextureID] = (uint)(1 << (int)face.Key);
+                }
+
+                if (face.Value.RGBA != DefaultTexture.RGBA)
+                {
+                    if (RGBAs.ContainsKey(face.Value.RGBA))
+                        RGBAs[face.Value.RGBA] |= (uint)(1 << (int)face.Key);
+                    else
+                        RGBAs[face.Value.RGBA] = (uint)(1 << (int)face.Key);
+                }
+
+                short value;
+                short defaultValue;
+
+                value = RepeatShort(face.Value.RepeatU);
+                defaultValue = RepeatShort(DefaultTexture.RepeatU);
+                if (value != defaultValue)
+                {
+                    if (RepeatUs.ContainsKey(value))
+                        RepeatUs[value] |= (uint)(1 << (int)face.Key);
+                    else
+                        RepeatUs[value] = (uint)(1 << (int)face.Key);
+                }
+
+                value = RepeatShort(face.Value.RepeatV);
+                defaultValue = RepeatShort(DefaultTexture.RepeatV);
+                if (value != defaultValue)
+                {
+                    if (RepeatVs.ContainsKey(value))
+                        RepeatVs[value] |= (uint)(1 << (int)face.Key);
+                    else
+                        RepeatVs[value] = (uint)(1 << (int)face.Key);
+                }
+
+                value = OffsetShort(face.Value.OffsetU);
+                defaultValue = OffsetShort(DefaultTexture.OffsetU);
+                if (value != defaultValue)
+                {
+                    if (OffsetUs.ContainsKey(value))
+                        OffsetUs[value] |= (uint)(1 << (int)face.Key);
+                    else
+                        OffsetUs[value] = (uint)(1 << (int)face.Key);
+                }
+
+                value = OffsetShort(face.Value.OffsetV);
+                defaultValue = OffsetShort(DefaultTexture.OffsetV);
+                if (value != defaultValue)
+                {
+                    if (OffsetVs.ContainsKey(value))
+                        OffsetVs[value] |= (uint)(1 << (int)face.Key);
+                    else
+                        OffsetVs[value] = (uint)(1 << (int)face.Key);
+                }
+
+                value = RotationShort(face.Value.Rotation);
+                defaultValue = RotationShort(DefaultTexture.Rotation);
+                if (value != defaultValue)
+                {
+                    if (Rotations.ContainsKey(value))
+                        Rotations[value] |= (uint)(1 << (int)face.Key);
+                    else
+                        Rotations[value] = (uint)(1 << (int)face.Key);
+                }
+
+                if (face.Value.Flags1 != DefaultTexture.Flags1)
+                {
+                    if (Flag1s.ContainsKey(face.Value.Flags1))
+                        Flag1s[face.Value.Flags1] |= (uint)(1 << (int)face.Key);
+                    else
+                        Flag1s[face.Value.Flags1] = (uint)(1 << (int)face.Key);
+                }
+
+                if (face.Value.Flags2 != DefaultTexture.Flags2)
+                {
+                    if (Flag2s.ContainsKey(face.Value.Flags2))
+                        Flag2s[face.Value.Flags2] |= (uint)(1 << (int)face.Key);
+                    else
+                        Flag2s[face.Value.Flags2] = (uint)(1 << (int)face.Key);
+                }
+            }
+
+            binWriter.Write(DefaultTexture.TextureID.Data);
+            foreach (KeyValuePair<LLUUID, uint> kv in TextureIDs)
+            {
+                binWriter.Write(GetFaceBitfieldBytes(kv.Value));
+                binWriter.Write(kv.Key.Data);
+            }
+
+            binWriter.Write((byte)0);
+            binWriter.Write(DefaultTexture.RGBA);
+            foreach (KeyValuePair<uint, uint> kv in RGBAs)
+            {
+                binWriter.Write(GetFaceBitfieldBytes(kv.Value));
+                binWriter.Write(kv.Key);
+            }
+
+            binWriter.Write((byte)0);
+            binWriter.Write(RepeatShort(DefaultTexture.RepeatU));
+            foreach (KeyValuePair<short, uint> kv in RepeatUs)
+            {
+                binWriter.Write(GetFaceBitfieldBytes(kv.Value));
+                binWriter.Write(kv.Key);
+            }
+
+            binWriter.Write((byte)0);
+            binWriter.Write(RepeatShort(DefaultTexture.RepeatV));
+            foreach (KeyValuePair<short, uint> kv in RepeatVs)
+            {
+                binWriter.Write(GetFaceBitfieldBytes(kv.Value));
+                binWriter.Write(kv.Key);
+            }
+
+            binWriter.Write((byte)0);
+            binWriter.Write(OffsetShort(DefaultTexture.OffsetU));
+            foreach (KeyValuePair<short, uint> kv in OffsetUs)
+            {
+                binWriter.Write(GetFaceBitfieldBytes(kv.Value));
+                binWriter.Write(kv.Key);
+            }
+
+            binWriter.Write((byte)0);
+            binWriter.Write(OffsetShort(DefaultTexture.OffsetV));
+            foreach (KeyValuePair<short, uint> kv in OffsetVs)
+            {
+                binWriter.Write(GetFaceBitfieldBytes(kv.Value));
+                binWriter.Write(kv.Key);
+            }
+
+            binWriter.Write((byte)0);
+            binWriter.Write(RotationShort(DefaultTexture.Rotation));
+            foreach (KeyValuePair<short, uint> kv in Rotations)
+            {
+                binWriter.Write(GetFaceBitfieldBytes(kv.Value));
+                binWriter.Write(kv.Key);
+            }
+
+            binWriter.Write((byte)0);
+            binWriter.Write(DefaultTexture.Flags1);
+            foreach (KeyValuePair<byte, uint> kv in Flag1s)
+            {
+                binWriter.Write(GetFaceBitfieldBytes(kv.Value));
+                binWriter.Write(kv.Key);
+            }
+
+            binWriter.Write((byte)0);
+            binWriter.Write(DefaultTexture.Flags2);
+            foreach (KeyValuePair<byte, uint> kv in Flag2s)
+            {
+                binWriter.Write(GetFaceBitfieldBytes(kv.Value));
+                binWriter.Write(kv.Key);
+            }
+
+            return memStream.GetBuffer();
+        }
+
+        private byte[] GetFaceBitfieldBytes(uint bitfield)
+        {
+            int byteLength = 0;
+            uint tmpBitfield = bitfield;
+            while (tmpBitfield != 0)
+            {
+                tmpBitfield >>= 7;
+                byteLength++;
+            }
+
+            if (byteLength == 0)
+                return new byte[1] { 0 };
+
+            byte[] bytes = new byte[byteLength];
+            for (int i = 0; i < byteLength; i++)
+            {
+                bytes[i] = (byte)((bitfield >> (7 * (byteLength - i - 1))) & 0x7F);
+                if (i < byteLength - 1)
+                    bytes[i] |= 0x80;
+            }
             return bytes;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public string GetXml(string name)
+        {
+            string xml = "<TextureEntry>";
+            // FIXME: Write GetXml for TextureEntry
+            xml += "</TextureEntry>";
+
+            return xml;
         }
 
         private bool ReadFaceBitfield(byte[] data, ref int pos, ref uint faceBits, ref uint bitfieldSize)
@@ -124,6 +385,27 @@ namespace libsecondlife
             return (float)(QV * QF);
         }
 
+        private short QuantizeSigned(float f, float upper)
+        {
+            float QF = 32767.0F / upper;
+            return (short)(f * QF);
+        }
+
+        private short RepeatShort(float value)
+        {
+            return QuantizeSigned(value - 1.0F, 101.0F);
+        }
+
+        private short OffsetShort(float value)
+        {
+            return QuantizeSigned(value, 1.0F);
+        }
+
+        private short RotationShort(float value)
+        {
+            return QuantizeSigned(value, 359.995F);
+        }
+
         private float RepeatFloat(byte[] data, int pos)
         {
             return DequantizeSigned(data, pos, 101.0F) + 1.0F;
@@ -139,173 +421,134 @@ namespace libsecondlife
             return DequantizeSigned(data, pos, 359.995F);
         }
 
-        private void FromBytes(byte[] data, int pos)
+        private void FromBytes(byte[] data, int pos, int length)
         {
-	    if(data.Length==0) return;  // No TextureEntry to process
-            Textures = new Dictionary<uint, TextureEntryFace>();
+            FaceTextures = new Dictionary<uint, TextureEntryFace>();
             DefaultTexture = new TextureEntryFace(null);
 
-            // Sanity check for the minimum length
-            if (data.Length < 40)
-            {
-                Client.Log("Skipping a TextureEntry, too short (" + data.Length + " bytes)", 
-                    Helpers.LogLevel.Warning);
-                return;
-            }
+            if (length <= 0) 
+                return;  // No TextureEntry to process
 
-            bool hasAnimationData = false;
             uint BitfieldSize = 0;
             uint faceBits = 0;
             int i = pos;
 
-            try
+            //Read TextureID ---------------------------------------
+            DefaultTexture.TextureID = new LLUUID(data, i);
+            i += 16;
+
+            while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
             {
-                //Read TextureID ---------------------------------------
-                DefaultTexture.TextureID = new LLUUID(data, i);
+                LLUUID tmpUUID = new LLUUID(data, i);
                 i += 16;
 
-                while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
-                {
-                    LLUUID tmpUUID = new LLUUID(data, i);
-                    i += 16;
+                for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
+                    if ((faceBits & bit) != 0)
+                        SetFace(face).TextureID = tmpUUID;
+            }
+            //Read RGBA --------------------------------------------
+            DefaultTexture.RGBA = (uint)(data[i] + (data[i + 1] << 8) + (data[i + 2] << 16) + (data[i + 3] << 24));
+            i += 4;
 
-                    for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
-                        if ((faceBits & bit) != 0)
-                            SetFace(face).TextureID = tmpUUID;
-                }
-                //Read RGBA --------------------------------------------
-                DefaultTexture.RGBA = (uint)(data[i] + (data[i + 1] << 8) + (data[i + 2] << 16) + (data[i + 3] << 24));
+            while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
+            {
+                uint tmpUint = (uint)(data[i] + (data[i + 1] << 8) + (data[i + 2] << 16) + (data[i + 3] << 24));
                 i += 4;
 
-                while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
-                {
-                    uint tmpUint = (uint)(data[i] + (data[i + 1] << 8) + (data[i + 2] << 16) + (data[i + 3] << 24));
-                    i += 4;
-
-                    for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
-                        if ((faceBits & bit) != 0)
-                            SetFace(face).RGBA = tmpUint;
-                }
-                //Read RepeatU -----------------------------------------
-                DefaultTexture.RepeatU = RepeatFloat(data, i);
-                i += 2;
-
-                while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
-                {
-                    float tmpFloat = RepeatFloat(data, i);
-                    i += 2;
-
-                    for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
-                        if ((faceBits & bit) != 0)
-                            SetFace(face).RepeatU = tmpFloat;
-                }
-                //Read RepeatV -----------------------------------------
-                DefaultTexture.RepeatV = RepeatFloat(data, i);
-                i += 2;
-
-                while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
-                {
-                    float tmpFloat = RepeatFloat(data, i);
-                    i += 2;
-
-                    for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
-                        if ((faceBits & bit) != 0)
-                            SetFace(face).RepeatV = tmpFloat;
-                }
-                //Read OffsetU -----------------------------------------
-                DefaultTexture.OffsetU = OffsetFloat(data, i);
-                i += 2;
-
-                while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
-                {
-                    float tmpFloat = OffsetFloat(data, i);
-                    i += 2;
-
-                    for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
-                        if ((faceBits & bit) != 0)
-                            SetFace(face).OffsetU = tmpFloat;
-                }
-                //Read OffsetV -----------------------------------------
-                DefaultTexture.OffsetV = OffsetFloat(data, i);
-                i += 2;
-
-                while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
-                {
-                    float tmpFloat = OffsetFloat(data, i);
-                    i += 2;
-
-                    for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
-                        if ((faceBits & bit) != 0)
-                            SetFace(face).OffsetV = tmpFloat;
-                }
-                //Read Rotation ----------------------------------------
-                DefaultTexture.Rotation = RotationFloat(data, i);
-                i += 2;
-
-                while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
-                {
-                    float tmpFloat = RotationFloat(data, i);
-                    i += 2;
-
-                    for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
-                        if ((faceBits & bit) != 0)
-                            SetFace(face).Rotation = tmpFloat;
-                }
-                //Read Flags1 ------------------------------------------
-                DefaultTexture.Flags1 = data[i];
-                i++;
-
-                while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
-                {
-                    byte tmpByte = data[i];
-                    i++;
-
-                    for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
-                        if ((faceBits & bit) != 0)
-                            SetFace(face).Flags1 = tmpByte;
-                }
-                //Read Flags2 ------------------------------------------
-                DefaultTexture.Flags2 = data[i];
-                i++;
-
-                while (true)
-                {
-                    if (data.Length > i + 4)
-                    {
-                        //Not sure what this uint is, might just be there to indicate the beginning of animation data.
-                        uint unknownUint = (uint)(data[i] + (data[i + 1] << 8) + (data[i + 2] << 16) + (data[i + 3] << 24));
-                        if (unknownUint == 0x10)
-                        {
-                            i += 4;
-                            hasAnimationData = true;
-                            break;
-                        }
-                    }
-
-                    if (!ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
-                        break;
-
-                    byte tmpByte = data[i];
-                    i++;
-
-                    for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
-                        if ((faceBits & bit) != 0)
-                            SetFace(face).Flags2 = tmpByte;
-                }
-                //Read Animation Data ----------------------------------
-                if (hasAnimationData)
-                {
-                    Animation = new TextureEntryAnimation(data, i);
-                }
-                else
-                {
-                    Animation = null;
-                }
+                for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
+                    if ((faceBits & bit) != 0)
+                        SetFace(face).RGBA = tmpUint;
             }
-            catch (Exception e)
+            //Read RepeatU -----------------------------------------
+            DefaultTexture.RepeatU = RepeatFloat(data, i);
+            i += 2;
+
+            while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
             {
-                Client.Log("Had a problem decoding a TextureEntry: " + e.ToString(),
-                    Helpers.LogLevel.Warning);
+                float tmpFloat = RepeatFloat(data, i);
+                i += 2;
+
+                for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
+                    if ((faceBits & bit) != 0)
+                        SetFace(face).RepeatU = tmpFloat;
+            }
+            //Read RepeatV -----------------------------------------
+            DefaultTexture.RepeatV = RepeatFloat(data, i);
+            i += 2;
+
+            while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
+            {
+                float tmpFloat = RepeatFloat(data, i);
+                i += 2;
+
+                for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
+                    if ((faceBits & bit) != 0)
+                        SetFace(face).RepeatV = tmpFloat;
+            }
+            //Read OffsetU -----------------------------------------
+            DefaultTexture.OffsetU = OffsetFloat(data, i);
+            i += 2;
+
+            while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
+            {
+                float tmpFloat = OffsetFloat(data, i);
+                i += 2;
+
+                for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
+                    if ((faceBits & bit) != 0)
+                        SetFace(face).OffsetU = tmpFloat;
+            }
+            //Read OffsetV -----------------------------------------
+            DefaultTexture.OffsetV = OffsetFloat(data, i);
+            i += 2;
+
+            while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
+            {
+                float tmpFloat = OffsetFloat(data, i);
+                i += 2;
+
+                for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
+                    if ((faceBits & bit) != 0)
+                        SetFace(face).OffsetV = tmpFloat;
+            }
+            //Read Rotation ----------------------------------------
+            DefaultTexture.Rotation = RotationFloat(data, i);
+            i += 2;
+
+            while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
+            {
+                float tmpFloat = RotationFloat(data, i);
+                i += 2;
+
+                for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
+                    if ((faceBits & bit) != 0)
+                        SetFace(face).Rotation = tmpFloat;
+            }
+            //Read Flags1 ------------------------------------------
+            DefaultTexture.Flags1 = data[i];
+            i++;
+
+            while (ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
+            {
+                byte tmpByte = data[i];
+                i++;
+
+                for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
+                    if ((faceBits & bit) != 0)
+                        SetFace(face).Flags1 = tmpByte;
+            }
+            //Read Flags2 ------------------------------------------
+            DefaultTexture.Flags2 = data[i];
+            i++;
+
+            while (i - pos < length && ReadFaceBitfield(data, ref i, ref faceBits, ref BitfieldSize))
+            {
+                byte tmpByte = data[i];
+                i++;
+
+                for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
+                    if ((faceBits & bit) != 0)
+                        SetFace(face).Flags2 = tmpByte;
             }
         }
     }
@@ -532,7 +775,7 @@ namespace libsecondlife
     /// <summary>
     /// 
     /// </summary>
-    public class TextureEntryAnimation
+    public class TextureAnimation
     {
         /// <summary></summary>
         public uint Flags;
@@ -550,11 +793,18 @@ namespace libsecondlife
         public float Rate;
 
         /// <summary>
+        /// Default constructor
+        /// </summary>
+        public TextureAnimation()
+        {
+        }
+
+        /// <summary>
         /// 
         /// </summary>
         /// <param name="data"></param>
         /// <param name="pos"></param>
-        public TextureEntryAnimation(byte[] data, int pos)
+        public TextureAnimation(byte[] data, int pos)
         {
             FromBytes(data, pos);
         }
@@ -563,15 +813,39 @@ namespace libsecondlife
         /// 
         /// </summary>
         /// <returns></returns>
-        public byte[] ToBytes()
+        public byte[] GetBytes()
         {
             byte[] bytes = new byte[0];
+            // FIXME: Finish TextureAnimation GetBytes() function
             return bytes;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public string GetXml(string name)
+        {
+            string xml = "<TextureAnimation>";
+            xml += "<Flags value=\"" + Flags + "\" />";
+            xml += "<Face value=\"" + Face + "\" />";
+            xml += "<SizeX value=\"" + SizeX + "\" />";
+            xml += "<SizeY value=\"" + SizeY + "\" />";
+            xml += "<Start value=\"" + Start + "\" />";
+            xml += "<Length value=\"" + Length + "\" />";
+            xml += "<Rate value=\"" + Rate + "\" />";
+            xml += "</TextureAnimation>";
+
+            return xml;
         }
 
         private void FromBytes(byte[] data, int pos)
         {
             int i = pos;
+
+            if (data.Length == 0)
+                return;
 
             Flags = (uint)data[i++];
             Face = (uint)data[i++];

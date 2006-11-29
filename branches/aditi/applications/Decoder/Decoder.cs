@@ -38,8 +38,7 @@ using libsecondlife.Packets;
 class Decoder {
 	private static int BUFSIZE = 8096;
 
-    private static SecondLife client = new SecondLife();
-	private static ProtocolManager protocol = new ProtocolManager("message_template.msg", client);
+	private static SecondLife client = new SecondLife();
 	private static string grep = null;
 	private static byte[] data = new byte[BUFSIZE];
 	private static byte[] temp = new byte[BUFSIZE];
@@ -73,7 +72,10 @@ class Decoder {
 
 	public static void Main(string[] args) {
 		if (args.Length > 0) {
-			grep = String.Join(" ", args);
+			// FIXME
+			Console.WriteLine("sorry, filtering is currently broken :(");
+			return;
+			// grep = String.Join(" ", args);
 		}
 
 		for (Reset();;) {
@@ -138,7 +140,10 @@ class Decoder {
 				boring = true;
 	}
 
-	private static void Done() {
+	private static void Done()
+    {
+        byte[] zeroBuffer = new byte[4096];
+
 		if (!boring) try {
 			byte[] buf;
 			if ((data[0] & 0xF0) == 0x40) {
@@ -171,9 +176,7 @@ class Decoder {
 				} else
 					buf = data;
 
-			//Packet packet = new Packet(buf, pos, protocol);
-            // FIXME: Is this right? I haven't really looked at this code at all
-            Packet packet = Packet.BuildPacket(buf, ref pos);
+			Packet packet = Packet.BuildPacket(buf, ref pos, zeroBuffer);
 
 			if (grep != null) {
 				bool match = false;
@@ -218,7 +221,7 @@ class Decoder {
 
 			Console.WriteLine("{0,5} {1} {2}"
 					 ,packet.Header.Sequence
-					 ,InterpretOptions(packet.Header.Data[0])
+					 ,InterpretOptions(packet.Header)
 					 ,endpoints
 					);
 			Console.WriteLine(packet);
@@ -229,16 +232,15 @@ class Decoder {
 		Reset();
 	}
 
-    // FIXME: Would be much easier to pass packet.Header and use the existing properties
-	private static string InterpretOptions(byte options) {
+	private static string InterpretOptions(Header header) {
 		return "["
-		     + ((options & Helpers.MSG_APPENDED_ACKS) != 0 ? "Ack" : "   ")
+		     + (header.AppendedAcks	? "Ack" : "   ")
 		     + " "
-		     + ((options & Helpers.MSG_RESENT)	!= 0 ? "Res" : "   ")
+		     + (header.Resent		? "Res" : "   ")
 		     + " "
-		     + ((options & Helpers.MSG_RELIABLE)      != 0 ? "Rel" : "   ")
+		     + (header.Reliable		? "Rel" : "   ")
 		     + " "
-		     + ((options & Helpers.MSG_ZEROCODED)     != 0 ? "Zer" : "   ")
+		     + (header.Zerocoded	? "Zer" : "   ")
 		     + "]"
 		     ;
 	}

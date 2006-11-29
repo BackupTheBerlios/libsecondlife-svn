@@ -37,7 +37,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DebugServer.cs" />
+    <Compile Include="PacketTests.cs" />
+    <Compile Include="PrimObjectTests.cs" />
+    <Compile Include="TypeTests.cs" />
     <Compile Include="Tests.cs" />
   </ItemGroup>
   <ItemGroup>

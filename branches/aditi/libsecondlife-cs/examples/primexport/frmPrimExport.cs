@@ -4,6 +4,7 @@ using System.Data;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
+using System.IO;
 using System.Collections.Generic;
 using libsecondlife;
 
@@ -19,16 +20,26 @@ namespace primexport
         private TextBox txtLastName;
         private Button cmdConnect;
         private TextBox txtFirstName;
-        private Button cmdCapture;
+        private Button cmdExport;
         private TextBox txtLog;
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
+        private Label label4;
+        private Label label5;
+        private Panel panel1;
+        private RadioButton radObjects;
+        private RadioButton radEntireSim;
+        private Panel panel2;
+        private RadioButton radPrimBlender;
+        private RadioButton radLibPrims;
         private System.ComponentModel.IContainer components = null;
 
+        //
         private SecondLife client;
-        private NewPrimCallback primCallback;
-        private string currentText;
+        private Dictionary<ulong, PrimObject> Prims = new Dictionary<ulong, PrimObject>();
+        private List<ulong> Avatars = new List<ulong>();
+        private List<ulong> Attachments = new List<ulong>();
+        private string CurrentText = "";
+        private string Filename = "";
+        private bool EntireSim = true;
 
         /// <summary>
         /// Clean up any resources being used.
@@ -59,9 +70,19 @@ namespace primexport
             this.txtLastName = new System.Windows.Forms.TextBox();
             this.cmdConnect = new System.Windows.Forms.Button();
             this.txtFirstName = new System.Windows.Forms.TextBox();
-            this.cmdCapture = new System.Windows.Forms.Button();
+            this.cmdExport = new System.Windows.Forms.Button();
             this.txtLog = new System.Windows.Forms.TextBox();
+            this.label4 = new System.Windows.Forms.Label();
+            this.label5 = new System.Windows.Forms.Label();
+            this.panel1 = new System.Windows.Forms.Panel();
+            this.radObjects = new System.Windows.Forms.RadioButton();
+            this.radEntireSim = new System.Windows.Forms.RadioButton();
+            this.panel2 = new System.Windows.Forms.Panel();
+            this.radPrimBlender = new System.Windows.Forms.RadioButton();
+            this.radLibPrims = new System.Windows.Forms.RadioButton();
             this.grpLogin.SuspendLayout();
+            this.panel1.SuspendLayout();
+            this.panel2.SuspendLayout();
             this.SuspendLayout();
             // 
             // grpLogin
@@ -74,7 +95,7 @@ namespace primexport
             this.grpLogin.Controls.Add(this.cmdConnect);
             this.grpLogin.Controls.Add(this.txtFirstName);
             this.grpLogin.Enabled = false;
-            this.grpLogin.Location = new System.Drawing.Point(12, 204);
+            this.grpLogin.Location = new System.Drawing.Point(12, 322);
             this.grpLogin.Name = "grpLogin";
             this.grpLogin.Size = new System.Drawing.Size(560, 80);
             this.grpLogin.TabIndex = 51;
@@ -135,39 +156,127 @@ namespace primexport
             this.txtFirstName.Size = new System.Drawing.Size(120, 20);
             this.txtFirstName.TabIndex = 0;
             // 
-            // cmdCapture
+            // cmdExport
             // 
-            this.cmdCapture.Enabled = false;
-            this.cmdCapture.Location = new System.Drawing.Point(12, 12);
-            this.cmdCapture.Name = "cmdCapture";
-            this.cmdCapture.Size = new System.Drawing.Size(560, 49);
-            this.cmdCapture.TabIndex = 52;
-            this.cmdCapture.Text = "Start Capture";
-            this.cmdCapture.Click += new System.EventHandler(this.cmdCapture_Click);
+            this.cmdExport.Location = new System.Drawing.Point(452, 33);
+            this.cmdExport.Name = "cmdExport";
+            this.cmdExport.Size = new System.Drawing.Size(120, 24);
+            this.cmdExport.TabIndex = 52;
+            this.cmdExport.Text = "Export Prims";
+            this.cmdExport.Click += new System.EventHandler(this.cmdExport_Click);
             // 
             // txtLog
             // 
-            this.txtLog.Location = new System.Drawing.Point(12, 67);
+            this.txtLog.Location = new System.Drawing.Point(12, 63);
             this.txtLog.Multiline = true;
             this.txtLog.Name = "txtLog";
             this.txtLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtLog.Size = new System.Drawing.Size(560, 131);
+            this.txtLog.Size = new System.Drawing.Size(560, 253);
             this.txtLog.TabIndex = 53;
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label4.Location = new System.Drawing.Point(12, 9);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(40, 13);
+            this.label4.TabIndex = 56;
+            this.label4.Text = "Export:";
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label5.Location = new System.Drawing.Point(12, 40);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(42, 13);
+            this.label5.TabIndex = 59;
+            this.label5.Text = "Format:";
+            // 
+            // panel1
+            // 
+            this.panel1.Controls.Add(this.radObjects);
+            this.panel1.Controls.Add(this.radEntireSim);
+            this.panel1.Location = new System.Drawing.Point(67, 0);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(194, 31);
+            this.panel1.TabIndex = 60;
+            // 
+            // radObjects
+            // 
+            this.radObjects.AutoSize = true;
+            this.radObjects.Enabled = false;
+            this.radObjects.Location = new System.Drawing.Point(81, 8);
+            this.radObjects.Name = "radObjects";
+            this.radObjects.Size = new System.Drawing.Size(97, 17);
+            this.radObjects.TabIndex = 57;
+            this.radObjects.Text = "Object/Linkjset";
+            this.radObjects.UseVisualStyleBackColor = true;
+            // 
+            // radEntireSim
+            // 
+            this.radEntireSim.AutoSize = true;
+            this.radEntireSim.Checked = true;
+            this.radEntireSim.Location = new System.Drawing.Point(3, 8);
+            this.radEntireSim.Name = "radEntireSim";
+            this.radEntireSim.Size = new System.Drawing.Size(72, 17);
+            this.radEntireSim.TabIndex = 56;
+            this.radEntireSim.TabStop = true;
+            this.radEntireSim.Text = "Entire Sim";
+            this.radEntireSim.UseVisualStyleBackColor = true;
+            // 
+            // panel2
+            // 
+            this.panel2.Controls.Add(this.radPrimBlender);
+            this.panel2.Controls.Add(this.radLibPrims);
+            this.panel2.Location = new System.Drawing.Point(67, 31);
+            this.panel2.Name = "panel2";
+            this.panel2.Size = new System.Drawing.Size(288, 31);
+            this.panel2.TabIndex = 61;
+            // 
+            // radPrimBlender
+            // 
+            this.radPrimBlender.AutoSize = true;
+            this.radPrimBlender.Location = new System.Drawing.Point(68, 7);
+            this.radPrimBlender.Name = "radPrimBlender";
+            this.radPrimBlender.Size = new System.Drawing.Size(168, 17);
+            this.radPrimBlender.TabIndex = 60;
+            this.radPrimBlender.Text = "prim.Blender (currently broken)";
+            this.radPrimBlender.UseVisualStyleBackColor = true;
+            // 
+            // radLibPrims
+            // 
+            this.radLibPrims.AutoSize = true;
+            this.radLibPrims.Checked = true;
+            this.radLibPrims.Location = new System.Drawing.Point(3, 7);
+            this.radLibPrims.Name = "radLibPrims";
+            this.radLibPrims.Size = new System.Drawing.Size(59, 17);
+            this.radLibPrims.TabIndex = 59;
+            this.radLibPrims.TabStop = true;
+            this.radLibPrims.Text = "libprims";
+            this.radLibPrims.UseVisualStyleBackColor = true;
             // 
             // frmPrimExport
             // 
-            this.ClientSize = new System.Drawing.Size(587, 299);
+            this.ClientSize = new System.Drawing.Size(587, 414);
+            this.Controls.Add(this.panel2);
+            this.Controls.Add(this.panel1);
+            this.Controls.Add(this.label5);
+            this.Controls.Add(this.label4);
             this.Controls.Add(this.txtLog);
-            this.Controls.Add(this.cmdCapture);
+            this.Controls.Add(this.cmdExport);
             this.Controls.Add(this.grpLogin);
             this.MaximizeBox = false;
-            this.MaximumSize = new System.Drawing.Size(595, 326);
-            this.MinimumSize = new System.Drawing.Size(595, 326);
             this.Name = "frmPrimExport";
             this.Text = "Prim Exporter";
             this.TopMost = true;
             this.grpLogin.ResumeLayout(false);
             this.grpLogin.PerformLayout();
+            this.panel1.ResumeLayout(false);
+            this.panel1.PerformLayout();
+            this.panel2.ResumeLayout(false);
+            this.panel2.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -175,162 +284,301 @@ namespace primexport
 
         #endregion
 
+        /// <summary>
+        /// The main entry point for the application.
+        /// </summary>
+        [STAThread]
+        static void Main(string[] args)
+        {
+            frmPrimExport exportForm = new frmPrimExport();
+            exportForm.ShowDialog();
+        }
+
         public frmPrimExport()
         {
             InitializeComponent();
 
-            primCallback = new NewPrimCallback(PrimSeen);
-
             client = new SecondLife();
+            client.OnLogMessage += new LogCallback(client_OnLogMessage);
+            client.Objects.RequestAllObjects = true;
+            client.Objects.OnNewPrim += new ObjectManager.NewPrimCallback(PrimSeen);
+            client.Objects.OnNewAvatar += new ObjectManager.NewAvatarCallback(AvatarSeen);
+            client.Objects.OnNewAttachment += new ObjectManager.NewAttachmentCallback(AttachmentSeen);
+
             grpLogin.Enabled = true;
+        }
+
+        void client_OnLogMessage(string message, Helpers.LogLevel level)
+        {
+            Log("libsl: " + level.ToString() + ": " + message + Environment.NewLine);
         }
 
         private void Log(string text)
         {
-            currentText = text;
+            CurrentText = text;
 
-            if (this.InvokeRequired)
+            lock (txtLog)
             {
-                this.Invoke(new MethodInvoker(UpdateLog));
-            }
-            else
-            {
-                UpdateLog();
+                if (this.InvokeRequired)
+                {
+                    this.Invoke(new MethodInvoker(UpdateLog));
+                }
+                else
+                {
+                    UpdateLog();
+                }
             }
         }
 
         private void UpdateLog()
         {
-            txtLog.Text += currentText + Environment.NewLine;
+            txtLog.AppendText(CurrentText);
         }
 
         private void PrimSeen(Simulator simulator, PrimObject prim, ulong regionHandle, ushort timeDilation)
         {
+            lock (Prims)
+            {
+                if (Prims.ContainsKey(prim.LocalID))
+                {
+                    Prims.Remove(prim.LocalID);
+                }
+
+                Prims.Add(prim.LocalID, prim);
+                Log(".");
+            }
+        }
+
+        void AttachmentSeen(Simulator simulator, PrimObject prim, ulong regionHandle, ushort timeDilation)
+        {
+            lock (Attachments)
+            {
+                Attachments.Add(prim.LocalID);
+            }
+        }
+
+        void AvatarSeen(Simulator simulator, Avatar avatar, ulong regionHandle, ushort timeDilation)
+        {
+            lock (Avatars)
+            {
+                Avatars.Add(avatar.LocalID);
+            }
+        }
+
+        private void ExportPrims()
+        {
+            FileStream file = null;
+            StreamWriter stream = null;
+
+            try
+            {
+                file = new FileStream(Filename, FileMode.Create);
+                stream = new StreamWriter(file);
+
+                if (radLibPrims.Checked)
+                {
+                    ExportLibPrims(stream);
+                }
+                else
+                {
+                    ExportPrimBlender(stream);
+                }
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show("There was an error writing the prims file, check the log for details",
+                    "primexport Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Log("Error writing prims to " + Filename + ": " + e.ToString() + Environment.NewLine);
+            }
+            finally
+            {
+                if (stream != null) stream.Close();
+                if (file != null) file.Close();
+                cmdExport.Enabled = true;
+            }
+        }
+
+        private void ExportPrimBlender(StreamWriter stream)
+        {
             uint type = 0;
-            string output = "";
+            string output;
 
-            output += "<primitive name=\"Object\" description=\"\" key=\"Num_000" + prim.LocalID + "\" version=\"2\">" + Environment.NewLine;
-            output += "<states>" + Environment.NewLine +
-                "<physics params=\"\">false</physics>" + Environment.NewLine +
-                "<temporary params=\"\">false</temporary>" + Environment.NewLine +
-                "<phantom params=\"\">false</phantom>" + Environment.NewLine +
-                "</states>" + Environment.NewLine;
-            output += "<properties>" + Environment.NewLine +
-                "<levelofdetail val=\"9\" />" + Environment.NewLine;
+            lock (Prims)
+            {
+                stream.WriteLine("<primitives>");
 
-            if (prim.ProfileCurve == 1 && prim.PathCurve == 16)
-            {
-                // PRIM_TYPE_BOX
-                type = 0;
-            }
-            else if (prim.ProfileCurve == 0 && prim.PathCurve == 16)
-            {
-                // PRIM_TYPE_CYLINDER
-                type = 1;
-            }
-            else if (prim.ProfileCurve == 3 && prim.PathCurve == 16)
-            {
-                // PRIM_TYPE_PRISM
-                type = 2;
-            }
-            else if (prim.ProfileCurve == 5 && prim.PathCurve == 32)
-            {
-                // PRIM_TYPE_SPHERE
-                type = 3;
-            }
-            else if (prim.ProfileCurve == 0 && prim.PathCurve == 32)
-            {
-                // PRIM_TYPE_TORUS
-                type = 4;
-            }
-            else if (prim.ProfileCurve == 1 && prim.PathCurve == 32)
-            {
-                // PRIM_TYPE_TUBE
-                type = 5;
-            }
-            else if (prim.ProfileCurve == 3 && prim.PathCurve == 32)
-            {
-                // PRIM_TYPE_RING
-                type = 6;
-            }
-            else
-            {
-                Console.WriteLine("Unhandled prim type, ProfileCurve=" +
-                    prim.ProfileCurve + ", PathCurve=" + prim.PathCurve);
-                type = 0;
+                foreach (PrimObject prim in Prims.Values)
+                {
+                    LLVector3 position = prim.Position;
+                    LLQuaternion rotation = prim.Rotation;
+
+                    output = "";
+
+                    if (prim.ParentID != 0)
+                    {
+                        // This prim is part of a linkset, we need to adjust it's position and rotation
+                        if (Prims.ContainsKey(prim.ParentID))
+                        {
+                            // The child prim only stores a relative position, add the world position of the parent prim
+                            position += Prims[prim.ParentID].Position;
+
+                            // The child prim only stores a relative rotation, start with the parent prim rotation
+                            rotation = rotation * Prims[prim.ParentID].Rotation;
+                        }
+                        else if (Avatars.Contains(prim.ParentID) || Attachments.Contains(prim.ParentID))
+                        {
+                            // Skip this
+                        }
+                        else
+                        {
+                            // We don't have the base position for this child prim, can't render it
+                            Log("Couldn't export child prim " + prim.ID.ToString() + ", parent prim is missing" +
+                                Environment.NewLine);
+                            continue;
+                        }
+                    }
+
+                    output += "<primitive name=\"Object\" description=\"\" key=\"Num_000" + prim.LocalID + "\" version=\"2\">" + Environment.NewLine;
+                    output += "<states><physics params=\"\">false</physics><temporary params=\"\">false</temporary><phantom params=\"\">false</phantom></states>" + Environment.NewLine;
+                    output += "<properties>" + Environment.NewLine +
+                        "<levelofdetail val=\"9\" />" + Environment.NewLine;
+
+                    switch (prim.ProfileCurve + prim.PathCurve)
+                    {
+                        case 17:
+                            // PRIM_TYPE_BOX
+                            type = 0;
+                            break;
+                        case 16:
+                            // PRIM_TYPE_CYLINDER
+                            type = 1;
+                            break;
+                        case 19:
+                            // PRIM_TYPE_PRISM
+                            type = 2;
+                            break;
+                        case 37:
+                            // PRIM_TYPE_SPHERE
+                            type = 3;
+                            break;
+                        case 32:
+                            // PRIM_TYPE_TORUS
+                            type = 4;
+                            break;
+                        case 33:
+                            // PRIM_TYPE_TUBE
+                            type = 5;
+                            break;
+                        case 35:
+                            // PRIM_TYPE_RING
+                            type = 6;
+                            break;
+                        default:
+                            Log("Not exporting an unhandled prim, ProfileCurve=" +
+                                prim.ProfileCurve + ", PathCurve=" + prim.PathCurve + Environment.NewLine);
+                            continue;
+                    }
+
+                    output += "<type val=\"" + type + "\" />" + Environment.NewLine;
+                    output += "<position x=\"" + string.Format("{0:F6}", position.X) +
+                        "\" y=\"" + string.Format("{0:F6}", position.Y) +
+                        "\" z=\"" + string.Format("{0:F6}", position.Z) + "\" />" + Environment.NewLine;
+                    output += "<rotation x=\"" + string.Format("{0:F6}", rotation.X) +
+                        "\" y=\"" + string.Format("{0:F6}", rotation.Y) +
+                        "\" z=\"" + string.Format("{0:F6}", rotation.Z) +
+                        "\" s=\"" + string.Format("{0:F6}", rotation.W) + "\" />" + Environment.NewLine;
+                    output += "<size x=\"" + string.Format("{0:F3}", prim.Scale.X) +
+                        "\" y=\"" + string.Format("{0:F3}", prim.Scale.Y) +
+                        "\" z=\"" + string.Format("{0:F3}", prim.Scale.Z) + "\" />" + Environment.NewLine;
+
+                    if (type == 1)
+                    {
+                        output += "<cut x=\"" + prim.ProfileBegin + "\" y=\"" + prim.ProfileEnd + "\" />" + Environment.NewLine;
+                        output += "<dimple x=\"" + prim.PathBegin + "\" y=\"" + prim.PathEnd + "\" />" + Environment.NewLine;
+                    }
+                    else
+                    {
+                        output += "<cut x=\"" + prim.PathBegin + "\" y=\"" + prim.PathEnd + "\" />" + Environment.NewLine;
+                        output += "<dimple x=\"" + prim.ProfileBegin + "\" y=\"" + prim.ProfileEnd + "\" />" + Environment.NewLine;
+                    }
+
+                    output += "<advancedcut x=\"" + prim.ProfileBegin + "\" y=\"" + prim.ProfileEnd + "\" />" + Environment.NewLine;
+                    output += "<hollow val=\"" + prim.ProfileHollow + "\" />" + Environment.NewLine;
+                    output += "<twist x=\"" + prim.PathTwistBegin + "\" y=\"" + prim.PathTwist + "\" />" + Environment.NewLine;
+                    output += "<topsize x=\"" + Math.Abs(prim.PathScaleX - 1.0f) + "\" y=\"" +
+                        Math.Abs(prim.PathScaleY - 1.0f) + "\" />" + Environment.NewLine;
+                    output += "<holesize x=\"" + (1.0f - prim.PathScaleX) + "\" y=\"" + (1.0f - prim.PathScaleY) + "\" />" + Environment.NewLine;
+                    output += "<topshear x=\"" + prim.PathShearX + "\" y=\"" + prim.PathShearY + "\" />" + Environment.NewLine;
+                    output += "<taper x=\"" + prim.PathTaperX + "\" y=\"" + prim.PathTaperY + "\" />" + Environment.NewLine;
+                    output += "<revolutions val=\"" + prim.PathRevolutions + "\" />" + Environment.NewLine;
+                    output += "<radiusoffset val=\"" + prim.PathRadiusOffset + "\" />" + Environment.NewLine;
+                    output += "<skew val=\"" + prim.PathSkew + "\" />" + Environment.NewLine;
+                    output += "<material val=\"" + prim.Material + "\" />" + Environment.NewLine;
+                    // FIXME: Hollowshape. 16-21 = circle, 32-37 = square, 48-53 = triangle
+                    output += "<hollowshape val=\"0\" />" + Environment.NewLine;
+
+                    output += "<textures params=\"\">" +
+                        "</textures>" +
+                        "<scripts params=\"\">" +
+                        "</scripts>" + Environment.NewLine +
+                        "</properties>" + Environment.NewLine +
+                        "</primitive>" + Environment.NewLine;
+
+                    stream.WriteLine(output);
+                }
             }
 
-            output += "<type val=\"" + type + "\" />" + Environment.NewLine;
-            output += "<position x=\"" + string.Format("{0:F6}", prim.Position.X) +
-                "\" y=\"" + string.Format("{0:F6}", prim.Position.Y) +
-                "\" z=\"" + string.Format("{0:F6}", prim.Position.Z) + "\" />" + Environment.NewLine;
-            output += "<rotation x=\"" + string.Format("{0:F6}", prim.Rotation.X) +
-                "\" y=\"" + string.Format("{0:F6}", prim.Rotation.Y) +
-                "\" z=\"" + string.Format("{0:F6}", prim.Rotation.Z) +
-                "\" s=\"" + string.Format("{0:F6}", prim.Rotation.W) + "\" />" + Environment.NewLine;
-            output += "<size x=\"" + string.Format("{0:F3}", prim.Scale.X) +
-                "\" y=\"" + string.Format("{0:F3}", prim.Scale.Y) +
-                "\" z=\"" + string.Format("{0:F3}", prim.Scale.Z) + "\" />" + Environment.NewLine;
-            
-            if (type == 1)
-            {
-                output += "<cut x=\"" + prim.ProfileBegin + "\" y=\"" + prim.ProfileEnd + "\" />" + Environment.NewLine;
-                output += "<dimple x=\"" + prim.PathBegin + "\" y=\"" + prim.PathEnd + "\" />" + Environment.NewLine;
-            }
-            else
-            {
-                output += "<cut x=\"" + prim.PathBegin + "\" y=\"" + prim.PathEnd + "\" />" + Environment.NewLine;
-                output += "<dimple x=\"" + prim.ProfileBegin + "\" y=\"" + prim.ProfileEnd + "\" />" + Environment.NewLine;
-            }
-            
-            output += "<advancedcut x=\"" + prim.ProfileBegin + "\" y=\"" + prim.ProfileEnd + "\" />" + Environment.NewLine;
-            output += "<hollow val=\"" + prim.ProfileHollow + "\" />" + Environment.NewLine;
-            output += "<twist x=\"" + prim.PathTwistBegin + "\" y=\"" + prim.PathTwist + "\" />" + Environment.NewLine;
-            output += "<topsize x=\"" + Math.Abs(prim.PathScaleX - 1.0F) + "\" y=\"" +
-                Math.Abs(prim.PathScaleY - 1.0F) + "\" />" + Environment.NewLine;
-            output += "<holesize x=\"" + (1.0F - prim.PathScaleX) + "\" y=\"" + (1.0F - prim.PathScaleY) + "\" />" + Environment.NewLine;
-            output += "<topshear x=\"" + prim.PathShearX + "\" y=\"" + prim.PathShearY + "\" />" + Environment.NewLine;
-            // prim.blender stores taper values a bit different than the SL network layer
-            output += "<taper x=\"" + /*Math.Abs(prim.PathScaleX - 1.0F)*/ prim.PathTaperX + "\" y=\"" +
-                /*Math.Abs(prim.PathScaleY - 1.0F)*/ prim.PathTaperY + "\" />" + Environment.NewLine;
-            output += "<revolutions val=\"" + prim.PathRevolutions + "\" />" + Environment.NewLine;
-            output += "<radiusoffset val=\"" + prim.PathRadiusOffset + "\" />" + Environment.NewLine;
-            output += "<skew val=\"" + prim.PathSkew + "\" />" + Environment.NewLine;
-            output += "<material val=\"" + prim.Material + "\" />" + Environment.NewLine;
-            // TODO: Hollowshape. 16-21 = circle, 32-37 = square, 48-53 = triangle
-            output += "<hollowshape val=\"0\" />" + Environment.NewLine;
+            stream.WriteLine("</primitives>");
+        }
 
-            output += "<textures params=\"\">" + Environment.NewLine +
-                "</textures>" + Environment.NewLine +
-                "<scripts params=\"\">" + Environment.NewLine +
-                "</scripts>" + Environment.NewLine +
-                "</properties>" + Environment.NewLine +
-                "</primitive>" + Environment.NewLine;
+        private void ExportLibPrims(StreamWriter stream)
+        {
+            lock (Prims)
+            {
+                stream.WriteLine("<Primitives>");
 
-            Log(output);
+                foreach (PrimObject prim in Prims.Values)
+                {
+                    if (prim.ParentID != 0)
+                    {
+                        // This prim is part of a linkset, we need to adjust it's position and rotation
+                        if (Prims.ContainsKey(prim.ParentID))
+                        {
+                            stream.WriteLine(prim.GetXml());
+                        }
+                        else if (Avatars.Contains(prim.ParentID) || Attachments.Contains(prim.ParentID))
+                        {
+                            // Skip this
+                        }
+                        else
+                        {
+                            // We don't have the base position for this child prim, can't render it
+                            Log("Couldn't export child prim " + prim.ID.ToString() + ", parent prim is missing" +
+                                Environment.NewLine);
+                        }
+                    }
+                }
+
+                stream.WriteLine("</Primitives>");
+            }
         }
 
         private void cmdConnect_Click(object sender, EventArgs e)
         {
-            cmdCapture.Text = "Start Capture";
-            cmdCapture.Enabled = false;
-
             if (cmdConnect.Text == "Connect")
             {
                 cmdConnect.Text = "Disconnect";
                 txtFirstName.Enabled = txtLastName.Enabled = txtPassword.Enabled = false;
 
-                Dictionary<string, object> loginParams = NetworkManager.DefaultLoginValues(txtFirstName.Text,
-                    txtLastName.Text, txtPassword.Text, "00:00:00:00:00:00", "last", 
-                    "Win", "0", "primexport", "jhurliman@wsu.edu");
-
-                // HAX
-                cmdCapture.Text = "Stop Capture";
-                client.Objects.OnNewPrim += primCallback;
-
-                if (client.Network.Login(loginParams))
+                if (client.Network.Login(txtFirstName.Text, txtLastName.Text, txtPassword.Text,
+                    "primexport", "jhurliman@wsu.edu"))
                 {
-                    cmdCapture.Enabled = true;
+                    client.Throttle.Asset = 0;
+                    client.Throttle.Cloud = 0;
+                    client.Throttle.Land = 0;
+                    client.Throttle.Texture = 0;
+                    client.Throttle.Wind = 0;
+                    client.Throttle.Set();
                 }
                 else
                 {
@@ -342,22 +590,34 @@ namespace primexport
             else
             {
                 client.Network.Logout();
+
                 cmdConnect.Text = "Connect";
                 txtFirstName.Enabled = txtLastName.Enabled = txtPassword.Enabled = true;
             }
         }
 
-        private void cmdCapture_Click(object sender, EventArgs e)
+        private void cmdExport_Click(object sender, EventArgs e)
         {
-            if (cmdCapture.Text == "Start Capture")
+            SaveFileDialog save = new SaveFileDialog();
+
+            if (radLibPrims.Checked)
             {
-                cmdCapture.Text = "Stop Capture";
-                client.Objects.OnNewPrim += primCallback;
+                save.Filter = "libprims files (*.xml)|*.xml";
             }
             else
             {
-                cmdCapture.Text = "Start Capture";
-                client.Objects.OnNewPrim -= primCallback;
+                save.Filter = "Prim.Blender files (*.prims)|*.prims";
+            }
+
+            save.RestoreDirectory = true;
+
+            if (save.ShowDialog() == DialogResult.OK)
+            {
+                EntireSim = radEntireSim.Checked;
+                
+                Filename = save.FileName;
+                cmdExport.Enabled = false;
+                Invoke(new MethodInvoker(ExportPrims));
             }
         }
     }

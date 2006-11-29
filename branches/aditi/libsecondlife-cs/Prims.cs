@@ -25,6 +25,7 @@
  */
 
 using System;
+using System.Xml;
 
 namespace libsecondlife
 {
@@ -44,7 +45,7 @@ namespace libsecondlife
         /// <summary></summary>
 		public float PathSkew = 0;
         /// <summary></summary>
-		public LLVector3 Position = new LLVector3();
+        public LLVector3 Position = LLVector3.Zero;
         /// <summary></summary>
 		public uint ProfileCurve = 0;
         /// <summary></summary>
@@ -52,19 +53,19 @@ namespace libsecondlife
         /// <summary></summary>
 		public float PathScaleY = 0;
         /// <summary></summary>
-		public LLUUID ID = new LLUUID();
+        public LLUUID ID = LLUUID.Zero;
         /// <summary></summary>
 		public uint LocalID = 0;
         /// <summary></summary>
         public uint ParentID = 0;
         /// <summary></summary>
-		public LLUUID GroupID = new LLUUID();
+        public LLUUID GroupID = LLUUID.Zero;
         /// <summary></summary>
 		public uint Material = 0;
         /// <summary></summary>
 		public string Name = "";
         /// <summary></summary>
-		public string Description;
+		public string Description = "";
         /// <summary></summary>
 		public float PathShearX = 0;
         /// <summary></summary>
@@ -80,21 +81,33 @@ namespace libsecondlife
         /// <summary></summary>
 		public uint PathCurve = 0;
         /// <summary></summary>
-		public LLVector3 Scale = new LLVector3();
+        public LLVector3 Scale = LLVector3.Zero;
         /// <summary></summary>
 		public int PathTwist = 0;
         /// <summary></summary>
-        public TextureEntry Textures;
+        public uint ProfileHollow = 0;
         /// <summary></summary>
-		public uint ProfileHollow = 0;
+        public float PathRevolutions = 0;
         /// <summary></summary>
-		public float PathRevolutions = 0;
+        public LLQuaternion Rotation = LLQuaternion.Identity;
         /// <summary></summary>
-		public LLQuaternion Rotation = new LLQuaternion();
-        /// <summary></summary>
-		public uint State;
+        public uint State;
         /// <summary></summary>
         public string Text;
+        /// <summary></summary>
+        public ObjectManager.PCode PCode;
+        /// <summary></summary>
+        public ObjectFlags Flags;
+        /// <summary></summary>
+        public TextureEntry Textures;
+        /// <summary></summary>
+        public TextureAnimation TextureAnim;
+        /// <summary></summary>
+        public PrimFlexibleData Flexible;
+        /// <summary></summary>
+        public PrimLightData Light;
+        /// <summary></summary>
+        public ParticleSystem ParticleSys;
 
         private SecondLife Client;
 
@@ -104,7 +117,15 @@ namespace libsecondlife
         public PrimObject(SecondLife client)
         {
             Client = client;
-            Textures = new TextureEntry(Client);
+            PCode = ObjectManager.PCode.Prim;
+            Flexible = new PrimFlexibleData();
+            Light = new PrimLightData();
+            ParticleSys = new ParticleSystem();
+            Textures = new TextureEntry();
+            TextureAnim = new TextureAnimation();
+            Flexible = new PrimFlexibleData();
+            Light = new PrimLightData();
+            ParticleSys = new ParticleSystem();
         }
 		
         /// <summary>
@@ -114,7 +135,8 @@ namespace libsecondlife
 		public PrimObject(SecondLife client, LLUUID texture)
 		{
             Client = client;
-            Textures = new TextureEntry(Client);
+            PCode = ObjectManager.PCode.Prim;
+            Textures = new TextureEntry();
             Textures.DefaultTexture.TextureID = texture;
 		}
 
@@ -126,7 +148,8 @@ namespace libsecondlife
 		public static byte PathScaleByte(float pathScale)
 		{
 			// Y = 100 + 100X
-			return (byte)(100 + Convert.ToInt16(100.0F * pathScale));
+            int scale = (int)Math.Round(100.0f * pathScale);
+			return (byte)(100 + scale);
 		}
 
         /// <summary>
@@ -137,31 +160,8 @@ namespace libsecondlife
         public static float PathScaleFloat(byte pathScale)
         {
             // Y = -1 + 0.01X
-            return (float)pathScale * 0.01F - 1.0F;
+            return (float)Math.Round((double)pathScale * 0.01d - 1.0d, 6);
         }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="pathTwist"></param>
-        /// <returns></returns>
-		public static byte PathTwistByte(float pathTwist)
-		{
-			// Y = 256 + ceil (X / 1.8)
-			ushort temp = Convert.ToUInt16(256 + Math.Ceiling(pathTwist / 1.8F));
-			return (byte)(temp % 256);
-		}
-
-        /*/// <summary>
-        /// 
-        /// </summary>
-        /// <param name="pathTwist"></param>
-        /// <returns></returns>
-        public static float PathTwistFloat(sbyte pathTwist)
-        {
-            // Y = 0.5556X
-            return (float)pathTwist * 0.5556F;
-        }*/
 
         /// <summary>
         /// 
@@ -171,9 +171,9 @@ namespace libsecondlife
 		public static byte PathShearByte(float pathShear)
 		{
 			// Y = 256 + 100X
-			ushort temp = Convert.ToUInt16(100.0F * pathShear);
-			temp += 256;
-			return (byte)(temp % 256);
+            int shear = (int)Math.Round(100.0f * pathShear);
+			shear += 256;
+			return (byte)(shear % 256);
 		}
 
         /// <summary>
@@ -183,15 +183,19 @@ namespace libsecondlife
         /// <returns></returns>
         public static float PathShearFloat(byte pathShear)
         {
-            // Y = (X - 256) / 100
+            if (pathShear == 0) return 0.0f;
+
             if (pathShear > 150)
             {
-                return ((float)pathShear - 256.0F) / 100.0F;
+                // Negative value
+                return ((float)pathShear - 256.0f) / 100.0f;
             }
             else
             {
-                return (float)pathShear / 100.0F;
-            }        }
+                // Positive value
+                return (float)pathShear / 100.0f;
+            }
+        }
 
         /// <summary>
         /// 
@@ -201,7 +205,7 @@ namespace libsecondlife
 		public static byte ProfileBeginByte(float profileBegin)
 		{
 			// Y = ceil (200X)
-			return (byte)Convert.ToInt16(200.0F * profileBegin);
+			return (byte)Math.Round(200.0f * profileBegin);
 		}
 
         /// <summary>
@@ -212,7 +216,7 @@ namespace libsecondlife
         public static float ProfileBeginFloat(byte profileBegin)
         {
             // Y = 0.005X
-            return (float)profileBegin * 0.005F;
+            return (float)Math.Round((double)profileBegin * 0.005d, 6);
         }
 
         /// <summary>
@@ -222,8 +226,9 @@ namespace libsecondlife
         /// <returns></returns>
 		public static byte ProfileEndByte(float profileEnd)
 		{
-			// Y = 200 - ceil (200X)
-			return (byte)(200 - (200.0F * profileEnd));
+			// Y = 200 - 200X
+            int end = (int)Math.Round(200.0d * (double)profileEnd);
+			return (byte)(200 - end);
 		}
 
         /// <summary>
@@ -234,7 +239,7 @@ namespace libsecondlife
         public static float ProfileEndFloat(byte profileEnd)
         {
             // Y = 1 - 0.005X
-            return 1.0F - (float)profileEnd * 0.005F;
+            return (float)Math.Round(1.0d - ((double)profileEnd * 0.005d), 6);
         }
 
         /// <summary>
@@ -245,7 +250,7 @@ namespace libsecondlife
 		public static byte PathBeginByte(float pathBegin)
 		{
 			// Y = 100X
-			return (byte)Convert.ToInt16(100.0F * pathBegin);
+			return (byte)Convert.ToInt16(100.0f * pathBegin);
 		}
 
         /// <summary>
@@ -256,7 +261,7 @@ namespace libsecondlife
         public static float PathBeginFloat(byte pathBegin)
         {
             // Y = X / 100
-            return (float)pathBegin / 100.0F;
+            return (float)pathBegin / 100.0f;
         }
 
         /// <summary>
@@ -267,7 +272,8 @@ namespace libsecondlife
 		public static byte PathEndByte(float pathEnd)
 		{
 			// Y = 100 - 100X
-			return (byte)(100 - Convert.ToInt16(100.0F * pathEnd));
+            int end = (int)Math.Round(100.0f * pathEnd);
+            return (byte)(100 - end);
 		}
 
         /// <summary>
@@ -278,7 +284,7 @@ namespace libsecondlife
         public static float PathEndFloat(byte pathEnd)
         {
             // Y = 1 - X / 100
-            return 1.0F - (float)pathEnd / 100;
+            return 1.0f - (float)pathEnd / 100.0f;
         }
 
         /// <summary>
@@ -286,10 +292,10 @@ namespace libsecondlife
         /// </summary>
         /// <param name="pathRadiusOffset"></param>
         /// <returns></returns>
-		public static byte PathRadiusOffsetByte(float pathRadiusOffset)
+		public static sbyte PathRadiusOffsetByte(float pathRadiusOffset)
 		{
 			// Y = 256 + 100X
-			return PathShearByte(pathRadiusOffset);
+			return (sbyte)PathShearByte(pathRadiusOffset);
 		}
 
         /// <summary>
@@ -300,7 +306,7 @@ namespace libsecondlife
         public static float PathRadiusOffsetFloat(sbyte pathRadiusOffset)
         {
             // Y = X / 100
-            return (float)pathRadiusOffset / 100.0F;
+            return (float)pathRadiusOffset / 100.0f;
         }
 
         /// <summary>
@@ -310,8 +316,9 @@ namespace libsecondlife
         /// <returns></returns>
 		public static byte PathRevolutionsByte(float pathRevolutions)
 		{
-			// Y = ceil (66X) - 66
-			return (byte)(Convert.ToInt16(Math.Ceiling(66.0F * pathRevolutions)) - 66);
+			// Y = 66.5X - 66
+            int revolutions = (int)Math.Round(66.5d * (double)pathRevolutions);
+			return (byte)(revolutions - 66);
 		}
 
         /// <summary>
@@ -322,7 +329,7 @@ namespace libsecondlife
         public static float PathRevolutionsFloat(byte pathRevolutions)
         {
             // Y = 1 + 0.015X
-            return 1.0F + (float)pathRevolutions * 0.015F;
+            return (float)Math.Round(1.0d + (double)pathRevolutions * 0.015d, 6);
         }
 
         /// <summary>
@@ -330,7 +337,7 @@ namespace libsecondlife
         /// </summary>
         /// <param name="pathSkew"></param>
         /// <returns></returns>
-		public static byte PathSkewByte(float pathSkew)
+		public static sbyte PathSkewByte(float pathSkew)
 		{
             return PathTaperByte(pathSkew);
 		}
@@ -340,7 +347,7 @@ namespace libsecondlife
         /// </summary>
         /// <param name="pathSkew"></param>
         /// <returns></returns>
-        public static float PathSkewFloat(byte pathSkew)
+        public static float PathSkewFloat(sbyte pathSkew)
         {
             return PathTaperFloat(pathSkew);
         }
@@ -350,27 +357,369 @@ namespace libsecondlife
         /// </summary>
         /// <param name="pathTaper"></param>
         /// <returns></returns>
-		public static byte PathTaperByte(float pathTaper)
-		{
-			// Y = 256 + 100X
-			return PathShearByte(pathTaper);
-		}
+        public static sbyte PathTaperByte(float pathTaper)
+        {
+            // Y = 256 + 100X
+            return (sbyte)PathShearByte(pathTaper);
+        }
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="pathTaper"></param>
         /// <returns></returns>
-        public static float PathTaperFloat(byte pathTaper)
+        public static float PathTaperFloat(sbyte pathTaper)
         {
-            if (pathTaper > 100)
+            return (float)pathTaper / 100.0f;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="pos"></param>
+        /// <returns></returns>
+        public int SetExtraParamsFromBytes(byte[] data, int pos)
+        {
+            int i = pos;
+            int totalLength = 1;
+
+            if (data.Length == 0)
+                return 0;
+
+            byte extraParamCount = data[i++];
+
+            for (int k = 0; k < extraParamCount; k++)
             {
-                return (float)(256 - pathTaper) * 0.01F;
+                ExtraParamType type = (ExtraParamType)(data[i++] + (data[i++] << 8));
+                uint paramLength = (uint)(data[i++] + (data[i++] << 8) +
+                              (data[i++] << 16) + (data[i++] << 24));
+                if (type == ExtraParamType.Flexible)
+                {
+                    Flexible = new PrimFlexibleData(data, i);
+                }
+                else if (type == ExtraParamType.Light)
+                {
+                    Light = new PrimLightData(data, i);
+                }
+                i += (int)paramLength;
+                totalLength += (int)paramLength + 6;
             }
-            else
+
+            return totalLength;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public string GetXml()
+        {
+            string xml = "<Prim>";
+            xml += "<PathTwistBegin value=\"" + PathTwistBegin + "\" />";
+            xml += "<PathEnd value=\"" + PathEnd + "\" />";
+            xml += "<ProfileBegin value=\"" + ProfileBegin + "\" />";
+            xml += "<PathRadiusOffset value=\"" + PathRadiusOffset + "\" />";
+            xml += "<PathSkew value=\"" + PathSkew + "\" />";
+            xml += Position.GetXml("Position");
+            xml += "<ProfileCurve value=\"" + ProfileCurve + "\" />";
+            xml += "<PathScaleX value=\"" + PathScaleX + "\" />";
+            xml += "<PathScaleY value=\"" + PathScaleY + "\" />";
+            xml += "<ID value=\"" + ID.ToString() + "\" />";
+            xml += "<LocalID value=\"" + LocalID + "\" />";
+            xml += "<ParentID value=\"" + ParentID + "\" />";
+            xml += "<GroupID value=\"" + GroupID.ToString() + "\" />";
+            xml += "<Material value=\"" + Material + "\" />";
+            xml += "<Name value=\"" + Name + "\" />";
+            xml += "<Description value=\"" + Description + "\" />";
+            xml += "<PathShearX value=\"" + PathShearX + "\" />";
+            xml += "<PathShearY value=\"" + PathShearY + "\" />";
+            xml += "<PathTaperX value=\"" + PathTaperX + "\" />";
+            xml += "<PathTaperY value=\"" + PathTaperY + "\" />";
+            xml += "<ProfileEnd value=\"" + ProfileEnd + "\" />";
+            xml += "<PathBegin value=\"" + PathBegin + "\" />";
+            xml += "<PathCurve value=\"" + PathCurve + "\" />";
+            xml += Scale.GetXml("Scale");
+            xml += "<PathTwist value=\"" + PathTwist + "\" />";
+            xml += "<ProfileHollow value=\"" + ProfileHollow + "\" />";
+            xml += "<PathRevolutions value=\"" + PathRevolutions + "\" />";
+            xml += Rotation.GetXml("Rotation");
+            xml += "<State value=\"" + State + "\" />";
+            xml += "<Text value=\"" + Text + "\" />";
+            xml += "<PCode value=\"" + PCode + "\" />";
+            xml += "<Flags value=\"" + Flags + "\" />";
+            xml += Textures.GetXml("Textures");
+            xml += TextureAnim.GetXml("TextureAnim");
+            xml += Flexible.GetXml("Flexible");
+            xml += Light.GetXml("Light");
+            xml += ParticleSys.GetXml("ParticleSys");
+            xml += "</Prim>";
+
+            return xml;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public static PrimObject FromXml(SecondLife client, XmlNode node)
+        {
+            PrimObject prim = new PrimObject(client);
+
+            foreach (XmlNode childNode in node.ChildNodes)
             {
-                return (float)pathTaper * 0.01F;
+                ;
             }
+
+            return prim;
+        }
+
+        public override string ToString()
+        {
+            string output = "";
+
+            output += (Name.Length != 0) ? Name : "Unnamed";
+            output += ": " + ((Description.Length != 0) ? Description : "No description") + Environment.NewLine;
+            output += "ID: " + ID + ", ";
+            output += "GroupID: " + GroupID + ", ";
+            output += "ParentID: " + ParentID + ", ";
+            output += "LocalID: " + LocalID + ", ";
+            output += "Flags: " + Flags + ", ";
+            output += "State: " + State + ", ";
+            output += "PCode: " + PCode + ", ";
+            output += "Material: " + Material + ", ";
+
+            return output;
         }
 	}
+
+    /// <summary>
+    /// 
+    /// </summary>
+    [Flags]
+    public enum ObjectFlags
+    {
+        None = 0,
+        Physics = 1 << 0,
+        CreateSelected = 1 << 1,
+        Script = 1 << 6,
+        Touch = 1 << 7,
+        Money = 1 << 9,
+        Phantom = 1 << 10,
+        Temp = 1 << 30
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public enum ExtraParamType : ushort
+    {
+        Flexible = 0x10,
+        Light = 0x20
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public class PrimFlexibleData
+    {
+        /// <summary></summary>
+        public int Softness;
+        /// <summary></summary>
+        public float Gravity;
+        /// <summary></summary>
+        public float Drag;
+        /// <summary></summary>
+        public float Wind;
+        /// <summary></summary>
+        public float Tension;
+        /// <summary></summary>
+        public LLVector3 Force = LLVector3.Zero;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public PrimFlexibleData()
+        {
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="pos"></param>
+        public PrimFlexibleData(byte[] data, int pos)
+        {
+            FromBytes(data, pos);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public byte[] GetBytes()
+        {
+            byte[] data = new byte[16];
+            int i = 0;
+
+            data[i] = (byte)((Softness & 2) << 6);
+            data[i + 1] = (byte)((Softness & 1) << 7);
+
+            data[i++] |= (byte)((byte)(Tension * 10.0f) & 0x7F);
+            data[i++] |= (byte)((byte)(Drag * 10.0f) & 0x7F);
+            data[i++] = (byte)((Gravity + 10.0f) * 10.0f);
+            data[i++] = (byte)(Wind * 10.0f);
+
+            Force.GetBytes().CopyTo(data, i);
+
+            return data;
+        }
+
+        private void FromBytes(byte[] data, int pos)
+        {
+            int i = pos;
+
+            Softness = ((data[i] & 0x80) >> 6) | ((data[i + 1] & 0x80) >> 7);
+
+            Tension = (data[i++] & 0x7F) / 10.0f;
+            Drag = (data[i++] & 0x7F) / 10.0f;
+            Gravity = (data[i++] / 10.0f) - 10.0f;
+            Wind = data[i++] / 10.0f;
+            Force = new LLVector3(data, i);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public string GetXml(string name)
+        {
+            string xml = "<" + name + ">";
+            xml += "<Softness value=\"" + Softness + "\" />";
+            xml += "<Tension value=\"" + Tension + "\" />";
+            xml += "<Drag value=\"" + Drag + "\" />";
+            xml += "<Gravity value=\"" + Gravity + "\" />";
+            xml += "<Wind value=\"" + Wind + "\" />";
+            xml += "</" + name + ">";
+
+            return xml;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public static PrimFlexibleData FromXml(XmlNode node)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public class PrimLightData
+    {
+        /// <summary></summary>
+        public byte R, G, B;
+        /// <summary></summary>
+        public float Intensity;
+        /// <summary></summary>
+        public float Radius;
+        /// <summary></summary>
+        public float Falloff;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public PrimLightData()
+        {
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="pos"></param>
+        public PrimLightData(byte[] data, int pos)
+        {
+            FromBytes(data, pos);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public byte[] GetBytes()
+        {
+            byte[] data = new byte[16];
+            int i = 0;
+
+            data[i++] = R;
+            data[i++] = G;
+            data[i++] = B;
+            data[i++] = (byte)(Intensity * 255.0f);
+
+            BitConverter.GetBytes(Radius).CopyTo(data, i);
+            BitConverter.GetBytes(Falloff).CopyTo(data, i + 8);
+
+            if (!BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(data, i, 4);
+                Array.Reverse(data, i + 8, 4);
+            }
+
+            return data;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public string GetXml(string name)
+        {
+            string xml = "<" + name + ">";
+            xml += "<Color X=\"" + R + "\" Y=\"" + G + "\" Z=\"" + B + "\" />";
+            xml += "<Intensity value=\"" + Intensity + "\" />";
+            xml += "<Radius value=\"" + Radius + "\" />";
+            xml += "<Falloff value=\"" + Falloff + "\" />";
+            xml += "</" + name + ">";
+
+            return xml;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public static PrimLightData FromXml(XmlNode node)
+        {
+            return null;
+        }
+
+        private void FromBytes(byte[] data, int pos)
+        {
+            int i = pos;
+
+            R = data[i++];
+            G = data[i++];
+            B = data[i++];
+            Intensity = data[i++] / 255.0f;
+
+            if (!BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(data, i, 4);
+                Array.Reverse(data, i + 8, 4);
+            }
+
+            Radius = BitConverter.ToSingle(data, i);
+            Falloff = BitConverter.ToSingle(data, i + 8);
+        }
+    }
 }

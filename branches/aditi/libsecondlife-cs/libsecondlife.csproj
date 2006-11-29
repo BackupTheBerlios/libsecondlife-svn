@@ -51,7 +51,7 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>..\bin\</OutputPath>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <BaseAddress>285212672</BaseAddress>
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
@@ -96,6 +96,10 @@
     <Compile Include="AssetSystem\AssetManager.cs" />
     <Compile Include="AssetSystem\AssetNotecard.cs" />
     <Compile Include="AssetSystem\AssetPacketHelpers.cs" />
+    <Compile Include="AssetSystem\AssetRequestDownload.cs" />
+    <Compile Include="AssetSystem\AssetRequestUpload.cs" />
+    <Compile Include="AssetSystem\BodyPart.cs" />
+    <Compile Include="AssetSystem\BodyShape\_BodyShapeParams_.cs" />
     <Compile Include="AssetSystem\ImageManager.cs" />
     <Compile Include="AssetSystem\ImagePacketHelpers.cs" />
     <Compile Include="Avatar.cs">
@@ -105,11 +109,11 @@
     <Compile Include="EstateTools.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="AssetSystem\FastImageTool.cs" />
     <Compile Include="GridManager.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="GroupManager.cs" />
+    <Compile Include="Helpers.cs" />
     <Compile Include="InventorySystem\InventoryBase.cs" />
     <Compile Include="InventorySystem\InventoryFolder.cs" />
     <Compile Include="InventorySystem\InventoryImage.cs" />
@@ -136,6 +140,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Parcel.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ParticleSystem.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Prims.cs">

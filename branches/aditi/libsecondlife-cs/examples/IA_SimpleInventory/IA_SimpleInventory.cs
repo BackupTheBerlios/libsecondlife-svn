@@ -71,21 +71,19 @@ namespace IA_SimpleInventory
             }
         }
 
-        protected void Connect(string FirstName, string LastName, string Password)
+        protected bool Connect(string FirstName, string LastName, string Password)
         {
             Console.WriteLine("Attempting to connect and login to SecondLife.");
 
             // Setup Login to Second Life
-            Dictionary<string, object> loginParams = NetworkManager.DefaultLoginValues(FirstName, LastName,
-                Password, "00:00:00:00:00:00", "last", "Win", "0", "createnotecard", "static.sprocket@gmail.com");
             Dictionary<string, object> loginReply = new Dictionary<string, object>();
 
             // Login
-            if (!client.Network.Login(loginParams))
+            if (!client.Network.Login(FirstName, LastName, Password, "createnotecard", "static.sprocket@gmail.com"))
             {
                 // Login failed
                 Console.WriteLine("Error logging in: " + client.Network.LoginError);
-                return;
+                return false;
             }
 
             // Login was successful
@@ -109,6 +107,7 @@ namespace IA_SimpleInventory
                 Console.WriteLine("Downloading Inventory.");
                 AgentInventory.DownloadInventory();
             }
+            return true;
         }
 
         protected void Disconnect()
@@ -123,7 +122,15 @@ namespace IA_SimpleInventory
             Console.WriteLine("Dumping a copy of " + client.Self.FirstName + "'s inventory to the console.");
             Console.WriteLine();
 
-            Console.WriteLine(AgentInventory.getRootFolder().toXML(false));
+            if (AgentInventory != null)
+            {
+                InventoryFolder root = AgentInventory.getRootFolder();
+
+                if (root != null)
+                {
+                    Console.WriteLine(root.toXML(false));
+                }
+            }
         }
     }
 }

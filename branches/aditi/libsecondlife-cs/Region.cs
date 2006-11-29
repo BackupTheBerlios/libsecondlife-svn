@@ -53,11 +53,11 @@ namespace libsecondlife
         public Dictionary<int, Parcel> Parcels;
 
         /// <summary></summary>
-        public LLUUID ID;
+        public LLUUID ID = LLUUID.Zero;
         /// <summary></summary>
         public ulong Handle;
         /// <summary></summary>
-        public string Name;
+        public string Name = "";
         /// <summary></summary>
         public byte[] ParcelOverlay;
         /// <summary></summary>
@@ -88,27 +88,44 @@ namespace libsecondlife
         /// <summary></summary>
         public float WaterHeight;
         /// <summary></summary>
-        public LLUUID SimOwner;
+        public LLUUID SimOwner = LLUUID.Zero;
         /// <summary></summary>
-        public LLUUID TerrainBase0;
+        public LLUUID TerrainBase0 = LLUUID.Zero;
         /// <summary></summary>
-        public LLUUID TerrainBase1;
+        public LLUUID TerrainBase1 = LLUUID.Zero;
         /// <summary></summary>
-        public LLUUID TerrainBase2;
+        public LLUUID TerrainBase2 = LLUUID.Zero;
         /// <summary></summary>
-        public LLUUID TerrainBase3;
+        public LLUUID TerrainBase3 = LLUUID.Zero;
         /// <summary></summary>
-        public LLUUID TerrainDetail0;
+        public LLUUID TerrainDetail0 = LLUUID.Zero;
         /// <summary></summary>
-        public LLUUID TerrainDetail1;
+        public LLUUID TerrainDetail1 = LLUUID.Zero;
         /// <summary></summary>
-        public LLUUID TerrainDetail2;
+        public LLUUID TerrainDetail2 = LLUUID.Zero;
         /// <summary></summary>
-        public LLUUID TerrainDetail3;
+        public LLUUID TerrainDetail3 = LLUUID.Zero;
         /// <summary></summary>
         public bool IsEstateManager;
         /// <summary></summary>
         public EstateTools Estate;
+
+        /// <summary></summary>
+        private GridRegion _GridRegionData = null;
+        public GridRegion GridRegionData
+        {
+            get
+            {
+                if (_GridRegionData == null)
+                {
+                    if ((Name != null) && (!Name.Equals("")))
+                    {
+                        _GridRegionData = Client.Grid.GetGridRegion(Client.Network.CurrentSim.Region.Name);
+                    }
+                }
+                return _GridRegionData;
+            }
+        }
 
         private SecondLife Client;
 
@@ -120,21 +137,10 @@ namespace libsecondlife
         {
             Estate = new EstateTools(client);
             Client = client;
-            ID = new LLUUID();
             ParcelOverlay = new byte[4096];
             ParcelMarked = new int[64, 64];
 
             Parcels = new Dictionary<int, Parcel>();
-
-            SimOwner = new LLUUID();
-            TerrainBase0 = new LLUUID();
-            TerrainBase1 = new LLUUID();
-            TerrainBase2 = new LLUUID();
-            TerrainBase3 = new LLUUID();
-            TerrainDetail0 = new LLUUID();
-            TerrainDetail1 = new LLUUID();
-            TerrainDetail2 = new LLUUID();
-            TerrainDetail3 = new LLUUID();
         }
 
         /// <summary>
@@ -230,25 +236,6 @@ namespace libsecondlife
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="prim"></param>
-        /// <param name="position"></param>
-        /// <param name="avatarPosition"></param>
-        public void RezObject(PrimObject prim, LLVector3 position, LLVector3 avatarPosition)
-        {
-            // FIXME:
-            //byte[] textureEntry = new byte[40];
-            //Array.Copy(prim.Texture.Data, textureEntry, 16);
-            //textureEntry[35] = 0xe0; // No clue
-
-            //Packet objectAdd = libsecondlife.Packets.Object.ObjectAdd(Client.Protocol, Client.Network.AgentID,
-            //        LLUUID.GenerateUUID(), avatarPosition,
-            //        position, prim, textureEntry);
-            //Client.Network.SendPacket(objectAdd);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
         public void FillParcels()
         {
             // Begins filling parcels
@@ -293,65 +280,6 @@ namespace libsecondlife
         public override int GetHashCode()
         {
             return ID.GetHashCode();
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="o"></param>
-        /// <returns></returns>
-        public override bool Equals(object o)
-        {
-            if (!(o is Region))
-            {
-                return false;
-            }
-
-            Region region = (Region)o;
-
-            return (region.ID == ID);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="lhs"></param>
-        /// <param name="rhs"></param>
-        /// <returns></returns>
-        public static bool operator ==(Region lhs, Region rhs)
-        {
-            try
-            {
-                return (lhs.ID == rhs.ID);
-            }
-            catch (NullReferenceException)
-            {
-                bool lhsnull = false;
-                bool rhsnull = false;
-
-                if (lhs == null || lhs.ID == null || lhs.ID.Data == null || lhs.ID.Data.Length == 0)
-                {
-                    lhsnull = true;
-                }
-
-                if (rhs == null || rhs.ID == null || rhs.ID.Data == null || rhs.ID.Data.Length == 0)
-                {
-                    rhsnull = true;
-                }
-
-                return (lhsnull == rhsnull);
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="lhs"></param>
-        /// <param name="rhs"></param>
-        /// <returns></returns>
-        public static bool operator !=(Region lhs, Region rhs)
-        {
-            return !(lhs == rhs);
         }
     }
 }

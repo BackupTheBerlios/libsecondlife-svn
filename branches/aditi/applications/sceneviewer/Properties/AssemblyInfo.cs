@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("sceneviewer")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyCompany("")]
+
 [assembly: AssemblyCopyright("Copyright ©  2006")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -19,7 +20,8 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("2deeb61c-062f-4ebf-837d-50924e6145e6")]
+[assembly: Guid("f8359d28-d0d4-41bb-b025-11f793e0c678")]
+
 
 // Version information for an assembly consists of the following four values:
 //
@@ -29,4 +31,3 @@ using System.Runtime.InteropServices;
 //      Revision
 //
 [assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]

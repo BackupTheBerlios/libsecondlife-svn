@@ -42,7 +42,7 @@ namespace libsecondlife
     /// <param name="FromName"></param>
     /// <param name="ID"></param>
     public delegate void ChatCallback(string message, byte audible, byte type, byte sourcetype,
-        string fromName, LLUUID id);
+        string fromName, LLUUID id, LLUUID ownerid, LLVector3 position);
 
     /// <summary>
     /// Triggered when the L$ account balance for this avatar changes
@@ -68,7 +68,7 @@ namespace libsecondlife
     /// <param name="binaryBucket"></param>
     public delegate void InstantMessageCallback(LLUUID fromAgentID, string fromAgentName, 
         LLUUID toAgentID, uint parentEstateID, LLUUID regionID, LLVector3 position, 
-        bool dialog, bool groupIM, LLUUID imSessionID, DateTime timestamp, string message, 
+        byte dialog, bool groupIM, LLUUID imSessionID, DateTime timestamp, string message, 
         byte offline, byte[] binaryBucket);
 
     /// <summary>
@@ -89,11 +89,91 @@ namespace libsecondlife
         Finished
     }
 
+    public enum InstantMessageDialog
+    {
+        RequestTeleport = 22,
+        AcceptTeleport = 23,
+        DenyTeleport = 24
+    }
+
     /// <summary>
     /// Basic class to hold other Avatar's data.
     /// </summary>
     public class Avatar
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        [Flags]
+        public enum AgentUpdateFlags
+        {
+            /// <summary>Move Forward (SL Keybinding: W/Up Arrow)</summary>
+            AGENT_CONTROL_AT_POS = 0x1 << CONTROL_AT_POS_INDEX,
+            /// <summary>Move Backward (SL Keybinding: S/Down Arrow)</summary>
+            AGENT_CONTROL_AT_NEG = 0x1 << CONTROL_AT_NEG_INDEX,
+            /// <summary>Move Left (SL Keybinding: Shift-(A/Left Arrow))</summary>
+            AGENT_CONTROL_LEFT_POS = 0x1 << CONTROL_LEFT_POS_INDEX,
+            /// <summary>Move Right (SL Keybinding: Shift-(D/Right Arrow))</summary>
+            AGENT_CONTROL_LEFT_NEG = 0x1 << CONTROL_LEFT_NEG_INDEX,
+            /// <summary>Not Flying: Jump/Flying: Move Up (SL Keybinding: E)</summary>
+            AGENT_CONTROL_UP_POS = 0x1 << CONTROL_UP_POS_INDEX,
+            /// <summary>Not Flying: Croutch/Flying: Move Down (SL Keybinding: C)</summary>
+            AGENT_CONTROL_UP_NEG = 0x1 << CONTROL_UP_NEG_INDEX,
+            /// <summary>Unused</summary>
+            AGENT_CONTROL_PITCH_POS = 0x1 << CONTROL_PITCH_POS_INDEX,
+            /// <summary>Unused</summary>
+            AGENT_CONTROL_PITCH_NEG = 0x1 << CONTROL_PITCH_NEG_INDEX,
+            /// <summary>Unused</summary>
+            AGENT_CONTROL_YAW_POS = 0x1 << CONTROL_YAW_POS_INDEX,
+            /// <summary>Unused</summary>
+            AGENT_CONTROL_YAW_NEG = 0x1 << CONTROL_YAW_NEG_INDEX,
+            /// <summary>ORed with AGENT_CONTROL_AT_* if the keyboard is being used</summary>
+            AGENT_CONTROL_FAST_AT = 0x1 << CONTROL_FAST_AT_INDEX,
+            /// <summary>ORed with AGENT_CONTROL_LEFT_* if the keyboard is being used</summary>
+            AGENT_CONTROL_FAST_LEFT = 0x1 << CONTROL_FAST_LEFT_INDEX,
+            /// <summary>ORed with AGENT_CONTROL_UP_* if the keyboard is being used</summary>
+            AGENT_CONTROL_FAST_UP = 0x1 << CONTROL_FAST_UP_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_FLY = 0x1 << CONTROL_FLY_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_STOP = 0x1 << CONTROL_STOP_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_FINISH_ANIM = 0x1 << CONTROL_FINISH_ANIM_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_STAND_UP = 0x1 << CONTROL_STAND_UP_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_SIT_ON_GROUND = 0x1 << CONTROL_SIT_ON_GROUND_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_MOUSELOOK = 0x1 << CONTROL_MOUSELOOK_INDEX,
+            /// <summary>Legacy, used if a key was pressed for less than a certain amount of time</summary>
+            AGENT_CONTROL_NUDGE_AT_POS = 0x1 << CONTROL_NUDGE_AT_POS_INDEX,
+            /// <summary>Legacy, used if a key was pressed for less than a certain amount of time</summary>
+            AGENT_CONTROL_NUDGE_AT_NEG = 0x1 << CONTROL_NUDGE_AT_NEG_INDEX,
+            /// <summary>Legacy, used if a key was pressed for less than a certain amount of time</summary>
+            AGENT_CONTROL_NUDGE_LEFT_POS = 0x1 << CONTROL_NUDGE_LEFT_POS_INDEX,
+            /// <summary>Legacy, used if a key was pressed for less than a certain amount of time</summary>
+            AGENT_CONTROL_NUDGE_LEFT_NEG = 0x1 << CONTROL_NUDGE_LEFT_NEG_INDEX,
+            /// <summary>Legacy, used if a key was pressed for less than a certain amount of time</summary>
+            AGENT_CONTROL_NUDGE_UP_POS = 0x1 << CONTROL_NUDGE_UP_POS_INDEX,
+            /// <summary>Legacy, used if a key was pressed for less than a certain amount of time</summary>
+            AGENT_CONTROL_NUDGE_UP_NEG = 0x1 << CONTROL_NUDGE_UP_NEG_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_TURN_LEFT = 0x1 << CONTROL_TURN_LEFT_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_TURN_RIGHT = 0x1 << CONTROL_TURN_RIGHT_INDEX,
+            /// <summary>Set when the avatar is idled or set to away. Note that the away animation is 
+            /// activated separately from setting this flag</summary>
+            AGENT_CONTROL_AWAY = 0x1 << CONTROL_AWAY_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_LBUTTON_DOWN = 0x1 << CONTROL_LBUTTON_DOWN_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_LBUTTON_UP = 0x1 << CONTROL_LBUTTON_UP_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_ML_LBUTTON_DOWN = 0x1 << CONTROL_ML_LBUTTON_DOWN_INDEX,
+            /// <summary></summary>
+            AGENT_CONTROL_ML_LBUTTON_UP = 0x1 << CONTROL_ML_LBUTTON_UP_INDEX
+        }
+
         /// <summary>The Avatar's UUID, asset server</summary>
         public LLUUID ID;
         /// <summary>Avatar ID in Region (sim) it is in</summary>
@@ -110,44 +190,82 @@ namespace libsecondlife
         public LLQuaternion Rotation;
         /// <summary>Region (aka sim) the Avatar is in</summary>
         public Region CurrentRegion;
-
+        /// <summary></summary>
         public string BornOn;
-        
+        /// <summary></summary>
         public LLUUID ProfileImage;
-
+        /// <summary></summary>
         public LLUUID PartnerID;
-
+        /// <summary></summary>
         public string AboutText;
-
+        /// <summary></summary>
         public uint WantToMask;
-
+        /// <summary></summary>
         public string WantToText;
-        
+        /// <summary></summary>
         public uint SkillsMask;
-
+        /// <summary></summary>
         public string SkillsText;
-
+        /// <summary></summary>
         public string FirstLifeText;
-
+        /// <summary></summary>
         public LLUUID FirstLifeImage;
-
+        /// <summary></summary>
         public bool Identified;
-
+        /// <summary></summary>
         public bool Transacted;
-
+        /// <summary></summary>
         public bool AllowPublish;
-
+        /// <summary></summary>
         public bool MaturePublish;
-
+        /// <summary></summary>
         public string CharterMember;
-
+        /// <summary></summary>
         public float Behavior;
-
+        /// <summary></summary>
         public float Appearance;
-
+        /// <summary></summary>
         public float Building;
-
+        /// <summary></summary>
         public string LanguagesText;
+        /// <summary></summary>
+        public TextureEntry Textures;
+        /// <summary></summary>
+        public string ProfileURL;
+
+        protected const int CONTROL_AT_POS_INDEX = 0;
+        protected const int CONTROL_AT_NEG_INDEX = 1;
+        protected const int CONTROL_LEFT_POS_INDEX = 2;
+        protected const int CONTROL_LEFT_NEG_INDEX = 3;
+        protected const int CONTROL_UP_POS_INDEX = 4;
+        protected const int CONTROL_UP_NEG_INDEX = 5;
+        protected const int CONTROL_PITCH_POS_INDEX = 6;
+        protected const int CONTROL_PITCH_NEG_INDEX = 7;
+        protected const int CONTROL_YAW_POS_INDEX = 8;
+        protected const int CONTROL_YAW_NEG_INDEX = 9;
+        protected const int CONTROL_FAST_AT_INDEX = 10;
+        protected const int CONTROL_FAST_LEFT_INDEX = 11;
+        protected const int CONTROL_FAST_UP_INDEX = 12;
+        protected const int CONTROL_FLY_INDEX = 13;
+        protected const int CONTROL_STOP_INDEX = 14;
+        protected const int CONTROL_FINISH_ANIM_INDEX = 15;
+        protected const int CONTROL_STAND_UP_INDEX = 16;
+        protected const int CONTROL_SIT_ON_GROUND_INDEX = 17;
+        protected const int CONTROL_MOUSELOOK_INDEX = 18;
+        protected const int CONTROL_NUDGE_AT_POS_INDEX = 19;
+        protected const int CONTROL_NUDGE_AT_NEG_INDEX = 20;
+        protected const int CONTROL_NUDGE_LEFT_POS_INDEX = 21;
+        protected const int CONTROL_NUDGE_LEFT_NEG_INDEX = 22;
+        protected const int CONTROL_NUDGE_UP_POS_INDEX = 23;
+        protected const int CONTROL_NUDGE_UP_NEG_INDEX = 24;
+        protected const int CONTROL_TURN_LEFT_INDEX = 25;
+        protected const int CONTROL_TURN_RIGHT_INDEX = 26;
+        protected const int CONTROL_AWAY_INDEX = 27;
+        protected const int CONTROL_LBUTTON_DOWN_INDEX = 28;
+        protected const int CONTROL_LBUTTON_UP_INDEX = 29;
+        protected const int CONTROL_ML_LBUTTON_DOWN_INDEX = 30;
+        protected const int CONTROL_ML_LBUTTON_UP_INDEX = 31;
+        protected const int TOTAL_CONTROLS = 32;
     }
 
     /// <summary>
@@ -165,27 +283,27 @@ namespace libsecondlife
         public event BalanceCallback OnBalanceUpdated;
 
         /// <summary>Your (client) Avatar UUID, asset server</summary>
-        public LLUUID ID;
+        public LLUUID ID = LLUUID.Zero;
         /// <summary>Your (client) Avatar ID, local to Region/sim</summary>
         public uint LocalID;
         /// <summary>Avatar First Name (i.e. Philip)</summary>
-        public string FirstName;
+        public string FirstName = "";
         /// <summary>Avatar Last Name (i.e. Linden)</summary>
-        public string LastName;
+        public string LastName = "";
         /// <summary></summary>
         public string TeleportMessage;
         /// <summary>Current position of avatar</summary>
-        public LLVector3 Position;
+        public LLVector3 Position = LLVector3.Zero;
         /// <summary>Current rotation of avatar</summary>
-        public LLQuaternion Rotation;
+        public LLQuaternion Rotation = LLQuaternion.Identity;
         /// <summary>The point the avatar is currently looking at
         /// (may not stay updated)</summary>
-        public LLVector3 LookAt;
+        public LLVector3 LookAt = LLVector3.Zero;
         /// <summary>Position avatar client will goto when login to 'home' or during
         /// teleport request to 'home' region.</summary>
-        public LLVector3 HomePosition;
+        public LLVector3 HomePosition = LLVector3.Zero;
         /// <summary>LookAt point saved/restored with HomePosition</summary>
-        public LLVector3 HomeLookAt;
+        public LLVector3 HomeLookAt = LLVector3.Zero;
         /// <summary>Gets the health of the agent</summary>
         protected float health;
         public float Health
@@ -212,42 +330,38 @@ namespace libsecondlife
         /// <param name="client"></param>
         public MainAvatar(SecondLife client)
         {
-            PacketCallback callback;
+            NetworkManager.PacketCallback callback;
             Client = client;
             TeleportMessage = "";
 
-            // Create emtpy vectors for now
-            HomeLookAt = HomePosition = Position = LookAt = new LLVector3();
-            Rotation = new LLQuaternion();
-
             // Coarse location callback
-            Client.Network.RegisterCallback(PacketType.CoarseLocationUpdate, new PacketCallback(CoarseLocationHandler));
+            Client.Network.RegisterCallback(PacketType.CoarseLocationUpdate, new NetworkManager.PacketCallback(CoarseLocationHandler));
 
             // Teleport callbacks
-            callback = new PacketCallback(TeleportHandler);
+            callback = new NetworkManager.PacketCallback(TeleportHandler);
             Client.Network.RegisterCallback(PacketType.TeleportStart, callback);
             Client.Network.RegisterCallback(PacketType.TeleportProgress, callback);
             Client.Network.RegisterCallback(PacketType.TeleportFailed, callback);
             Client.Network.RegisterCallback(PacketType.TeleportFinish, callback);
 
             // Instant Message callback
-            Client.Network.RegisterCallback(PacketType.ImprovedInstantMessage, new PacketCallback(InstantMessageHandler));
+            Client.Network.RegisterCallback(PacketType.ImprovedInstantMessage, new NetworkManager.PacketCallback(InstantMessageHandler));
 
             // Chat callback
-            Client.Network.RegisterCallback(PacketType.ChatFromSimulator, new PacketCallback(ChatHandler));
+            Client.Network.RegisterCallback(PacketType.ChatFromSimulator, new NetworkManager.PacketCallback(ChatHandler));
 
             TeleportTimer = new Timer(18000);
             TeleportTimer.Elapsed += new ElapsedEventHandler(TeleportTimerEvent);
             TeleportTimeout = false;
 
             // Movement complete callback
-            Client.Network.RegisterCallback(PacketType.AgentMovementComplete, new PacketCallback(MovementCompleteHandler));
+            Client.Network.RegisterCallback(PacketType.AgentMovementComplete, new NetworkManager.PacketCallback(MovementCompleteHandler));
 
             // Health callback
-            Client.Network.RegisterCallback(PacketType.HealthMessage, new PacketCallback(HealthHandler));
+            Client.Network.RegisterCallback(PacketType.HealthMessage, new NetworkManager.PacketCallback(HealthHandler));
 
             // Money callbacks
-            callback = new PacketCallback(BalanceHandler);
+            callback = new NetworkManager.PacketCallback(BalanceHandler);
             Client.Network.RegisterCallback(PacketType.MoneyBalanceReply, callback);
             Client.Network.RegisterCallback(PacketType.MoneySummaryReply, callback);
             Client.Network.RegisterCallback(PacketType.AdjustBalance, callback);
@@ -327,9 +441,9 @@ namespace libsecondlife
             }
 
             // These fields are mandatory, even if we don't have valid values for them
-            im.MessageBlock.Position = new LLVector3();
+            im.MessageBlock.Position = LLVector3.Zero;
                 //TODO: Allow region id to be correctly set by caller or fetched from Client.*
-            im.MessageBlock.RegionID = new LLUUID(); 
+            im.MessageBlock.RegionID = LLUUID.Zero; 
 
 
             // Send the message
@@ -402,7 +516,20 @@ namespace libsecondlife
         public void GiveMoney(LLUUID target, int amount, string description)
         {
             // 5001 - transaction type for av to av money transfers
+            
             GiveMoney(target, amount, description, 5001);
+        }
+
+        /// <summary>
+        /// Toggle running on or off
+        /// </summary>
+        public void SetAlwaysRun(bool running)
+        {
+            SetAlwaysRunPacket run = new SetAlwaysRunPacket();
+            run.AgentData.AgentID = Client.Network.AgentID;
+            run.AgentData.SessionID = Client.Network.SessionID;
+            run.AgentData.AlwaysRun = running;
+            Client.Network.SendPacket(run);
         }
 
         /// <summary>
@@ -422,8 +549,82 @@ namespace libsecondlife
             money.MoneyData.DestID = target;
             money.MoneyData.SourceID = this.ID;
             money.MoneyData.TransactionType = transactiontype;
+            money.MoneyData.AggregatePermInventory = 0; //TODO: whats this?
+            money.MoneyData.AggregatePermNextOwner = 0; //TODO: whats this?
+            money.MoneyData.Flags = 0; //TODO: whats this?
+            money.MoneyData.Amount = amount;
 
             Client.Network.SendPacket((Packet)money);
+        }
+
+        /// <summary>
+        /// Send an AgentAnimation packet that will toggle animations on or off
+        /// </summary>
+        /// <param name="animations">A list of animation UUIDs, and whether to
+        /// turn that animation on or off</param>
+        public void Animate(Dictionary<LLUUID, bool> animations)
+        {
+            AgentAnimationPacket animate = new AgentAnimationPacket();
+
+            animate.AgentData.AgentID = Client.Network.AgentID;
+            animate.AgentData.SessionID = Client.Network.SessionID;
+            animate.AnimationList = new AgentAnimationPacket.AnimationListBlock[animations.Count];
+            int i = 0;
+
+            foreach (KeyValuePair<LLUUID, bool> animation in animations)
+            {
+                animate.AnimationList[i] = new AgentAnimationPacket.AnimationListBlock();
+                animate.AnimationList[i].AnimID = animation.Key;
+                animate.AnimationList[i].StartAnim = animation.Value;
+
+                i++;
+            }
+
+            Client.Network.SendPacket(animate);
+        }
+
+        /// <summary>
+        /// Use the autopilot sim function to move the avatar to a new position
+        /// </summary>
+        /// <remarks>The z value is currently not handled properly by the simulator</remarks>
+        /// <param name="globalX">Integer value for the global X coordinate to move to</param>
+        /// <param name="globalY">Integer value for the global Y coordinate to move to</param>
+        /// <param name="z">Floating-point value for the Z coordinate to move to</param>
+        /// <example>AutoPilot(252620, 247078, 20.2674);</example>
+        public void AutoPilot(ulong globalX, ulong globalY, float z)
+        {
+            GenericMessagePacket autopilot = new GenericMessagePacket();
+
+            autopilot.AgentData.AgentID = Client.Network.AgentID;
+            autopilot.AgentData.SessionID = Client.Network.SessionID;
+            autopilot.MethodData.Invoice = LLUUID.Zero;
+            autopilot.MethodData.Method = Helpers.StringToField("autopilot");
+            autopilot.ParamList = new GenericMessagePacket.ParamListBlock[3];
+            autopilot.ParamList[0] = new GenericMessagePacket.ParamListBlock();
+            autopilot.ParamList[0].Parameter = Helpers.StringToField(globalX.ToString());
+            autopilot.ParamList[1] = new GenericMessagePacket.ParamListBlock();
+            autopilot.ParamList[1].Parameter = Helpers.StringToField(globalY.ToString());
+            autopilot.ParamList[2] = new GenericMessagePacket.ParamListBlock();
+            // TODO: Do we need to prevent z coordinates from being sent in 1.4827e-18 notation?
+            autopilot.ParamList[2].Parameter = Helpers.StringToField(z.ToString());
+
+            Client.Network.SendPacket(autopilot);
+        }
+
+        /// <summary>
+        /// Use the autopilot sim function to move the avatar to a new position
+        /// </summary>
+        /// <remarks>The z value is currently not handled properly by the simulator</remarks>
+        /// <param name="localX">Integer value for the local X coordinate to move to</param>
+        /// <param name="localY">Integer value for the local Y coordinate to move to</param>
+        /// <param name="z">Floating-point value for the Z coordinate to move to</param>
+        /// <example>AutoPilot(252620, 247078, 20.2674);</example>
+        public void AutoPilotLocal(int localX, int localY, float z)
+        {
+            GridRegion gr = Client.Network.CurrentSim.Region.GridRegionData;
+            ulong GridCornerX = ((ulong)gr.X * (ulong)256) + (ulong)localX;
+            ulong GridCornerY = ((ulong)gr.Y * (ulong)256) + (ulong)localY;
+            AutoPilot(GridCornerX, GridCornerY, z);
         }
 
         /// <summary>
@@ -528,7 +729,7 @@ namespace libsecondlife
         /// <returns></returns>
         public bool Teleport(string simName, LLVector3 position)
         {
-            position.Z = 0;
+            //position.Z = 0; //why was this here?
             return Teleport(simName, position, new LLVector3(0, 1.0F, 0));
         }
 
@@ -566,7 +767,7 @@ namespace libsecondlife
                     {
                         // Request the region info again
                         Client.Grid.AddSim(simName);
-
+                        
                         System.Threading.Thread.Sleep(1000);
                     }
                 }
@@ -580,6 +781,104 @@ namespace libsecondlife
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Respond to a teleport lure by either accepting it and initiating 
+        /// the teleport, or denying it
+        /// </summary>
+        /// <param name="requesterID">UUID of the avatar requesting the teleport</param>
+        /// <param name="accept">Accept the teleport request or deny it</param>
+        public void TeleportLureRespond(LLUUID requesterID, bool accept)
+        {
+            ImprovedInstantMessagePacket im = new ImprovedInstantMessagePacket();
+
+            im.AgentData.AgentID = Client.Network.AgentID;
+            im.AgentData.SessionID = Client.Network.SessionID;
+            im.MessageBlock.BinaryBucket = new byte[0];
+            im.MessageBlock.FromAgentName = Helpers.StringToField(this.FirstName + " " + this.LastName);
+            im.MessageBlock.FromGroup = false;
+            im.MessageBlock.ID = Client.Network.AgentID;
+            im.MessageBlock.Message = new byte[0];
+            im.MessageBlock.Offline = 0;
+            im.MessageBlock.ParentEstateID = 0;
+            im.MessageBlock.Position = this.Position;
+            im.MessageBlock.RegionID = LLUUID.Zero;
+            im.MessageBlock.Timestamp = 0;
+            im.MessageBlock.ToAgentID = requesterID;
+
+            if (accept)
+            {
+                im.MessageBlock.Dialog = (byte)InstantMessageDialog.AcceptTeleport;
+                
+                Client.Network.SendPacket(im);
+
+                TeleportLureRequestPacket lure = new TeleportLureRequestPacket();
+
+                lure.Info.AgentID = Client.Network.AgentID;
+                lure.Info.SessionID = Client.Network.SessionID;
+                lure.Info.LureID = Client.Network.AgentID;
+                lure.Info.TeleportFlags = 4; // TODO: What does this mean?
+
+                Client.Network.SendPacket(lure);
+            }
+            else
+            {
+                im.MessageBlock.Dialog = (byte)InstantMessageDialog.DenyTeleport;
+
+                Client.Network.SendPacket(im);
+            }
+        }
+
+        /// <summary>
+        /// Grabs an object
+        /// </summary>
+        public void Grab(uint objectLocalID)
+        {
+            ObjectGrabPacket grab = new ObjectGrabPacket();
+            grab.AgentData.AgentID = Client.Network.AgentID;
+            grab.AgentData.SessionID = Client.Network.SessionID;
+            grab.ObjectData.LocalID = objectLocalID;
+            grab.ObjectData.GrabOffset = new LLVector3(0, 0, 0);
+            Client.Network.SendPacket(grab);
+        }
+
+        /// <summary>
+        /// Drags on an object
+        /// </summary>
+        /// <param name="objectID">Strangely, LLUID instead of local ID</param>
+        /// <param name="grabPosition">Drag target in region coordinates</param>
+        public void GrabUpdate(LLUUID objectID, LLVector3 grabPosition)
+        {
+            ObjectGrabUpdatePacket grab = new ObjectGrabUpdatePacket();
+            grab.AgentData.AgentID = Client.Network.AgentID;
+            grab.AgentData.SessionID = Client.Network.SessionID;
+            grab.ObjectData.ObjectID = objectID;
+            grab.ObjectData.GrabOffsetInitial = new LLVector3(0, 0, 0);
+            grab.ObjectData.GrabPosition = grabPosition;
+            grab.ObjectData.TimeSinceLast = 0;
+            Client.Network.SendPacket(grab);
+        }
+
+        /// <summary>
+        /// Releases a grabbed object
+        /// </summary>
+        public void DeGrab(uint objectLocalID)
+        {
+            ObjectDeGrabPacket degrab = new ObjectDeGrabPacket();
+            degrab.AgentData.AgentID = Client.Network.AgentID;
+            degrab.AgentData.SessionID = Client.Network.SessionID;
+            degrab.ObjectData.LocalID = objectLocalID;
+            Client.Network.SendPacket(degrab);
+        }
+
+        /// <summary>
+        /// Touches an object
+        /// </summary>
+        public void Touch(uint objectLocalID)
+        {
+            Client.Self.Grab(objectLocalID);
+            Client.Self.DeGrab(objectLocalID);
         }
 
         /// <summary>
@@ -601,21 +900,23 @@ namespace libsecondlife
         /// 
         /// </summary>
         /// <param name="reliable"></param>
-        public void UpdateCamera(bool reliable)
+        public void UpdateCamera(Avatar.AgentUpdateFlags controlFlags, LLVector3 position, LLVector3 forwardAxis,
+            LLVector3 leftAxis, LLVector3 upAxis, LLQuaternion bodyRotation, LLQuaternion headRotation, float farClip,
+            bool reliable)
         {
             AgentUpdatePacket update = new AgentUpdatePacket();
             update.AgentData.AgentID = Client.Network.AgentID;
             update.AgentData.SessionID = Client.Network.SessionID;
             update.AgentData.State = 0;
-            update.AgentData.BodyRotation = new LLQuaternion(0, 0.6519076f, 0, 0);
-            update.AgentData.HeadRotation = new LLQuaternion();
             // Semi-sane default values
-            update.AgentData.CameraCenter = new LLVector3(9.549901f, 7.033957f, 11.75f);
-            update.AgentData.CameraAtAxis = new LLVector3(0.7f, 0.7f, 0);
-            update.AgentData.CameraLeftAxis = new LLVector3(-0.7f, 0.7f, 0);
-            update.AgentData.CameraUpAxis = new LLVector3(0.1822026f, 0.9828722f, 0);
-            update.AgentData.Far = 384;
-            update.AgentData.ControlFlags = 0; // TODO: What is this?
+            update.AgentData.BodyRotation = bodyRotation; //new LLQuaternion(0, 0.6519076f, 0, 0);
+            update.AgentData.HeadRotation = headRotation; //LLQuaternion.Identity;
+            update.AgentData.CameraCenter = position; //new LLVector3(9.549901f, 7.033957f, 11.75f);
+            update.AgentData.CameraAtAxis = forwardAxis; //new LLVector3(0.7f, 0.7f, 0);
+            update.AgentData.CameraLeftAxis = leftAxis; //new LLVector3(-0.7f, 0.7f, 0);
+            update.AgentData.CameraUpAxis = upAxis; //new LLVector3(0.1822026f, 0.9828722f, 0);
+            update.AgentData.Far = farClip;
+            update.AgentData.ControlFlags = (uint)controlFlags;
             update.AgentData.Flags = 0;
             update.Header.Reliable = reliable;
 
@@ -663,7 +964,7 @@ namespace libsecondlife
                         , im.MessageBlock.ParentEstateID
                         , im.MessageBlock.RegionID
                         , im.MessageBlock.Position
-                        , Convert.ToBoolean(im.MessageBlock.Dialog)
+                        , im.MessageBlock.Dialog
                         , im.MessageBlock.FromGroup
                         , im.MessageBlock.ID
                         , new DateTime(im.MessageBlock.Timestamp)
@@ -689,8 +990,15 @@ namespace libsecondlife
 
                 if (OnChat != null)
                 {
-                    OnChat(Helpers.FieldToString(chat.ChatData.Message), chat.ChatData.Audible, chat.ChatData.ChatType, 
-                        chat.ChatData.SourceType, Helpers.FieldToString(chat.ChatData.FromName), chat.ChatData.SourceID);
+                    OnChat(Helpers.FieldToString(chat.ChatData.Message)
+                            , chat.ChatData.Audible
+                            , chat.ChatData.ChatType
+                            , chat.ChatData.SourceType
+                            , Helpers.FieldToString(chat.ChatData.FromName)
+                            , chat.ChatData.SourceID
+                            , chat.ChatData.OwnerID
+                            , chat.ChatData.Position
+                            );
                 }
             }
         }
@@ -753,6 +1061,8 @@ namespace libsecondlife
         {
             if (packet.Type == PacketType.TeleportStart)
             {
+                Client.DebugLog("TeleportStart received from " + simulator.ToString());
+
                 TeleportMessage = "Teleport started";
                 TeleportStat = TeleportStatus.Start;
 
@@ -763,6 +1073,8 @@ namespace libsecondlife
             }
             else if (packet.Type == PacketType.TeleportProgress)
             {
+                Client.DebugLog("TeleportProgress received from " + simulator.ToString());
+
                 TeleportMessage = Helpers.FieldToString(((TeleportProgressPacket)packet).Info.Message);
                 TeleportStat = TeleportStatus.Progress;
 
@@ -773,6 +1085,8 @@ namespace libsecondlife
             }
             else if (packet.Type == PacketType.TeleportFailed)
             {
+                Client.DebugLog("TeleportFailed received from " + simulator.ToString());
+
                 TeleportMessage = Helpers.FieldToString(((TeleportFailedPacket)packet).Info.Reason);
                 TeleportStat = TeleportStatus.Failed;
 
@@ -785,31 +1099,27 @@ namespace libsecondlife
             }
             else if (packet.Type == PacketType.TeleportFinish)
             {
+                Client.DebugLog("TeleportFinish received from " + simulator.ToString());
+
                 TeleportFinishPacket finish = (TeleportFinishPacket)packet;
 
                 // Connect to the new sim
                 Simulator sim = Client.Network.Connect(new IPAddress((long)finish.Info.SimIP), finish.Info.SimPort, 
                     simulator.CircuitCode, true);
                 
-                if ( sim != null)
+                if (sim != null)
                 {
                     TeleportMessage = "Teleport finished";
                     TeleportStat = TeleportStatus.Finished;
 
                     // Move the avatar in to the new sim
                     CompleteAgentMovementPacket move = new CompleteAgentMovementPacket();
-
                     move.AgentData.AgentID = Client.Network.AgentID;
                     move.AgentData.SessionID = Client.Network.SessionID;
                     move.AgentData.CircuitCode = simulator.CircuitCode;
+                    Client.Network.SendPacket(move, sim);
 
-                    Client.Network.SendPacket((Packet)move);
-
-                    Client.DebugLog(move.ToString());
-
-                    Client.Log("Moved to new sim " + Client.Network.CurrentSim.Region.Name + "(" + 
-                        Client.Network.CurrentSim.IPEndPoint.ToString() + ")",
-                        Helpers.LogLevel.Info);
+                    Client.Log("Moved to new sim " + sim.ToString(), Helpers.LogLevel.Info);
 
                     if (OnBeginTeleport != null)
                     {
@@ -818,6 +1128,7 @@ namespace libsecondlife
                     else
                     {
                         // Sleep a little while so we can collect parcel information
+                        // FIXME: This doesn't belong in libsecondlife
                         System.Threading.Thread.Sleep(1000);
                     }
                 }

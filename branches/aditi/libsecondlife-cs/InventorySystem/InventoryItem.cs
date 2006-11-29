@@ -25,7 +25,7 @@ namespace libsecondlife.InventorySystem
             }
         }
 
-        internal LLUUID _FolderID = new LLUUID();
+        internal LLUUID _FolderID = LLUUID.Zero;
         public LLUUID FolderID
         {
             get { return _FolderID; }
@@ -59,7 +59,10 @@ namespace libsecondlife.InventorySystem
                     throw new Exception("You can not change an item's ID once it's been set.");
                 }
             }
-            get { return _ItemID; }
+            get 
+            {
+                return _ItemID; 
+            }
         }
 
         internal sbyte _InvType = 0;
@@ -102,13 +105,13 @@ namespace libsecondlife.InventorySystem
         }
 
 
-        internal LLUUID _OwnerID = new LLUUID();
+        internal LLUUID _OwnerID = LLUUID.Zero;
         public LLUUID OwnerID
         {
             get { return _OwnerID; }
         }
 
-        internal LLUUID _CreatorID = new LLUUID();
+        internal LLUUID _CreatorID = LLUUID.Zero;
         public LLUUID CreatorID
         {
             get { return _CreatorID; }
@@ -125,7 +128,7 @@ namespace libsecondlife.InventorySystem
                 }
                 else
                 {
-                    if ((AssetID != null) && (AssetID != new LLUUID()))
+                    if ((AssetID != null) && (AssetID != LLUUID.Zero))
                     {
                         base.iManager.AssetManager.GetInventoryAsset(this);
                         return Asset;
@@ -135,20 +138,20 @@ namespace libsecondlife.InventorySystem
             }
         }
 
-        internal LLUUID _TransactionID = new LLUUID();
+        internal LLUUID _TransactionID = LLUUID.Zero;
         public LLUUID TransactionID
         {
             get { return _TransactionID; }
         }
 
-        internal LLUUID _AssetID = new LLUUID();
+        internal LLUUID _AssetID = LLUUID.Zero;
         public LLUUID AssetID
         {
             get { return _AssetID; }
         }
 
 
-        internal LLUUID _GroupID = new LLUUID();
+        internal LLUUID _GroupID = LLUUID.Zero;
         public LLUUID GroupID
         {
             get { return _GroupID; }
@@ -264,6 +267,7 @@ namespace libsecondlife.InventorySystem
         internal InventoryItem(InventoryManager manager, InventoryDescendentsPacket.ItemDataBlock itemData)
             : base(manager)
         {
+
             _Name = System.Text.Encoding.UTF8.GetString(itemData.Name).Trim().Replace("\0", "");
             _Description = System.Text.Encoding.UTF8.GetString(itemData.Description).Trim().Replace("\0", "");
             _CreationDate = itemData.CreationDate;
@@ -271,6 +275,7 @@ namespace libsecondlife.InventorySystem
             _InvType = itemData.InvType;
             _Type = itemData.Type;
 
+            _ItemID = itemData.ItemID;
             _AssetID = itemData.AssetID;
             _FolderID = itemData.FolderID;
 
@@ -480,7 +485,16 @@ namespace libsecondlife.InventorySystem
             output += "groupmask = '" + GroupMask + "' ";
             output += "ownermask = '" + OwnerMask + "' ";
 
-            output += "/>\n";
+            output += ">";
+
+            if (outputAssets)
+            {
+                if (AssetID != LLUUID.Zero)
+                {
+                    output += xmlSafe(Helpers.FieldToString(Asset.AssetData));
+                }
+            }
+            output += "</item>";
 
             return output;
         }

@@ -26,6 +26,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using libsecondlife;
 using libsecondlife.Packets;
 
@@ -39,13 +40,13 @@ namespace sldump
 			Console.WriteLine(packet.ToString());
 		}
 
-        public static void DisconnectHandler(DisconnectType type, string message)
+        public static void DisconnectHandler(NetworkManager.DisconnectType type, string message)
         {
-            if (type == DisconnectType.NetworkTimeout)
+            if (type == NetworkManager.DisconnectType.NetworkTimeout)
             {
                 Console.WriteLine("Network connection timed out, disconnected");
             }
-            else if (type == DisconnectType.ServerInitiated)
+            else if (type == NetworkManager.DisconnectType.ServerInitiated)
             {
                 Console.WriteLine("Server disconnected us: " + message);
             }
@@ -59,10 +60,10 @@ namespace sldump
 		{
 			SecondLife client;
 
-			if (args.Length == 0 || (args.Length < 3 && args[0] != "--printmap"))
+			if (args.Length == 0 || (args.Length < 4 && args[0] != "--printmap"))
 			{
-				Console.WriteLine("Usage: sldump [--printmap] [--decrypt] [inputfile] [outputfile] [--protocol] [firstname] " +
-					"[lastname] [password]");
+				Console.WriteLine("Usage: sldump [--printmap] [--decrypt] [inputfile] [outputfile] "
+                    + "[--protocol] [firstname] [lastname] [password] [seconds (0 for infinite)]");
 				return;
 			}
 
@@ -102,17 +103,10 @@ namespace sldump
 			}
 
 			// Setup the packet callback and disconnect event handler
-			client.Network.RegisterCallback(PacketType.Default, new PacketCallback(DefaultHandler));
-            client.Network.OnDisconnected += new DisconnectCallback(DisconnectHandler);
+            client.Network.RegisterCallback(PacketType.Default, new NetworkManager.PacketCallback(DefaultHandler));
+            client.Network.OnDisconnected += new NetworkManager.DisconnectCallback(DisconnectHandler);
 
-            Dictionary<string, object> loginParams = NetworkManager.DefaultLoginValues(args[0], args[1], args[2], 
-                "0", "last", "Win", "0", "sldump", "contact@libsecondlife.org");
-
-			// An example of how to pass additional options to the login server
-            //loginParams["id0"] = "65e142a8d3c1ee6632259f111cb168c9";
-            //loginParams["viewer_digest"] = "0e63550f-0991-a092-3158-b4206e728ffa";
-
-			if (!client.Network.Login(loginParams/*, "http://127.0.0.1:8080/"*/))
+			if (!client.Network.Login(args[0], args[1], args[2], "sldump", "contact@libsecondlife.org"))
 			{
 				// Login failed
 				Console.WriteLine("Error logging in: " + client.Network.LoginError);
@@ -122,10 +116,28 @@ namespace sldump
 			// Login was successful
 			Console.WriteLine("Message of the day: " + client.Network.LoginValues["message"]);
 
+            // Throttle packets that we don't want all the way down
+			client.Throttle.Land = 0;
+            client.Throttle.Wind = 0;
+            client.Throttle.Cloud = 0;
+            client.Throttle.Texture = 0;
+            client.Throttle.Set();
+
+            int start = Environment.TickCount;
+            int milliseconds = Int32.Parse(args[3]) * 1000;
+            bool forever = (milliseconds > 0) ? false : true;
+
 			while (true)
 			{
-				client.Tick();
+                System.Threading.Thread.Sleep(100);
+
+                if (!forever && Environment.TickCount - start > milliseconds)
+                {
+                    break;
+                }
 			}
+
+            client.Network.Logout();
 		}
 	}
 }

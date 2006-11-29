@@ -24,8 +24,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+//#define DEBUG_PACKETS
+
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 using libsecondlife;
 using libsecondlife.AssetSystem;
@@ -40,8 +43,6 @@ namespace libsecondlife.InventorySystem
     /// </summary>
     public class InventoryManager
     {
-        private const bool DEBUG_PACKETS = true;
-
 
         // Reference to the SLClient Library
         private SecondLife slClient;
@@ -67,9 +68,9 @@ namespace libsecondlife.InventorySystem
 
         // Used to track current item being created
         private InventoryItem iiCreationInProgress;
-        private bool ItemCreationInProgress;
+        public ManualResetEvent ItemCreationCompleted;
 
-        private uint LastPacketRecieved;
+        private int LastPacketRecievedAtTick;
 
         // Each InventorySystem needs to be initialized with a client and root folder.
         public InventoryManager(SecondLife client, LLUUID rootFolder)
@@ -87,12 +88,10 @@ namespace libsecondlife.InventorySystem
             resetFoldersByUUID();
 
             // Setup the callback for Inventory Downloads
-            PacketCallback InventoryDescendentsCallback = new PacketCallback(InventoryDescendentsHandler);
-            slClient.Network.RegisterCallback(PacketType.InventoryDescendents, InventoryDescendentsCallback);
+            slClient.Network.RegisterCallback(PacketType.InventoryDescendents, new NetworkManager.PacketCallback(InventoryDescendentsHandler));
 
             // Setup the callback for Inventory Creation Update
-            PacketCallback UpdateCreateInventoryItemCallback = new PacketCallback(UpdateCreateInventoryItemHandler);
-            slClient.Network.RegisterCallback(PacketType.UpdateCreateInventoryItem, UpdateCreateInventoryItemCallback);
+            slClient.Network.RegisterCallback(PacketType.UpdateCreateInventoryItem, new NetworkManager.PacketCallback(UpdateCreateInventoryItemHandler));
 
         }
 
@@ -246,23 +245,33 @@ namespace libsecondlife.InventorySystem
 
         internal void ItemCreate(InventoryItem iitem)
         {
-            if (ItemCreationInProgress)
+            if( iiCreationInProgress != null )
             {
                 throw new Exception("Can only create one item at a time, and an item creation is already in progress.");
             }
-            else
+
+            try
             {
-                ItemCreationInProgress = true;
+                ItemCreationCompleted = new ManualResetEvent(false);
                 iiCreationInProgress = iitem;
+
+
+                Packet packet = InvPacketHelper.CreateInventoryItem(iitem);
+                int i = 0;
+                do
+                {
+                    if (i++ > 10)
+                        throw new Exception("Could not create " + iitem.Name);
+                    slClient.Network.SendPacket(packet);
+
+#if DEBUG_PACKETS
+                Console.WriteLine(packet);
+#endif
+                } while (!ItemCreationCompleted.WaitOne(5000, false));
             }
-
-            Packet packet = InvPacketHelper.CreateInventoryItem(iitem);
-            slClient.Network.SendPacket(packet);
-            if (DEBUG_PACKETS) { Console.WriteLine(packet); }
-
-            while (ItemCreationInProgress)
+            finally
             {
-                slClient.Tick();
+                iiCreationInProgress = null;
             }
         }
 
@@ -270,19 +279,27 @@ namespace libsecondlife.InventorySystem
         {
             Packet packet = InvPacketHelper.UpdateInventoryItem(iitem);
             slClient.Network.SendPacket(packet);
+
+            #if DEBUG_PACKETS
+                Console.WriteLine(packet); 
+            #endif         
         }
 
         internal void ItemCopy(LLUUID ItemID, LLUUID TargetFolderID)
         {
             Packet packet = InvPacketHelper.CopyInventoryItem(ItemID, TargetFolderID);
             slClient.Network.SendPacket(packet);
+
+            #if DEBUG_PACKETS
+                Console.WriteLine(packet); 
+            #endif         
         }
 
         internal void ItemGiveTo(InventoryItem iitem, LLUUID ToAgentID)
         {
             LLUUID MessageID = LLUUID.GenerateUUID();
 
-            Packet packet = InvPacketHelper.ImprovedInstantMessage(
+            Packet packet = InvPacketHelper.GiveItemViaImprovedInstantMessage(
                 MessageID
                 , ToAgentID
                 , slClient.Self.FirstName + " " + slClient.Self.LastName
@@ -292,6 +309,9 @@ namespace libsecondlife.InventorySystem
 
             slClient.Network.SendPacket(packet);
 
+            #if DEBUG_PACKETS
+                Console.WriteLine(packet); 
+            #endif         
         }
 
         internal void ItemRemove(InventoryItem iitem)
@@ -301,6 +321,10 @@ namespace libsecondlife.InventorySystem
 
             Packet packet = InvPacketHelper.RemoveInventoryItem(iitem.ItemID);
             slClient.Network.SendPacket(packet);
+
+            #if DEBUG_PACKETS
+                Console.WriteLine(packet); 
+            #endif         
         }
 
         internal InventoryNotecard NewNotecard(string Name, string Description, string Body, LLUUID FolderID)
@@ -356,7 +380,7 @@ namespace libsecondlife.InventorySystem
             }
 
             // Set last packet received to now, just so out time-out timer works
-            LastPacketRecieved = Helpers.GetUnixTime();
+            LastPacketRecievedAtTick = Environment.TickCount;
 
             // Send Packet requesting the root Folder, 
             // this should recurse through all folders
@@ -366,14 +390,15 @@ namespace libsecondlife.InventorySystem
             {
                 if (htFolderDownloadStatus.Count == 0)
                 {
-                    DescendentRequest dr = (DescendentRequest)alFolderRequestQueue[0];
+                    DescendentRequest dr = alFolderRequestQueue[0];
                     alFolderRequestQueue.RemoveAt(0);
                     RequestFolder(dr);
                 }
 
-                if ((Helpers.GetUnixTime() - LastPacketRecieved) > 10)
+                int curTick = Environment.TickCount;
+                if ((curTick - LastPacketRecievedAtTick) > 10000)
                 {
-                    Console.WriteLine("Time-out while waiting for packets (" + (Helpers.GetUnixTime() - LastPacketRecieved) + " seconds since last packet)");
+                    Console.WriteLine("Time-out while waiting for packets (" + ((curTick - LastPacketRecievedAtTick) / 1000) + " seconds since last packet)");
                     Console.WriteLine("Current Status:");
 
                     // have to make a seperate list otherwise we run into modifying the original array
@@ -387,12 +412,12 @@ namespace libsecondlife.InventorySystem
 
                     foreach (DescendentRequest dr in htFolderDownloadStatus.Values)
                     {
-                        Console.WriteLine(dr.FolderID + " " + dr.Expected + " / " + dr.Received + " / " + dr.LastReceived);
+                        Console.WriteLine(dr.FolderID + " " + dr.Expected + " / " + dr.Received + " / " + dr.LastReceivedAtTick);
 
                         alRestartList.Add(dr);
                     }
 
-                    LastPacketRecieved = Helpers.GetUnixTime();
+                    LastPacketRecievedAtTick = Environment.TickCount;
                     foreach (DescendentRequest dr in alRestartList)
                     {
                         RequestFolder(dr);
@@ -408,13 +433,15 @@ namespace libsecondlife.InventorySystem
 
         public void UpdateCreateInventoryItemHandler(Packet packet, Simulator simulator)
         {
-            if (DEBUG_PACKETS) { Console.WriteLine(packet); }
+            #if DEBUG_PACKETS
+                Console.WriteLine(packet);
+            #endif
 
-            if (ItemCreationInProgress)
+            if (iiCreationInProgress != null)
             {
                 UpdateCreateInventoryItemPacket reply = (UpdateCreateInventoryItemPacket)packet;
 
-                // User internal variable references, so we don't fire off any update code by using the public accessors
+                // Use internal variable references, so we don't fire off any update code by using the public accessors
 
                 iiCreationInProgress._ItemID = reply.InventoryData[0].ItemID;
 
@@ -441,7 +468,7 @@ namespace libsecondlife.InventorySystem
 
                 // NOT USED YET: iiCreationInProgress._CallbackID = reply.InventoryData[0].CallbackID;
 
-                ItemCreationInProgress = false;
+                ItemCreationCompleted.Set();
             }
             else
             {
@@ -455,12 +482,12 @@ namespace libsecondlife.InventorySystem
         {
             InventoryDescendentsPacket reply = (InventoryDescendentsPacket)packet;
 
-            LastPacketRecieved = Helpers.GetUnixTime();
+            LastPacketRecievedAtTick = Environment.TickCount;
 
             InventoryItem invItem;
             InventoryFolder invFolder;
 
-            LLUUID uuidFolderID = new LLUUID();
+            LLUUID uuidFolderID = LLUUID.Zero;
 
             int iDescendentsExpected = int.MaxValue;
             int iDescendentsReceivedThisBlock = 0;
@@ -473,27 +500,34 @@ namespace libsecondlife.InventorySystem
                 {
                     iDescendentsReceivedThisBlock++;
 
-                    invItem = new InventoryItem(this, itemBlock);
-
-                    InventoryFolder ifolder = (InventoryFolder)htFoldersByUUID[invItem.FolderID];
-
-                    if (ifolder.alContents.Contains(invItem) == false)
+                    if (itemBlock.ItemID == LLUUID.Zero)
                     {
-                        if ((invItem.InvType == 7) && (invItem.Type == Asset.ASSET_TYPE_NOTECARD))
-                        {
-                            InventoryItem temp = new InventoryNotecard(this, invItem);
-                            invItem = temp;
-                        }
-
-                        if ((invItem.InvType == 0) && (invItem.Type == Asset.ASSET_TYPE_IMAGE))
-                        {
-                            InventoryItem temp = new InventoryImage(this, invItem);
-                            invItem = temp;
-                        }
-
-                        ifolder.alContents.Add(invItem);
+                        // this shouldn't ever happen, but unless you've uploaded an invalid item
+                        // to yourself while developping inventory code
                     }
+                    else
+                    {
+                        invItem = new InventoryItem(this, itemBlock);
 
+                        InventoryFolder ifolder = (InventoryFolder)htFoldersByUUID[invItem.FolderID];
+
+                        if (ifolder.alContents.Contains(invItem) == false)
+                        {
+                            if ((invItem.InvType == 7) && (invItem.Type == Asset.ASSET_TYPE_NOTECARD))
+                            {
+                                InventoryItem temp = new InventoryNotecard(this, invItem);
+                                invItem = temp;
+                            }
+
+                            if ((invItem.InvType == 0) && (invItem.Type == Asset.ASSET_TYPE_IMAGE))
+                            {
+                                InventoryItem temp = new InventoryImage(this, invItem);
+                                invItem = temp;
+                            }
+
+                            ifolder.alContents.Add(invItem);
+                        }
+                    }
                 }
             }
 
@@ -560,14 +594,13 @@ namespace libsecondlife.InventorySystem
             }
             else
             {
-
                 // This one packet didn't have all the descendents we're expecting
                 // so update the total we're expecting, and update the total downloaded
 
                 DescendentRequest dr = (DescendentRequest)htFolderDownloadStatus[uuidFolderID];
                 dr.Expected = iDescendentsExpected;
                 dr.Received += iDescendentsReceivedThisBlock;
-                dr.LastReceived = Helpers.GetUnixTime();
+                dr.LastReceivedAtTick = Environment.TickCount;
 
                 if (dr.Received >= dr.Expected)
                 {
@@ -589,7 +622,7 @@ namespace libsecondlife.InventorySystem
 
             public int Expected = int.MaxValue;
             public int Received = 0;
-            public uint LastReceived = 0;
+            public int LastReceivedAtTick = 0;
 
             public bool FetchFolders = true;
             public bool FetchItems = true;
@@ -597,7 +630,7 @@ namespace libsecondlife.InventorySystem
             public DescendentRequest(LLUUID folderID)
             {
                 FolderID = folderID;
-                LastReceived = Helpers.GetUnixTime();
+                LastReceivedAtTick = Environment.TickCount;
             }
 
             public DescendentRequest(LLUUID folderID, bool fetchFolders, bool fetchItems)
@@ -605,7 +638,7 @@ namespace libsecondlife.InventorySystem
                 FolderID = folderID;
                 FetchFolders = fetchFolders;
                 FetchItems = fetchItems;
-                LastReceived = Helpers.GetUnixTime();
+                LastReceivedAtTick = Environment.TickCount;
             }
 
         }
