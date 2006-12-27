@@ -657,17 +657,13 @@ sim -> dataserver
 		{   OwnerID			LLUUID  }
 		{   LastOwnerID		LLUUID  }
 		{   CreatorID		LLUUID  }
-		{	SimName			Variable	1	}
+		{	RegionID		LLUUID	}
+		{   AbuserID		LLUUID  }
+		{	AbuseRegionName	Variable	1	}
+		{	AbuseRegionID	LLUUID	}
 		{   Summary			Variable	1   }
 		{   Details 		Variable	2   }
 		{	VersionString	Variable	1	}
-	}
-	{
-		MeanCollision		Variable
-		{	Perp			LLUUID	}
-		{	Time			U32		}
-		{	Mag				F32		}
-		{	Type			U8		}
 	}
 }
 
@@ -1044,6 +1040,7 @@ sim -> dataserver
 		{	QueryText		Variable	1	}
 		{	QueryFlags		U32				}
 		{	Category		U32				}
+		{	QueryStart	S32					}
 	}
 }
 
@@ -1063,6 +1060,7 @@ sim -> dataserver
 		{	Category		U32				}
 		{	EstateID		U32				}
 		{	Godlike			BOOL			}
+		{	QueryStart	S32					}
 	}
 }
 
@@ -1294,9 +1292,10 @@ sim -> dataserver
 		QueryData			Single
 		{	QueryID			LLUUID	}
 		{	QueryFlags		U32		}
-		{	ForSale			BOOL	}
-		{	Auction			BOOL	}
-		{	ReservedNewbie	BOOL	}
+		{	SearchType		U32		}
+		{	Price			S32		}
+		{	Area			S32		}
+		{	QueryStart		S32		}
 	}
 }
 
@@ -1312,9 +1311,10 @@ sim -> dataserver
 		QueryData			Single
 		{	QueryID			LLUUID	}
 		{	QueryFlags		U32		}
-		{	ForSale			BOOL	}
-		{	Auction			BOOL	}
-		{	ReservedNewbie	BOOL	}
+		{	SearchType		U32		}
+		{	Price			S32		}
+		{	Area			S32		}
+		{	QueryStart		S32		}
 		{	EstateID		U32		}
 		{	Godlike			BOOL	}
 	}
@@ -1798,8 +1798,11 @@ sim -> dataserver
 	{
 		Info	Single
 		{	LureType 		U8	 			}
-		{	TargetID		LLUUID			}
 		{	Message			Variable	1	}
+	}
+	{
+		TargetData Variable
+		{	TargetID		LLUUID			}
 	}
 }
 
@@ -3340,16 +3343,12 @@ sim -> dataserver
 		{   CheckFlags		U8	} // checkboxflags
 		{   ScreenshotID	LLUUID  }
 		{   ObjectID		LLUUID  }
+		{   AbuserID		LLUUID  }
+		{	AbuseRegionName	Variable	1	}
+		{	AbuseRegionID	LLUUID	}
 		{   Summary			Variable	1   }
 		{   Details 		Variable	2   }
 		{	VersionString	Variable	1	}
-	}
-	{
-		MeanCollision		Variable
-		{	Perp			LLUUID	}
-		{	Time			U32		}
-		{	Mag				F32		}
-		{	Type			U8		}
 	}
 }
 
@@ -3949,6 +3948,7 @@ sim -> dataserver
 		{	TargetType		S32	}
 		{	Status			S32	}
 		{	Size			S32	}
+		{	Params			Variable	2	}
 	}
 }
 
@@ -6227,7 +6227,6 @@ sim -> dataserver
 	{
 		InventoryData		Variable
 		{	ItemID			LLUUID	}  // null if list is actually empty (but has one entry 'cause it can't have none)
-		{	NewAssetID		LLUUID	}
 	}
 }
 
@@ -6634,8 +6633,10 @@ sim -> dataserver
 //
 // Sim outgoing only (to dataserver, to viewer)
 // NOT viewer to sim, sim should not have handler, ever
+// This message is currently only uses objects, so the viewer ignores
+// the asset id.
 {
-	SaveAssetIntoInventory Low NotTrusted Unencoded
+	SaveAssetIntoInventory Low Trusted Unencoded
 	{
 		AgentData		Single
 		{	AgentID			LLUUID	}
