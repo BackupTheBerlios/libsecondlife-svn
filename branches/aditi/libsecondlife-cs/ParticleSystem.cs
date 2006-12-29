@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.ComponentModel;
+using System.Xml.Serialization;
 
 namespace libsecondlife
 {
     /// <summary>
     /// 
     /// </summary>
+    [Serializable]
     public class ParticleSystem
     {
         /// <summary>
@@ -15,21 +17,21 @@ namespace libsecondlife
         public enum SourcePattern : byte
         {
             /// <summary></summary>
-            None = 0,
+            [XmlEnum("None")] None = 0,
             /// <summary></summary>
-            Drop = 0x01,
+            [XmlEnum("Drop")] Drop = 0x01,
             /// <summary></summary>
-            Explode = 0x02,
+            [XmlEnum("Explode")] Explode = 0x02,
             /// <summary></summary>
-            Angle = 0x04,
+            [XmlEnum("Angle")] Angle = 0x04,
             /// <summary></summary>
-            AngleCone = 0x08,
+            [XmlEnum("AngleCone")] AngleCone = 0x08,
             /// <summary></summary>
-            AngleConeEmpty = 0x10
+            [XmlEnum("AngleConeEmpty")] AngleConeEmpty = 0x10
         }
 
         /// <summary>
-        /// 
+        /// Information on a particle system assocaited with a prim
         /// </summary>
         [Flags]
         public enum ParticleFlags : ushort
@@ -57,48 +59,48 @@ namespace libsecondlife
         }
 
         /// <summary></summary>
-        public uint PartStartRGBA;
+        [XmlAttribute("startrgba"), DefaultValue(0)] public uint PartStartRGBA;
         /// <summary></summary>
-        public uint PartEndRGBA;
+        [XmlAttribute("endrgba"), DefaultValue(0)] public uint PartEndRGBA;
         /// <summary></summary>
-        public LLVector3 PartStartScale = LLVector3.Zero;
+        [XmlAttribute("maxage"), DefaultValue(0)] public float PartMaxAge;
         /// <summary></summary>
-        public LLVector3 PartEndScale = LLVector3.Zero;
+        [XmlAttribute("srcmaxage"), DefaultValue(0)] public float SrcMaxAge;
         /// <summary></summary>
-        public float PartMaxAge;
+        [XmlAttribute("srcanglebegin"), DefaultValue(0)] public float SrcAngleBegin;
         /// <summary></summary>
-        public float SrcMaxAge;
+        [XmlAttribute("srcangleend"), DefaultValue(0)] public float SrcAngleEnd;
         /// <summary></summary>
-        public LLVector3 SrcAccel = LLVector3.Zero;
+        [XmlAttribute("srcburstpartcount"), DefaultValue(0)] public int SrcBurstPartCount;
         /// <summary></summary>
-        public float SrcAngleBegin;
+        [XmlAttribute("srcburstradius"), DefaultValue(0)] public float SrcBurstRadius;
         /// <summary></summary>
-        public float SrcAngleEnd;
+        [XmlAttribute("srcburstrate"), DefaultValue(0)] public float SrcBurstRate;
         /// <summary></summary>
-        public int SrcBurstPartCount;
+        [XmlAttribute("srcburstspeedmin"), DefaultValue(0)] public float SrcBurstSpeedMin;
         /// <summary></summary>
-        public float SrcBurstRadius;
+        [XmlAttribute("srcburstspeedmax"), DefaultValue(0)] public float SrcBurstSpeedMax;
+        /// <summary>Unknown</summary>
+        [XmlAttribute("serial"), DefaultValue(0)] public uint Serial;
+        /// <summary>Unknown</summary>
+        [XmlAttribute("starttick"), DefaultValue(0)] public uint StartTick;
         /// <summary></summary>
-        public float SrcBurstRate;
-        /// <summary></summary>
-        public float SrcBurstSpeedMin;
-        /// <summary></summary>
-        public float SrcBurstSpeedMax;
-        /// <summary></summary>
-        public LLVector3 SrcOmega = LLVector3.Zero;
-        /// <summary></summary>
-        public LLUUID SrcTargetKey = LLUUID.Zero;
-        /// <summary>Texture that will be applied to the particles</summary>
-        public LLUUID SrcTexture = LLUUID.Zero;
-        /// <summary></summary>
-        public SourcePattern SrcPattern;
+        [XmlAttribute("srcpattern"), DefaultValue(SourcePattern.None)] public SourcePattern SrcPattern = SourcePattern.None;
         /// <summary>Various options that describe the behavior of this system</summary>
-        public ParticleFlags PartFlags;
-        /// <summary>Unknown</summary>
-        public uint Version;
-        /// <summary>Unknown</summary>
-        public uint StartTick;
-
+        [XmlAttribute("particleflags"), DefaultValue(ParticleFlags.None)] public ParticleFlags PartFlags = ParticleFlags.None;
+        /// <summary></summary>
+        [XmlElement("srctarget")] public LLUUID SrcTargetKey = LLUUID.Zero;
+        /// <summary>Texture that will be applied to the particles</summary>
+        [XmlElement("srctexture")] public LLUUID SrcTexture = LLUUID.Zero;
+        /// <summary></summary>
+        [XmlElement("partstartscale")] public LLVector3 PartStartScale = LLVector3.Zero;
+        /// <summary></summary>
+        [XmlElement("partendscale")] public LLVector3 PartEndScale = LLVector3.Zero;
+        /// <summary></summary>
+        [XmlElement("srcaccel")] public LLVector3 SrcAccel = LLVector3.Zero;
+        /// <summary></summary>
+        [XmlElement("srcomega")] public LLVector3 SrcOmega = LLVector3.Zero;
+        
         /// <summary>
         /// 
         /// </summary>
@@ -116,25 +118,15 @@ namespace libsecondlife
             FromBytes(data, pos);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
         public byte[] GetBytes()
         {
             byte[] bytes = new byte[0];
             // FIXME: Finish ParticleSystem.GetBytes()
             return bytes;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public string GetXml(string name)
-        {
-            string xml = "<ParticleSystem>";
-            // FIXME: Finish ParticleSystem.GetXml()
-            xml += "</ParticleSystem>";
-
-            return xml;
         }
 
         /// <summary>
@@ -149,7 +141,7 @@ namespace libsecondlife
             if (data.Length == 0)
                 return;
 
-            Version = (uint)(data[i++] + (data[i++] << 8) +
+            Serial = (uint)(data[i++] + (data[i++] << 8) +
                     (data[i++] << 16) + (data[i++] << 24));
 
             StartTick = (uint)(data[i++] + (data[i++] << 8) +
@@ -159,7 +151,7 @@ namespace libsecondlife
 
             SrcMaxAge = (data[i++] + (data[i++] << 8)) / 256.0f;
 
-            //Unknown
+            // TODO: Unknown
             i += 2;
 
             SrcAngleBegin = (data[i++] / 100.0f) * (float)Math.PI;
@@ -190,7 +182,7 @@ namespace libsecondlife
 
             PartMaxAge = (data[i++] + (data[i++] << 8)) / 256.0f;
 
-            //Unknown
+            // TODO: Unknown
             i += 2;
 
             PartStartRGBA = (uint)(data[i++] + (data[i++] << 8) +

@@ -28,17 +28,10 @@ using System;
 using System.Collections.Generic;
 using libsecondlife.Packets;
 using libsecondlife.AssetSystem;
+using libsecondlife.InventorySystem;
 
 namespace libsecondlife
 {
-    /// <summary>
-    /// Callback used for client apps to receive log messages from
-    /// libsecondlife
-    /// </summary>
-    /// <param name="message"></param>
-    /// <param name="level"></param>
-    public delegate void LogCallback(string message, Helpers.LogLevel level);
-
     /// <summary>
     /// Main class to expose Second Life functionality to clients. All of the
     /// classes needed for sending and receiving data are accessible through 
@@ -46,7 +39,14 @@ namespace libsecondlife
     /// </summary>
     public class SecondLife
     {
-        public const string LOGIN_SERVER = "https://login.aditi.lindenlab.com/cgi-bin/login.cgi";
+        /// <summary>
+        /// Callback used for client apps to receive log messages from
+        /// libsecondlife
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="level"></param>
+        public delegate void LogCallback(string message, Helpers.LogLevel level);
+
 
         /// <summary>Networking Subsystem</summary>
         public NetworkManager Network;
@@ -62,31 +62,16 @@ namespace libsecondlife
         public ObjectManager Objects;
         /// <summary>Group Subsystem</summary>
         public GroupManager Groups;
+        /// <summary>Asset Subsystem</summary>
+        public AssetManager Assets;
+        /// <summary>Inventory Subsystem</summary>
+        public InventoryManager Inventory;
+        /// <summary>Image Subsystem</summary>
+        public ImageManager Images;
         /// <summary>Throttling Subsystem</summary>
         public AgentThrottle Throttle;
-
-        private ImageManager _ImageManager;
-        /// <summary>Image Subsystem</summary>
-        public ImageManager Images
-        {
-            get
-            {
-                if (_ImageManager == null)
-                {
-                    _ImageManager = new ImageManager(this);
-                    return _ImageManager;
-                }
-                else
-                {
-                    return _ImageManager;
-                }
-            }
-
-            set
-            {
-                _ImageManager = value;
-            }
-        }
+        /// <summary>Settings Subsystem</summary>
+        public Settings Settings;
 
         /// <summary>Triggered whenever a message is logged.
         /// If this is left null, log messages will go to 
@@ -100,13 +85,18 @@ namespace libsecondlife
         /// </summary>
         public SecondLife()
         {
+            // These are order-dependant
             Network = new NetworkManager(this);
+            Settings = new Settings(this);
             Parcels = new ParcelManager(this);
             Self = new MainAvatar(this);
             Avatars = new AvatarManager(this);
             Grid = new GridManager(this);
             Objects = new ObjectManager(this);
             Groups = new GroupManager(this);
+            Assets = new AssetManager(this);
+            Images = new ImageManager(this);
+            Inventory = new InventoryManager(this);
             Throttle = new AgentThrottle(this);
         }
 

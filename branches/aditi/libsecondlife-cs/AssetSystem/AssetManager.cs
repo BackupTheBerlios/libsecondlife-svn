@@ -43,8 +43,6 @@ namespace libsecondlife.AssetSystem
 	/// </summary>
 	public class AssetManager
 	{
-
-
 		public const int SINK_FEE_IMAGE = 1;
 
 		private SecondLife slClient;
@@ -59,6 +57,10 @@ namespace libsecondlife.AssetSystem
 		{
 			slClient = client;
 
+            // Need to know when we're Connected/Disconnected to clear state
+            slClient.Network.OnDisconnected += new NetworkManager.DisconnectCallback(Network_OnDisconnected);
+            slClient.Network.OnConnected += new NetworkManager.ConnectedCallback(Network_OnConnected);
+
 			// Used to upload small assets, or as an initial start packet for large transfers
             slClient.Network.RegisterCallback(PacketType.AssetUploadComplete, new NetworkManager.PacketCallback(AssetUploadCompleteCallbackHandler));
 			// Transfer Packets for downloading large assets
@@ -69,9 +71,24 @@ namespace libsecondlife.AssetSystem
             slClient.Network.RegisterCallback(PacketType.RequestXfer, new NetworkManager.PacketCallback(RequestXferCallbackHandler));
 		}
 
+        void Network_OnConnected(object sender)
+        {
+            ClearState();
+        }
+
+        void Network_OnDisconnected(NetworkManager.DisconnectType reason, string message)
+        {
+            ClearState();
+        }
+
+        private void ClearState()
+        {
+            htDownloadRequests.Clear();
+            curUploadRequest = null;
+        }
 
         /// <summary>
-        /// Handle the appropriate sink fee assoiacted with an asset upload
+        /// Handle the appropriate sink fee associated with an asset upload
         /// </summary>
         /// <param name="sinkType"></param>
         public void SinkFee(int sinkType)
@@ -79,7 +96,7 @@ namespace libsecondlife.AssetSystem
 			switch( sinkType )
 			{
 				case SINK_FEE_IMAGE:
-					slClient.Self.GiveMoney( LLUUID.Zero, 10, "Image Upload" );
+					slClient.Self.GiveMoney( LLUUID.Zero, slClient.Settings.UPLOAD_COST, "Image Upload" );
 					break;
 				default:
 					throw new Exception("AssetManager: Unknown sinktype (" + sinkType + ")");
@@ -100,12 +117,12 @@ namespace libsecondlife.AssetSystem
 
             try
             {
-                curUploadRequest = new AssetRequestUpload(slClient, LLUUID.GenerateUUID(), asset);
+                curUploadRequest = new AssetRequestUpload(slClient, LLUUID.Random(), asset);
 
                 LLUUID assetID = curUploadRequest.DoUpload();
                 if (asset.Type == Asset.ASSET_TYPE_IMAGE)
                 {
-                    //SinkFee(SINK_FEE_IMAGE);
+                    SinkFee(SINK_FEE_IMAGE);
                 }
                 return assetID;
             }
@@ -121,7 +138,7 @@ namespace libsecondlife.AssetSystem
         /// <param name="item"></param>
 		public void GetInventoryAsset( InventoryItem item )
 		{
-			LLUUID TransferID = LLUUID.GenerateUUID();
+			LLUUID TransferID = LLUUID.Random();
 
             AssetRequestDownload request = new AssetRequestDownload(TransferID);
             request.Size = int.MaxValue; // Number of bytes expected
@@ -130,11 +147,24 @@ namespace libsecondlife.AssetSystem
 
             htDownloadRequests[TransferID] = request;
 
-			Packet packet = AssetPacketHelpers.TransferRequest(slClient.Network.SessionID, slClient.Network.AgentID, TransferID, item );
-			slClient.Network.SendPacket(packet);
+            // prep packet based on asset type
+            Packet packet;
+            switch (item.Type)
+            {
+                case 5:  //Shirt
+                case 13: //Bodyshape
+                    packet = AssetPacketHelpers.TransferRequestDirect(slClient.Network.SessionID, slClient.Network.AgentID, TransferID, item.AssetID, item.Type);
+                    break;
+                default:
+			        packet = AssetPacketHelpers.TransferRequest(slClient.Network.SessionID, slClient.Network.AgentID, TransferID, item );
+                    break;
+            }
+
+            // Send packet
+            slClient.Network.SendPacket(packet);
 
             #if DEBUG_PACKETS
-                Console.WriteLine(packet);
+                slClient.DebugLog(packet);
             #endif
 
             request.Completed.WaitOne();
@@ -148,7 +178,7 @@ namespace libsecondlife.AssetSystem
         /// <param name="asset"></param>
         public void GetInventoryAsset(Asset asset)
 		{
-			LLUUID TransferID = LLUUID.GenerateUUID();
+			LLUUID TransferID = LLUUID.Random();
 
             AssetRequestDownload request = new AssetRequestDownload(TransferID);
             request.Size = int.MaxValue; // Number of bytes expected
@@ -157,16 +187,16 @@ namespace libsecondlife.AssetSystem
 
             htDownloadRequests[TransferID] = request;
 
-			Packet packet = AssetPacketHelpers.TransferRequest4BodyShape(slClient.Network.SessionID, slClient.Network.AgentID, TransferID, asset );
+            Packet packet = AssetPacketHelpers.TransferRequestDirect(slClient.Network.SessionID, slClient.Network.AgentID, TransferID, asset.AssetID, asset.Type);
 			slClient.Network.SendPacket(packet);
 
             #if DEBUG_PACKETS
-                Console.WriteLine(packet);
+                slClient.DebugLog(packet);
             #endif
 
             request.Completed.WaitOne();
 
-            asset.AssetData = request.AssetData;
+            asset.SetAssetData(request.AssetData);
             
 		}
 
@@ -174,7 +204,7 @@ namespace libsecondlife.AssetSystem
         private void AssetUploadCompleteCallbackHandler(Packet packet, Simulator simulator)
 		{
             #if DEBUG_PACKETS
-                Console.WriteLine(packet);
+                slClient.DebugLog(packet);
             #endif
 
             Packets.AssetUploadCompletePacket reply = (AssetUploadCompletePacket)packet;
@@ -185,7 +215,7 @@ namespace libsecondlife.AssetSystem
         private void RequestXferCallbackHandler(Packet packet, Simulator simulator)
 		{
             #if DEBUG_PACKETS
-                Console.WriteLine(packet);
+                slClient.DebugLog(packet);
             #endif
 
             RequestXferPacket reply = (RequestXferPacket)packet;
@@ -199,7 +229,7 @@ namespace libsecondlife.AssetSystem
         private void ConfirmXferPacketCallbackHandler(Packet packet, Simulator simulator)
         {
             #if DEBUG_PACKETS
-                Console.WriteLine(packet);
+                slClient.DebugLog(packet);
             #endif
 
             ConfirmXferPacketPacket reply = (ConfirmXferPacketPacket)packet;
@@ -211,7 +241,7 @@ namespace libsecondlife.AssetSystem
         private void TransferInfoCallbackHandler(Packet packet, Simulator simulator)
         {
             #if DEBUG_PACKETS
-                Console.WriteLine(packet);
+                slClient.DebugLog(packet);
             #endif
 
             TransferInfoPacket reply = (TransferInfoPacket)packet;
@@ -247,7 +277,7 @@ namespace libsecondlife.AssetSystem
         private void TransferPacketCallbackHandler(Packet packet, Simulator simulator)
         {
             #if DEBUG_PACKETS
-                Console.WriteLine(packet);
+                slClient.DebugLog(packet);
             #endif
 
             TransferPacketPacket reply = (TransferPacketPacket)packet;
@@ -263,17 +293,23 @@ namespace libsecondlife.AssetSystem
                 return;
             }
 
-            lock (request)
-            {
-                Array.Copy(Data, 0, request.AssetData, request.Received, Data.Length);
-                request.Received += Data.Length;
+            // Add data to data dictionary.
+            request.AssetDataReceived[reply.TransferData.Packet] = Data;
+            request.Received += Data.Length;
 
-                // If we've gotten all the data, mark it completed.
-                if (request.Received >= request.Size)
+
+
+            // If we've gotten all the data, mark it completed.
+            if (request.Received >= request.Size)
+            {
+                int curPos = 0;
+                foreach (KeyValuePair<int,byte[]> kvp in request.AssetDataReceived)
                 {
-                    Console.WriteLine("Download Complete");
-                    request.Completed.Set();
+                    Array.Copy(kvp.Value, 0, request.AssetData, curPos, kvp.Value.Length);
+                    curPos += kvp.Value.Length;
                 }
+
+                request.Completed.Set();
             }
         }
 	}

@@ -8,72 +8,50 @@ namespace libsecondlife.TestClient
 {
     public class SitCommand: Command
     {
-		public SitCommand()
+        SecondLife Client;
+
+        public SitCommand(TestClient testClient)
 		{
+            TestClient = testClient;
+            Client = (SecondLife)TestClient;
+
 			Name = "sit";
-			Description = "Sit on closest touchable prim.";
+			Description = "Attempt to sit on the closest prim";
 		}
-
-		public string Sit(SecondLife Client, LLUUID target)
-		{
-		    AgentRequestSitPacket sitPacket = new AgentRequestSitPacket();
 			
-		    sitPacket.AgentData.AgentID = Client.Network.AgentID;
-		    sitPacket.AgentData.SessionID = Client.Network.SessionID;
-
-		    sitPacket.TargetObject.TargetID = target;
-		    sitPacket.TargetObject.Offset = new LLVector3();
-
-		    Client.Network.SendPacket(sitPacket);
-
-//			SitTime = DateTime.Now;
-
-		    return String.Empty;
-		}
-
-        public override string Execute(SecondLife Client, string[] args, LLUUID fromAgentID)
+        public override string Execute(string[] args, LLUUID fromAgentID)
 		{
 		    PrimObject closest = null;
 		    double closestDistance = Double.MaxValue;
 
-		    lock (TestClient.Prims)
+		    lock (TestClient.SimPrims)
 		    {
-		        foreach (PrimObject p in TestClient.Prims.Values)
-		        {
-		            if ((p.Flags & ObjectFlags.Touch) > 0)
-		            {
-		                double distance = QuadranceBetween(Client.Self.Position, p.Position);
-		                if (closest == null || distance < closestDistance)
-		                {
-		                    closest = p;
-		                    closestDistance = distance;
-		                }
-		            }
-		        }
+                if (TestClient.SimPrims.ContainsKey(Client.Network.CurrentSim))
+                {
+                    foreach (PrimObject p in TestClient.SimPrims[Client.Network.CurrentSim].Values)
+                    {
+                        float distance = Helpers.VecDist(Client.Self.Position, p.Position);
+
+                        if (closest == null || distance < closestDistance)
+                        {
+                            closest = p;
+                            closestDistance = distance;
+                        }
+                    }
+                }
 		    }
 
-		    if (closest != null)
-		    {
-		        Sit(Client, closest.ID);
-		        return TestClient.Prims.Count + " prims. Sat on " + closest.ID + ". Distance: " + closestDistance;
-		    }
+            if (closest != null)
+            {
+                Client.Self.RequestSit(closest.ID, LLVector3.Zero);
+                Client.Self.Sit();
 
-		    return String.Empty;
-		}
-
-		//string sitTimeCommand(string[] args, LLUUID fromAgentID)
-		//{
-		//    return "Sitting Since: " + SitTime + " (" + (DateTime.Now - SitTime) + ")";
-		//}
-
-		public static double QuadranceBetween(LLVector3 a, LLVector3 b)
-		{
-			return
-				(
-					((a.X - b.X) * (a.X - b.X))
-					+ ((a.Y - b.Y) * (a.Y - b.Y))
-					+ ((a.Z - b.Z) * (a.Z - b.Z))
-				);
+                return "Sat on " + closest.ID + ". Distance: " + closestDistance;
+            }
+            else
+            {
+                return "Couldn't find a nearby prim to sit on";
+            }
 		}
     }
 }

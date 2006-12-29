@@ -78,7 +78,7 @@ namespace libsecondlife.AssetSystem
 
             CurrentPacket = 0;
             resendCount = 0;
-            _NumPackets = asset.AssetData.Length / 1000;
+            _NumPackets = asset._AssetData.Length / 1000;
             if (_NumPackets < 1)
             {
                 _NumPackets = 1;
@@ -91,10 +91,9 @@ namespace libsecondlife.AssetSystem
 
             while (this.Completed.WaitOne(1000, true) == false && this.resendCount < 20) // only resend 20 times
             {
-                //Console.WriteLine("WaitOne() timeout while uploading");
                 if (this.SecondsSinceLastPacket > 2)
                 {
-                    Console.WriteLine("Resending Packet (more than 2 seconds since last confirm)");
+                    slClient.Log("Resending Packet (more than 2 seconds since last confirm)", Helpers.LogLevel.Info);
                     this.SendCurrentPacket();
                     resendCount++;
                 }
@@ -121,7 +120,7 @@ namespace libsecondlife.AssetSystem
         {
             Packet packet;
 
-            if (this.MyAsset.AssetData.Length > 1000)
+            if (this.MyAsset._AssetData.Length > 1000)
             {
                 packet = AssetPacketHelpers.AssetUploadRequestHeaderOnly(this.MyAsset, this.TransactionID);
             }
@@ -131,13 +130,13 @@ namespace libsecondlife.AssetSystem
             }
 
             slClient.Network.SendPacket(packet);
-#if DEBUG_PACKETS
-                Console.WriteLine(packet);
-#endif
-#if DEBUG_HEADERS
-                Console.WriteLine(packet.Header);
-#endif
 
+            #if DEBUG_PACKETS
+                slClient.DebugLog(packet);
+            #endif
+            #if DEBUG_HEADERS
+            slClient.DebugLog(packet.Header.ToString());
+            #endif
         }
 
         internal void RequestXfer(ulong XferID)
@@ -167,7 +166,6 @@ namespace libsecondlife.AssetSystem
 
         private void SendCurrentPacket()
         {
-            //            Console.WriteLine("Sending " + tr.CurrentPacket + " / " + tr.NumPackets);
             Packet uploadPacket;
 
             // technically we don't need this lock, because no state is updated here!
@@ -177,7 +175,7 @@ namespace libsecondlife.AssetSystem
                 uint packetNum = CurrentPacket; 
                 if (packetNum == 0)
                 {
-                    if (MyAsset.AssetData.Length <= 1000)
+                    if (MyAsset._AssetData.Length <= 1000)
                         throw new Exception("Should not use xfer for small assets");
                     int dataSize = 1000;
 
@@ -185,24 +183,24 @@ namespace libsecondlife.AssetSystem
 
                     // Prefix the first Xfer packet with the data length
                     // FIXME: Apply endianness patch
-                    Array.Copy(BitConverter.GetBytes((int)MyAsset.AssetData.Length), 0, packetData, 0, 4);
-                    Array.Copy(MyAsset.AssetData, 0, packetData, 4, dataSize);
+                    Array.Copy(BitConverter.GetBytes((int)MyAsset._AssetData.Length), 0, packetData, 0, 4);
+                    Array.Copy(MyAsset._AssetData, 0, packetData, 4, dataSize);
 
                     uploadPacket = AssetPacketHelpers.SendXferPacket(XferID, packetData, packetNum);
                 }
                 else if (packetNum < this.NumPackets)
                 {
                     byte[] packetData = new byte[1000];
-                    Array.Copy(this.MyAsset.AssetData, packetNum * 1000, packetData, 0, 1000);
+                    Array.Copy(this.MyAsset._AssetData, packetNum * 1000, packetData, 0, 1000);
 
                     uploadPacket = AssetPacketHelpers.SendXferPacket(this.XferID, packetData, packetNum);
                 }
                 else
                 {
                     // The last packet has to be handled slightly differently
-                    int lastLen = this.MyAsset.AssetData.Length - (this.NumPackets * 1000);
+                    int lastLen = this.MyAsset._AssetData.Length - (this.NumPackets * 1000);
                     byte[] packetData = new byte[lastLen];
-                    Array.Copy(this.MyAsset.AssetData, this.NumPackets * 1000, packetData, 0, lastLen);
+                    Array.Copy(this.MyAsset._AssetData, this.NumPackets * 1000, packetData, 0, lastLen);
 
                     uint lastPacket = (uint)int.MaxValue + (uint)this.NumPackets + (uint)1;
                     uploadPacket = AssetPacketHelpers.SendXferPacket(this.XferID, packetData, lastPacket);
@@ -211,12 +209,12 @@ namespace libsecondlife.AssetSystem
 
             slClient.Network.SendPacket(uploadPacket);
 
-#if DEBUG_PACKETS
-                Console.WriteLine(uploadPacket);
-#endif
-#if DEBUG_HEADERS
-            Console.WriteLine(uploadPacket.Header);
-#endif
+            #if DEBUG_PACKETS
+                slClient.DebugLog(uploadPacket);
+            #endif
+            #if DEBUG_HEADERS
+                slClient.DebugLog(uploadPacket.Header.ToString());
+            #endif
         }
 
         internal void UploadComplete(LLUUID assetID, bool success)
@@ -230,7 +228,7 @@ namespace libsecondlife.AssetSystem
             else
                 StatusMsg = "Server returned failed";
 
-            Console.WriteLine("Upload Complete");
+            slClient.Log("Upload complete", Helpers.LogLevel.Info);
             Completed.Set();
         }
     }

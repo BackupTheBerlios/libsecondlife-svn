@@ -37,8 +37,8 @@ namespace libsecondlife.InventorySystem
                     throw new Exception("Target Folder [" + value + "] does not exist.");
                 }
 
-                base.iManager.getFolder(this.FolderID).alContents.Remove(this);
-                iTargetFolder.alContents.Add(this);
+                base.iManager.getFolder(this.FolderID)._Contents.Remove(this);
+                iTargetFolder._Contents.Add(this);
 
                 _FolderID = value;
                 UpdateItem();
@@ -421,7 +421,7 @@ namespace libsecondlife.InventorySystem
         /// </summary>
         public void Delete()
         {
-            base.iManager.getFolder(this.FolderID).alContents.Remove(this);
+            base.iManager.getFolder(this.FolderID)._Contents.Remove(this);
             base.iManager.ItemRemove(this);
 
         }
@@ -439,14 +439,19 @@ namespace libsecondlife.InventorySystem
                 }
                 else
                 {
-                    _Asset = new Asset(LLUUID.GenerateUUID(), Type, assetData);
+                    _Asset = new Asset(LLUUID.Random(), Type, assetData);
                     _AssetID = _Asset.AssetID;
                 }
             }
             else
             {
-                _Asset.AssetData = assetData;
+                _Asset.SetAssetData(assetData);
             }
+        }
+
+        public override string GetDisplayType()
+        {
+            return "Unknown_Item";
         }
 
         /// <summary>

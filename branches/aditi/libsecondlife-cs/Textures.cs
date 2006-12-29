@@ -26,93 +26,169 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Xml;
+using System.Xml.Serialization;
+using System.ComponentModel;
 using System.IO;
 
 namespace libsecondlife
 {
     /// <summary>
-    /// 
+    /// The type of bump-mapping applied to a face
     /// </summary>
     public enum Bumpiness
     {
-        None = 0,
-        Brightness = 1,
-        Darkness = 2,
-        Woodgrain = 3,
-        Bark = 4,
-        Bricks = 5,
-        Checker = 6,
-        Concrete = 7,
-        Crustytile = 8,
-        Cutstone = 9,
-        Discs = 10,
-        Gravel = 11,
-        Petridish = 12,
-        Siding = 13,
-        Stonetile = 14,
-        Stucco = 15,
-        Suction = 16,
-        Weave = 17
+        /// <summary></summary>
+        [XmlEnum("None")] None = 0,
+        /// <summary></summary>
+        [XmlEnum("Brightness")] Brightness = 1,
+        /// <summary></summary>
+        [XmlEnum("Darkness")] Darkness = 2,
+        /// <summary></summary>
+        [XmlEnum("Woodgrain")] Woodgrain = 3,
+        /// <summary></summary>
+        [XmlEnum("Bark")] Bark = 4,
+        /// <summary></summary>
+        [XmlEnum("Bricks")] Bricks = 5,
+        /// <summary></summary>
+        [XmlEnum("Checker")] Checker = 6,
+        /// <summary></summary>
+        [XmlEnum("Concrete")] Concrete = 7,
+        /// <summary></summary>
+        [XmlEnum("Crustytile")] Crustytile = 8,
+        /// <summary></summary>
+        [XmlEnum("Cutstone")] Cutstone = 9,
+        /// <summary></summary>
+        [XmlEnum("Discs")] Discs = 10,
+        /// <summary></summary>
+        [XmlEnum("Gravel")] Gravel = 11,
+        /// <summary></summary>
+        [XmlEnum("Petridish")] Petridish = 12,
+        /// <summary></summary>
+        [XmlEnum("Siding")] Siding = 13,
+        /// <summary></summary>
+        [XmlEnum("Stonetile")] Stonetile = 14,
+        /// <summary></summary>
+        [XmlEnum("Stucco")] Stucco = 15,
+        /// <summary></summary>
+        [XmlEnum("Suction")] Suction = 16,
+        /// <summary></summary>
+        [XmlEnum("Weave")] Weave = 17
     }
 
     /// <summary>
-    /// 
+    /// The level of shininess applied to a face
     /// </summary>
     public enum Shininess
     {
-        None = 0,
-        Low = 0x40,
-        Medium = 0x80,
-        High = 0xC0
+        /// <summary></summary>
+        [XmlEnum("None")] None = 0,
+        /// <summary></summary>
+        [XmlEnum("Low")] Low = 0x40,
+        /// <summary></summary>
+        [XmlEnum("Medium")] Medium = 0x80,
+        /// <summary></summary>
+        [XmlEnum("High")] High = 0xC0
     }
 
     /// <summary>
-    /// 
+    /// The texture mapping style used for a face
     /// </summary>
     public enum Mapping
     {
-        Default = 0,
-        Planar = 2
+        /// <summary></summary>
+        [XmlEnum("Default")] Default = 0,
+        /// <summary></summary>
+        [XmlEnum("Planar")] Planar = 2
     }
 
     /// <summary>
-    /// 
+    /// Flags in the TextureEntry block that describe which properties are 
+    /// set
     /// </summary>
+    [Flags]
+    public enum TextureAttributes : uint
+    {
+        /// <summary></summary>
+        None = 0,
+        /// <summary></summary>
+        TextureID = 1 << 0,
+        /// <summary></summary>
+        RGBA = 1 << 1,
+        /// <summary></summary>
+        RepeatU = 1 << 2,
+        /// <summary></summary>
+        RepeatV = 1 << 3,
+        /// <summary></summary>
+        OffsetU = 1 << 4,
+        /// <summary></summary>
+        OffsetV = 1 << 5,
+        /// <summary></summary>
+        Rotation = 1 << 6,
+        /// <summary></summary>
+        Flags1 = 1 << 7,
+        /// <summary></summary>
+        Flags2 = 1 << 8,
+        /// <summary></summary>
+        All = 0xFFFFFFFF
+    }
+
+    /// <summary>
+    /// Represents all of the texturable faces for an object
+    /// </summary>
+    /// <remarks>Objects in Second Life have infinite faces, with each face
+    /// using the properties of the default face unless set otherwise. So if
+    /// you have a TextureEntry with a default texture uuid of X, and face 72
+    /// has a texture UUID of Y, every face would be textured with X except for
+    /// face 72 that uses Y.</remarks>
+    [Serializable]
     public class TextureEntry
     {
         /// <summary></summary>
-        public TextureEntryFace DefaultTexture;
+        [XmlElement("default")] public TextureEntryFace DefaultTexture = null;
         /// <summary></summary>
-        public Dictionary<uint, TextureEntryFace> FaceTextures;
+        [XmlElement("faces")] public SerializableDictionary<uint, TextureEntryFace> FaceTextures = 
+            new SerializableDictionary<uint,TextureEntryFace>();
 
         /// <summary>
-        /// 
+        /// Default constructor, DefaultTexture will remain null
         /// </summary>
         public TextureEntry()
         {
-            FaceTextures = new Dictionary<uint, TextureEntryFace>();
-            //DefaultTexture = new TextureEntryFace(null);
-            DefaultTexture = null;
-        }
-
-        public TextureEntry(LLUUID textureID)
-        {
-            FaceTextures = new Dictionary<uint, TextureEntryFace>();
-            DefaultTexture = new TextureEntryFace(null);
-            DefaultTexture.TextureID = textureID;
         }
 
         /// <summary>
-        /// 
+        /// Constructor that takes a default texture UUID
         /// </summary>
-        /// <param name="data"></param>
-        /// <param name="pos"></param>
+        /// <param name="defaultTextureID">Texture UUID to use as the default texture</param>
+        public TextureEntry(LLUUID defaultTextureID)
+        {
+            DefaultTexture = new TextureEntryFace(null);
+            DefaultTexture.TextureID = defaultTextureID;
+        }
+
+        /// <summary>
+        /// Constructor that creates the TextureEntry class from a byte array
+        /// </summary>
+        /// <param name="data">Byte array containing the TextureEntry field</param>
+        /// <param name="pos">Starting position of the TextureEntry field in 
+        /// the byte array</param>
+        /// <param name="length">Length of the TextureEntry field, in bytes</param>
         public TextureEntry(byte[] data, int pos, int length)
         {
             FromBytes(data, pos, length);
         }
 
+        /// <summary>
+        /// Returns the TextureEntryFace that is applied to the specified 
+        /// index. If a custom texture is not set for this face that would be
+        /// the default texture for this TextureEntry. Do not modify the 
+        /// returned TextureEntryFace, it will have undefined results. Use 
+        /// CreateFace() to get a TextureEntryFace that is safe for writing
+        /// </summary>
+        /// <param name="index">The index number of the face to retrieve</param>
+        /// <returns>A TextureEntryFace containing all the properties for that
+        /// face, suitable for read-only operations</returns>
         public TextureEntryFace GetFace(uint index)
         {
             if (FaceTextures.ContainsKey(index))
@@ -122,11 +198,15 @@ namespace libsecondlife
         }
 
         /// <summary>
-        /// 
+        /// This will either create a new face if a custom face for the given
+        /// index is not defined, or return the custom face for that index if
+        /// it already exists
         /// </summary>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        public TextureEntryFace SetFace(uint index)
+        /// <param name="index">The index number of the face to create or 
+        /// retrieve</param>
+        /// <returns>A TextureEntryFace containing all the properties for that
+        /// face</returns>
+        public TextureEntryFace CreateFace(uint index)
         {
             if (!FaceTextures.ContainsKey(index))
                 FaceTextures[index] = new TextureEntryFace(this.DefaultTexture);
@@ -138,7 +218,7 @@ namespace libsecondlife
         /// 
         /// </summary>
         /// <returns></returns>
-        public byte[] GetBytes()
+        public byte[] ToBytes()
         {
             if (DefaultTexture == null)
             {
@@ -315,8 +395,8 @@ namespace libsecondlife
                 binWriter.Write(GetFaceBitfieldBytes(kv.Value));
                 binWriter.Write(kv.Key);
             }
-
-            return memStream.GetBuffer();
+            
+            return memStream.ToArray();
         }
 
         private byte[] GetFaceBitfieldBytes(uint bitfield)
@@ -340,20 +420,6 @@ namespace libsecondlife
                     bytes[i] |= 0x80;
             }
             return bytes;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public string GetXml(string name)
-        {
-            string xml = "<TextureEntry>";
-            // FIXME: Write GetXml for TextureEntry
-            xml += "</TextureEntry>";
-
-            return xml;
         }
 
         private bool ReadFaceBitfield(byte[] data, ref int pos, ref uint faceBits, ref uint bitfieldSize)
@@ -381,7 +447,7 @@ namespace libsecondlife
         {
             short value = (short)(byteArray[pos] | (byteArray[pos + 1] << 8));
             float QV = (float)value;
-            float QF = upper / 32767.0F;
+            float QF = upper / 32767.0f;
             return (float)(QV * QF);
         }
 
@@ -393,37 +459,37 @@ namespace libsecondlife
 
         private short RepeatShort(float value)
         {
-            return QuantizeSigned(value - 1.0F, 101.0F);
+            return QuantizeSigned(value - 1.0f, 101.0f);
         }
 
         private short OffsetShort(float value)
         {
-            return QuantizeSigned(value, 1.0F);
+            return QuantizeSigned(value, 1.0f);
         }
 
         private short RotationShort(float value)
         {
-            return QuantizeSigned(value, 359.995F);
+            return QuantizeSigned(value, 359.995f);
         }
 
         private float RepeatFloat(byte[] data, int pos)
         {
-            return DequantizeSigned(data, pos, 101.0F) + 1.0F;
+            return DequantizeSigned(data, pos, 101.0f) + 1.0f;
         }
 
         private float OffsetFloat(byte[] data, int pos)
         {
-            return DequantizeSigned(data, pos, 1.0F);
+            return DequantizeSigned(data, pos, 1.0f);
         }
 
         private float RotationFloat(byte[] data, int pos)
         {
-            return DequantizeSigned(data, pos, 359.995F);
+            return DequantizeSigned(data, pos, 359.995f);
         }
 
         private void FromBytes(byte[] data, int pos, int length)
         {
-            FaceTextures = new Dictionary<uint, TextureEntryFace>();
+            FaceTextures = new SerializableDictionary<uint, TextureEntryFace>();
             DefaultTexture = new TextureEntryFace(null);
 
             if (length <= 0) 
@@ -444,7 +510,7 @@ namespace libsecondlife
 
                 for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
                     if ((faceBits & bit) != 0)
-                        SetFace(face).TextureID = tmpUUID;
+                        CreateFace(face).TextureID = tmpUUID;
             }
             //Read RGBA --------------------------------------------
             DefaultTexture.RGBA = (uint)(data[i] + (data[i + 1] << 8) + (data[i + 2] << 16) + (data[i + 3] << 24));
@@ -457,7 +523,7 @@ namespace libsecondlife
 
                 for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
                     if ((faceBits & bit) != 0)
-                        SetFace(face).RGBA = tmpUint;
+                        CreateFace(face).RGBA = tmpUint;
             }
             //Read RepeatU -----------------------------------------
             DefaultTexture.RepeatU = RepeatFloat(data, i);
@@ -470,7 +536,7 @@ namespace libsecondlife
 
                 for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
                     if ((faceBits & bit) != 0)
-                        SetFace(face).RepeatU = tmpFloat;
+                        CreateFace(face).RepeatU = tmpFloat;
             }
             //Read RepeatV -----------------------------------------
             DefaultTexture.RepeatV = RepeatFloat(data, i);
@@ -483,7 +549,7 @@ namespace libsecondlife
 
                 for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
                     if ((faceBits & bit) != 0)
-                        SetFace(face).RepeatV = tmpFloat;
+                        CreateFace(face).RepeatV = tmpFloat;
             }
             //Read OffsetU -----------------------------------------
             DefaultTexture.OffsetU = OffsetFloat(data, i);
@@ -496,7 +562,7 @@ namespace libsecondlife
 
                 for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
                     if ((faceBits & bit) != 0)
-                        SetFace(face).OffsetU = tmpFloat;
+                        CreateFace(face).OffsetU = tmpFloat;
             }
             //Read OffsetV -----------------------------------------
             DefaultTexture.OffsetV = OffsetFloat(data, i);
@@ -509,7 +575,7 @@ namespace libsecondlife
 
                 for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
                     if ((faceBits & bit) != 0)
-                        SetFace(face).OffsetV = tmpFloat;
+                        CreateFace(face).OffsetV = tmpFloat;
             }
             //Read Rotation ----------------------------------------
             DefaultTexture.Rotation = RotationFloat(data, i);
@@ -522,7 +588,7 @@ namespace libsecondlife
 
                 for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
                     if ((faceBits & bit) != 0)
-                        SetFace(face).Rotation = tmpFloat;
+                        CreateFace(face).Rotation = tmpFloat;
             }
             //Read Flags1 ------------------------------------------
             DefaultTexture.Flags1 = data[i];
@@ -535,7 +601,7 @@ namespace libsecondlife
 
                 for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
                     if ((faceBits & bit) != 0)
-                        SetFace(face).Flags1 = tmpByte;
+                        CreateFace(face).Flags1 = tmpByte;
             }
             //Read Flags2 ------------------------------------------
             DefaultTexture.Flags2 = data[i];
@@ -548,34 +614,209 @@ namespace libsecondlife
 
                 for (uint face = 0, bit = 1; face < BitfieldSize; face++, bit <<= 1)
                     if ((faceBits & bit) != 0)
-                        SetFace(face).Flags2 = tmpByte;
+                        CreateFace(face).Flags2 = tmpByte;
             }
         }
     }
 
     /// <summary>
-    /// 
+    /// A single textured face. Don't instantiate this class yourself, use the
+    /// methods in TextureEntry
     /// </summary>
+    [Serializable]
     public class TextureEntryFace
     {
-        [Flags]
-        public enum TextureAttributes : uint
+        [XmlAttribute("rgba")] private uint rgba;
+        [XmlAttribute("repeatu")] private float repeatU = 1.0f;
+        [XmlAttribute("repeatv")] private float repeatV = 1.0f;
+        [XmlAttribute("offsetu")] private float offsetU;
+        [XmlAttribute("offsetv")] private float offsetV;
+        [XmlAttribute("rotation")] private float rotation;
+        [XmlAttribute("flags1")] private byte flags1;
+        [XmlAttribute("flags2")] private byte flags2;
+        [XmlAttribute("textureattributes")] private TextureAttributes hasAttribute;
+        [XmlText] private LLUUID textureID;
+        [XmlElement("defaulttexture")] private TextureEntryFace DefaultTexture = null;
+
+        //////////////////////
+        ///// Properties /////
+        //////////////////////
+
+        /// <summary></summary>
+        [XmlAttribute("rgba")]
+        public uint RGBA
         {
-            None      = 0,
-            TextureID = 1 << 0,
-            RGBA      = 1 << 1,
-            RepeatU   = 1 << 2,
-            RepeatV   = 1 << 3,
-            OffsetU   = 1 << 4,
-            OffsetV   = 1 << 5,
-            Rotation  = 1 << 6,
-            Flags1    = 1 << 7,
-            Flags2    = 1 << 8,
-            All = 0xFFFFFFFF
+            get
+            {
+                if ((hasAttribute & TextureAttributes.RGBA) != 0)
+                    return rgba;
+                else
+                    return DefaultTexture.rgba;
+            }
+            set
+            {
+                rgba = value;
+                hasAttribute |= TextureAttributes.RGBA;
+            }
         }
+
+        /// <summary></summary>
+        [XmlAttribute("repeatu")]
+        public float RepeatU
+        {
+            get
+            {
+                if ((hasAttribute & TextureAttributes.RepeatU) != 0)
+                    return repeatU;
+                else
+                    return DefaultTexture.repeatU;
+            }
+            set
+            {
+                repeatU = value;
+                hasAttribute |= TextureAttributes.RepeatU;
+            }
+        }
+
+        /// <summary></summary>
+        [XmlAttribute("repeatv")]
+        public float RepeatV
+        {
+            get
+            {
+                if ((hasAttribute & TextureAttributes.RepeatV) != 0)
+                    return repeatV;
+                else
+                    return DefaultTexture.repeatV;
+            }
+            set
+            {
+                repeatV = value;
+                hasAttribute |= TextureAttributes.RepeatV;
+            }
+        }
+
+        /// <summary></summary>
+        [XmlAttribute("offsetu")]
+        public float OffsetU
+        {
+            get
+            {
+                if ((hasAttribute & TextureAttributes.OffsetU) != 0)
+                    return offsetU;
+                else
+                    return DefaultTexture.offsetU;
+            }
+            set
+            {
+                offsetU = value;
+                hasAttribute |= TextureAttributes.OffsetU;
+            }
+        }
+
+        /// <summary></summary>
+        [XmlAttribute("offsetv")]
+        public float OffsetV
+        {
+            get
+            {
+                if ((hasAttribute & TextureAttributes.OffsetV) != 0)
+                    return offsetV;
+                else
+                    return DefaultTexture.offsetV;
+            }
+            set
+            {
+                offsetV = value;
+                hasAttribute |= TextureAttributes.OffsetV;
+            }
+        }
+
+        /// <summary></summary>
+        [XmlAttribute("rotation")]
+        public float Rotation
+        {
+            get
+            {
+                if ((hasAttribute & TextureAttributes.Rotation) != 0)
+                    return rotation;
+                else
+                    return DefaultTexture.rotation;
+            }
+            set
+            {
+                rotation = value;
+                hasAttribute |= TextureAttributes.Rotation;
+            }
+        }
+
+        /// <summary></summary>
+        [XmlAttribute("flags1")]
+        public byte Flags1
+        {
+            get
+            {
+                if ((hasAttribute & TextureAttributes.Flags1) != 0)
+                    return flags1;
+                else
+                    return DefaultTexture.flags1;
+            }
+            set
+            {
+                flags1 = value;
+                hasAttribute |= TextureAttributes.Flags1;
+            }
+        }
+
+        /// <summary></summary>
+        [XmlAttribute("flags2")]
+        public byte Flags2
+        {
+            get
+            {
+                if ((hasAttribute & TextureAttributes.Flags2) != 0)
+                    return flags2;
+                else
+                    return DefaultTexture.flags2;
+            }
+            set
+            {
+                flags2 = value;
+                hasAttribute |= TextureAttributes.Flags2;
+            }
+        }
+
+        /// <summary></summary>
+        [XmlElement("id")]
+        public LLUUID TextureID
+        {
+            get
+            {
+                if ((hasAttribute & TextureAttributes.TextureID) != 0)
+                    return textureID;
+                else
+                    return DefaultTexture.textureID;
+            }
+            set
+            {
+                textureID = value;
+                hasAttribute |= TextureAttributes.TextureID;
+            }
+        }
+
+        /////////////////////////////
+        ///// End of properties /////
+        /////////////////////////////
 
         /// <summary>
         /// 
+        /// </summary>
+        public TextureEntryFace()
+        {
+        }
+
+        /// <summary>
+        /// Contains the definition for individual faces
         /// </summary>
         /// <param name="defaultTexture"></param>
         public TextureEntryFace(TextureEntryFace defaultTexture)
@@ -587,210 +828,36 @@ namespace libsecondlife
                 hasAttribute = TextureAttributes.None;
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public LLUUID TextureID
+        public void ToXml(XmlWriter xmlWriter)
         {
-            get
-            {
-                if ((hasAttribute & TextureAttributes.TextureID) != 0)
-                    return _TextureID;
-                else
-                    return DefaultTexture._TextureID;
-            }
-            set
-            {
-                _TextureID = value;
-                hasAttribute |= TextureAttributes.TextureID;
-            }
+            XmlSerializerNamespaces ns = new XmlSerializerNamespaces();
+            ns.Add("", "");
+            XmlSerializer serializer = new XmlSerializer(typeof(TextureEntryFace));
+            serializer.Serialize(xmlWriter, this, ns);
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public uint RGBA
-        {
-            get
-            {
-                if ((hasAttribute & TextureAttributes.RGBA) != 0)
-                    return _RGBA;
-                else
-                    return DefaultTexture._RGBA;
-            }
-            set
-            {
-                _RGBA = value;
-                hasAttribute |= TextureAttributes.RGBA;
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public float RepeatU
-        {
-            get
-            {
-                if ((hasAttribute & TextureAttributes.RepeatU) != 0)
-                    return _RepeatU;
-                else
-                    return DefaultTexture._RepeatU;
-            }
-            set
-            {
-                _RepeatU = value;
-                hasAttribute |= TextureAttributes.RepeatU;
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public float RepeatV
-        {
-            get
-            {
-                if ((hasAttribute & TextureAttributes.RepeatV) != 0)
-                    return _RepeatV;
-                else
-                    return DefaultTexture._RepeatV;
-            }
-            set
-            {
-                _RepeatV = value;
-                hasAttribute |= TextureAttributes.RepeatV;
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public float OffsetU
-        {
-            get
-            {
-                if ((hasAttribute & TextureAttributes.OffsetU) != 0)
-                    return _OffsetU;
-                else
-                    return DefaultTexture._OffsetU;
-            }
-            set
-            {
-                _OffsetU = value;
-                hasAttribute |= TextureAttributes.OffsetU;
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public float OffsetV
-        {
-            get
-            {
-                if ((hasAttribute & TextureAttributes.OffsetV) != 0)
-                    return _OffsetV;
-                else
-                    return DefaultTexture._OffsetV;
-            }
-            set
-            {
-                _OffsetV = value;
-                hasAttribute |= TextureAttributes.OffsetV;
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public float Rotation
-        {
-            get
-            {
-                if ((hasAttribute & TextureAttributes.Rotation) != 0)
-                    return _Rotation;
-                else
-                    return DefaultTexture._Rotation;
-            }
-            set
-            {
-                _Rotation = value;
-                hasAttribute |= TextureAttributes.Rotation;
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public byte Flags1
-        {
-            get
-            {
-                if ((hasAttribute & TextureAttributes.Flags1) != 0)
-                    return _Flags1;
-                else
-                    return DefaultTexture._Flags1;
-            }
-            set
-            {
-                _Flags1 = value;
-                hasAttribute |= TextureAttributes.Flags1;
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public byte Flags2
-        {
-            get
-            {
-                if ((hasAttribute & TextureAttributes.Flags2) != 0)
-                    return _Flags2;
-                else
-                    return DefaultTexture._Flags2;
-            }
-            set
-            {
-                _Flags2 = value;
-                hasAttribute |= TextureAttributes.Flags2;
-            }
-        }
-
-        private TextureAttributes hasAttribute;
-        private TextureEntryFace DefaultTexture;
-        private LLUUID _TextureID;
-        private uint _RGBA;
-        private float _RepeatU;
-        private float _RepeatV;
-        private float _OffsetU;
-        private float _OffsetV;
-        private float _Rotation;
-        private byte _Flags1;
-        private byte _Flags2;
     }
 
-
     /// <summary>
-    /// 
+    /// Controls the texture animation of a particular prim
     /// </summary>
+    [Serializable]
     public class TextureAnimation
     {
         /// <summary></summary>
-        public uint Flags;
+        [XmlAttribute("flags"), DefaultValue(0)] public uint Flags;
         /// <summary></summary>
-        public uint Face;
+        [XmlAttribute("face"), DefaultValue(0)] public uint Face;
         /// <summary></summary>
-        public uint SizeX;
+        [XmlAttribute("sizex"), DefaultValue(0)] public uint SizeX;
         /// <summary></summary>
-        public uint SizeY;
+        [XmlAttribute("sizey"), DefaultValue(0)] public uint SizeY;
         /// <summary></summary>
-        public float Start;
+        [XmlAttribute("start"), DefaultValue(0)] public float Start;
         /// <summary></summary>
-        public float Length;
+        [XmlAttribute("length"), DefaultValue(0)] public float Length;
         /// <summary></summary>
-        public float Rate;
+        [XmlAttribute("rate"), DefaultValue(0)] public float Rate;
 
         /// <summary>
         /// Default constructor
@@ -818,26 +885,6 @@ namespace libsecondlife
             byte[] bytes = new byte[0];
             // FIXME: Finish TextureAnimation GetBytes() function
             return bytes;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public string GetXml(string name)
-        {
-            string xml = "<TextureAnimation>";
-            xml += "<Flags value=\"" + Flags + "\" />";
-            xml += "<Face value=\"" + Face + "\" />";
-            xml += "<SizeX value=\"" + SizeX + "\" />";
-            xml += "<SizeY value=\"" + SizeY + "\" />";
-            xml += "<Start value=\"" + Start + "\" />";
-            xml += "<Length value=\"" + Length + "\" />";
-            xml += "<Rate value=\"" + Rate + "\" />";
-            xml += "</TextureAnimation>";
-
-            return xml;
         }
 
         private void FromBytes(byte[] data, int pos)

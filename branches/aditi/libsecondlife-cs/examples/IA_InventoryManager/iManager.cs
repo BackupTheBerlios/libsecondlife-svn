@@ -1,11 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
+using System.Threading;
+
+using System.Xml;
+using System.Xml.Serialization;
 
 using IA_SimpleInventory;
 using libsecondlife;
 using libsecondlife.InventorySystem;
 using libsecondlife.AssetSystem;
+
+using libsecondlife.Packets;
 
 namespace IA_InventoryManager
 {
@@ -18,16 +25,17 @@ namespace IA_InventoryManager
     /// * MOVE
     /// * GIVE
     /// </summary>
-    class iManager : SimpleInventory
+    class iManager
     {
         private char[] cmdSeperators = { ' ' };
         private string curDirectory = "/";
 
-        private string TYPE_DIR  = "<DIR>  ";
-        private string TYPE_ITEM = "<ITEM> ";
+        private SecondLife _Client;
+        private AppearanceManager aManager;
 
+        private ManualResetEvent ConnectedSignal = new ManualResetEvent(false);
 
-        static new void Main(string[] args)
+        static void Main(string[] args)
         {
             if (args.Length < 3)
             {
@@ -36,17 +44,40 @@ namespace IA_InventoryManager
             }
 
             iManager it = new iManager();
-            it.Connect(args[0], args[1], args[2]);
-            it.doStuff();
-            it.Disconnect();
+            if (it.Connect(args[0], args[1], args[2]))
+            {
+                if (it.ConnectedSignal.WaitOne(TimeSpan.FromMinutes(1), false))
+                {
+                    it.doStuff();
+                    it.Disconnect();
+                }
+            }
+        }
 
-            System.Threading.Thread.Sleep(500);
+        public iManager()
+        {
+            try
+            {
+                _Client = new SecondLife();
+                _Client.Network.OnConnected += new NetworkManager.ConnectedCallback(Network_OnConnected);
+                _Client.Self.OnTeleport += new MainAvatar.TeleportCallback(Self_OnTeleport);
+            }
+            catch (Exception e)
+            {
+                // Error initializing the client
+                Console.WriteLine();
+                Console.WriteLine(e.ToString());
+            }
 
         }
 
-        private new void doStuff()
+        private void doStuff()
         {
-            System.Threading.Thread.Sleep(1000);
+            // Setup Appearance Manager
+            aManager = new AppearanceManager(_Client);
+
+            // Download directory tree
+            _Client.Inventory.getRootFolder().RequestDownloadContents(true, false);
 
             Console.WriteLine("==================================================================");
             Console.WriteLine("The Inventory Manager program provides a simple shell for working with your Second Life[tm] Avatar.");
@@ -152,6 +183,26 @@ namespace IA_InventoryManager
                         xml(curCmdLine);
                         break;
 
+                    case "setlook":
+                        setlook();
+                        break;
+
+                    case "saveav":
+                        saveavatar(curCmdLine);
+                        break;
+
+                    case "savew":
+                        savewearables(curCmdLine);
+                        break;
+
+                    case "loadw":
+                        loadwearables(curCmdLine);
+                        break;
+
+                    case "outfit":
+                        outfit(curCmdLine);
+                        break;
+
                     default:
                         Console.WriteLine("Unknown command '" + curCmdLine[0] + "'.");
                         Console.WriteLine("Type HELP for a list of available commands.");
@@ -162,10 +213,16 @@ namespace IA_InventoryManager
             
         }
 
+        void Self_OnTeleport(Simulator currentSim, string message, MainAvatar.TeleportStatus status)
+        {
+            Console.WriteLine("Teleport Completed");
+            StandUpStraight();
+        }
+
         private void help()
         {
             Console.WriteLine("Currently available commands are: ");
-            Console.WriteLine("LS          - List contents of the current directory.");
+            Console.WriteLine("LS          - List contents of the current directory. Options: /itemid /assetid /type");
             Console.WriteLine("CD          - Change directory.");
             Console.WriteLine("MKDIR       - Make a new directory.");
             Console.WriteLine("RMDIR       - Remove directory.");
@@ -173,8 +230,192 @@ namespace IA_InventoryManager
             Console.WriteLine("REGIONINFO  - Display Grid Region Info.");
             Console.WriteLine("TELEPORT    - Teleport to a new sim.");
             Console.WriteLine("NOTECARD    - Create a new notecard.");
-            Console.WriteLine("XML         - Display an item as xml");
+            Console.WriteLine("XML         - Display an item as xml.");
+            Console.WriteLine("GETLOOK     - Send an AgentSetAppearance based on your current weables.");
+            Console.WriteLine("SAVEAV      - Serialize your current wearables and the info from them.");
+            Console.WriteLine("SAVEW       - Serialize your current wearables.");
+            Console.WriteLine("LOADW       - Load a previously serialized wearables.");
             Console.WriteLine("QUIT        - Exit the Inventory Manager.");
+        }
+
+        private void outfit(string[] cmdLine)
+        {
+            if (cmdLine.Length < 2 )
+            {
+                Console.WriteLine("Usage: outfit [folder]");
+                return;
+            }
+
+            // Resolve outfit folder
+            string targetDir = "";
+
+            if (cmdLine[1].StartsWith("/"))
+            {
+                targetDir += combineCmdArg(cmdLine);
+            }
+            else
+            {
+                if (!curDirectory.Equals("/"))
+                {
+                    targetDir = curDirectory + "/";
+
+                }
+
+                targetDir += combineCmdArg(cmdLine);
+            }
+
+            InventoryFolder iFolder = _Client.Inventory.getFolder(targetDir);
+
+            if (iFolder == null)
+            {
+                Console.WriteLine("Could not find directory: " + targetDir);
+                return;
+            }
+
+            aManager.WearOutfit(iFolder);
+
+        }
+
+        private void savewearables(string[] cmdLine)
+        {
+            // Get Wearable Data
+            AgentWearablesUpdatePacket.WearableDataBlock[] wdbs = aManager.GetWearables();
+            List<AgentWearablesUpdatePacket.WearableDataBlock> WearablesList = new List<AgentWearablesUpdatePacket.WearableDataBlock>();
+            foreach (AgentWearablesUpdatePacket.WearableDataBlock wdb in wdbs)
+            {
+                WearablesList.Add(wdb);
+            }
+            
+            // Serialize to XML
+            StringBuilder sb = new StringBuilder();
+            XmlWriterSettings xmlws = new XmlWriterSettings();
+            xmlws.Indent = true;
+            XmlWriter xmlw = XmlWriter.Create(sb, xmlws);
+            XmlSerializer serializer = new XmlSerializer(typeof(List<AgentWearablesUpdatePacket.WearableDataBlock>));
+            serializer.Serialize(xmlw, WearablesList);
+
+            // Output
+            if (cmdLine.Length >= 2)
+            {
+                Console.WriteLine("Writing wearable data to : " + cmdLine[1]);
+
+                File.WriteAllText(cmdLine[1], sb.ToString());
+
+                Console.WriteLine("Done...");
+            }
+            else
+            {
+                Console.WriteLine(sb.ToString());
+            }
+        }
+
+        private void loadwearables(string[] cmdLine)
+        {
+            if (cmdLine.Length < 2)
+            {
+                Console.WriteLine("You must specify the file to load the wearables from.");
+                Console.WriteLine("Usage: loadw [file.xml]");
+                return;
+            }
+
+            Console.WriteLine("Reading Wearable data from: " + cmdLine[1]);
+
+            try
+            {
+                XmlReader xmlr = XmlReader.Create(File.OpenText(cmdLine[1]));
+
+                XmlSerializer serializer = new XmlSerializer(typeof(List<AgentWearablesUpdatePacket.WearableDataBlock>));
+                List<AgentWearablesUpdatePacket.WearableDataBlock> WearablesList = (List<AgentWearablesUpdatePacket.WearableDataBlock>)serializer.Deserialize(xmlr);
+
+                foreach (AgentWearablesUpdatePacket.WearableDataBlock wdb in WearablesList)
+                {
+                    Console.WriteLine(wdb.AssetID);
+                }
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("An error has occured...");
+                Console.WriteLine(e.Message);
+                Console.WriteLine(e.StackTrace);
+            }
+
+        }
+
+        private void saveavatar(string[] cmdLine)
+        {
+            AgentWearablesUpdatePacket.WearableDataBlock[] wdbs = aManager.GetWearables();
+            aManager.GetAvatarAppearanceInfoFromWearableAssets();
+
+            // Get the list of wearables
+            
+            List<AgentWearablesUpdatePacket.WearableDataBlock> WearablesList = new List<AgentWearablesUpdatePacket.WearableDataBlock>();
+            foreach (AgentWearablesUpdatePacket.WearableDataBlock wdb in wdbs)
+            {
+                WearablesList.Add(wdb);
+            }
+
+            XmlWriterSettings xmlws = new XmlWriterSettings();
+            xmlws.OmitXmlDeclaration = true;
+            xmlws.Indent = true;
+            xmlws.CloseOutput = false;
+
+            StringBuilder Save = new StringBuilder();
+            Save.Append("<avatar_appearance>");
+
+            // Wearables
+            StringBuilder sb = new StringBuilder();
+            XmlWriter xmlw   = XmlWriter.Create(sb, xmlws);
+            XmlSerializer serializer = new XmlSerializer(typeof(List<AgentWearablesUpdatePacket.WearableDataBlock>));
+            serializer.Serialize(xmlw, WearablesList);
+
+            Save.AppendLine(sb.ToString());
+
+            // Parameters
+            sb = new StringBuilder();
+            xmlw = XmlWriter.Create(sb, xmlws);
+            serializer = new XmlSerializer(typeof(SerializableDictionary<uint, float>));
+            serializer.Serialize(xmlw, aManager.AgentAppearanceParams);
+
+            Save.AppendLine(sb.ToString());
+
+            // Parameters
+            sb = new StringBuilder();
+            xmlw = XmlWriter.Create(sb, xmlws);
+            serializer = new XmlSerializer(typeof(TextureEntry));
+            serializer.Serialize(xmlw, aManager.AgentTextureEntry);
+
+            Save.AppendLine(sb.ToString());
+
+            // Finish off save data
+            Save.Append("</avatar_appearance>");
+
+            Console.WriteLine(Save.ToString());
+
+            //aManager.SendAgentSetAppearance
+
+        }
+
+        private void StandUpStraight()
+        {
+            AgentUpdatePacket p = new AgentUpdatePacket();
+            p.AgentData.Far = 96.0f;
+            p.AgentData.CameraAtAxis = new LLVector3(0, 0, 0);
+            p.AgentData.CameraCenter = new LLVector3(0, 0, 0);
+            p.AgentData.CameraLeftAxis = new LLVector3(0, 0, 0);
+            p.AgentData.CameraUpAxis = new LLVector3(0, 0, 0);
+            p.AgentData.HeadRotation = new LLQuaternion(0, 0, 0, 1); ;
+            p.AgentData.BodyRotation = new LLQuaternion(0, 0, 0, 1); ;
+            p.AgentData.AgentID = _Client.Network.AgentID;
+            p.AgentData.SessionID = _Client.Network.SessionID;
+            p.AgentData.ControlFlags = (uint)Avatar.AgentUpdateFlags.AGENT_CONTROL_STAND_UP;
+            _Client.Network.SendPacket(p);
+        }
+
+        private void setlook()
+        {
+            aManager.SendAgentSetAppearance();
+
         }
 
         private void xml(string[] cmdLine)
@@ -195,17 +436,20 @@ namespace IA_InventoryManager
             {
             }
 
-            InventoryFolder iFolder = AgentInventory.getFolder(curDirectory);
+            InventoryFolder iFolder = _Client.Inventory.getFolder(curDirectory);
 
             InventoryBase itemOfInterest = null;
 
-            foreach (InventoryBase ib in iFolder.alContents)
+            iFolder.RequestDownloadContents(false).RequestComplete.WaitOne(15000,false);
+            foreach (InventoryBase ib in iFolder.GetContents())
             {
                 if (ib is InventoryFolder)
                 {
                     InventoryFolder folder = (InventoryFolder)ib;
                     if (folder.Name.Equals(cmdLine[1]) || folder.FolderID.Equals(uuid))
                     {
+                        // Refresh the folder tree for this folder before outputing it.
+                        folder.RequestDownloadContents(true).RequestComplete.WaitOne(30000, false);
                         itemOfInterest = folder;
                         break;
                     }
@@ -262,7 +506,7 @@ namespace IA_InventoryManager
                 sb.Append(cki.Key.ToString());
             } while (cki.Key != ConsoleKey.Escape);
 
-            InventoryFolder iFolder = AgentInventory.getFolder(curDirectory);
+            InventoryFolder iFolder = _Client.Inventory.getFolder(curDirectory);
             iFolder.NewNotecard(cmdLine[1], NoteDesc, sb.ToString());
 
             Console.WriteLine("Notecard '" + NoteName + " 'Created");
@@ -277,23 +521,24 @@ namespace IA_InventoryManager
                 return;
             }
 
-            if (cmdLine[1].ToLower() == client.Network.CurrentSim.Region.Name.ToLower())
+            if (cmdLine[1].ToLower() == _Client.Network.CurrentSim.Region.Name.ToLower())
             {
                 Console.WriteLine("TODO: Add the ability to teleport somewhere in the local region. " +
                     "Exiting for now, please specify a region other than the current one");
             }
             else
             {
-                if (client.Grid.Regions.Count == 0)
+                if (_Client.Grid.Regions.Count == 0)
                 {
                     Console.WriteLine("Caching estate sims...");
-                    client.Grid.AddEstateSims();
+                    _Client.Grid.AddEstateSims();
                     System.Threading.Thread.Sleep(3000);
                 }
 
-                
-                client.Self.Teleport(cmdLine[1], new LLVector3( float.Parse(cmdLine[2]), float.Parse(cmdLine[3]), float.Parse(cmdLine[4]) ) );
+
+                _Client.Self.Teleport(cmdLine[1], new LLVector3(float.Parse(cmdLine[2]), float.Parse(cmdLine[3]), float.Parse(cmdLine[4])));
             }
+
         }
 
         private void regioninfo(string[] cmdLine)
@@ -312,7 +557,7 @@ namespace IA_InventoryManager
             }
             regionName = regionName.Trim();
 
-            GridRegion gr = client.Grid.GetGridRegion(regionName);
+            GridRegion gr = _Client.Grid.GetGridRegion(regionName);
             Console.WriteLine(gr);
         }
 
@@ -332,25 +577,26 @@ namespace IA_InventoryManager
             if (cmdLine.Length == 3)
             {
                 // Arbitrary Asset
-                Asset asset = new Asset(cmdLine[2], sbyte.Parse(cmdLine[1]), null);
-
-                if (asset.Type == 13)
+                try
                 {
-                    AgentInventory.getAssetManager().GetInventoryAsset(asset);
-                }
-                else
-                {
-                    Console.WriteLine("Can't currently retrieve assets other then type 13 using this method.  If the item is in your inventory, change directory to the same folder and try specifying the retrieval by just UUID/Name without specifying type.");
-                    return;
-                }
+                    Asset asset = new Asset(cmdLine[2], sbyte.Parse(cmdLine[1]), null);
 
-                Console.WriteLine(asset.AssetDataToString());
+                    _Client.Assets.GetInventoryAsset(asset);
+
+                    Console.WriteLine(asset.AssetDataToString());
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Unable to find an asset with a UUID of: " + cmdLine[2]);
+                }
             }
             else
             {
                 // Asset for an item in inventory
-                InventoryFolder iFolder = AgentInventory.getFolder(curDirectory);
-                foreach (InventoryBase ib in iFolder.alContents)
+                InventoryFolder iFolder = _Client.Inventory.getFolder(curDirectory);
+
+                iFolder.RequestDownloadContents(false).RequestComplete.WaitOne(15000, false);
+                foreach (InventoryBase ib in iFolder.GetContents())
                 {
                     if (ib is InventoryItem)
                     {
@@ -383,7 +629,7 @@ namespace IA_InventoryManager
             }
             targetDir += combineCmdArg(cmdLine);
 
-            InventoryFolder iFolder = AgentInventory.getFolder(targetDir);
+            InventoryFolder iFolder = _Client.Inventory.getFolder(targetDir);
             if (iFolder == null)
             {
                 Console.WriteLine("Could not find directory: " + targetDir);
@@ -406,7 +652,7 @@ namespace IA_InventoryManager
 
             string targetDir = combineCmdArg(cmdLine);
 
-            InventoryFolder iFolder = AgentInventory.getFolder(curDirectory);
+            InventoryFolder iFolder = _Client.Inventory.getFolder(curDirectory);
 
             InventoryFolder newFolder = iFolder.CreateFolder(targetDir);
 
@@ -452,7 +698,7 @@ namespace IA_InventoryManager
             Console.WriteLine("Changing directory to: " + targetDir );
 
 
-            InventoryFolder iFolder = AgentInventory.getFolder(targetDir);
+            InventoryFolder iFolder = _Client.Inventory.getFolder(targetDir);
 
             if (iFolder == null)
             {
@@ -474,6 +720,26 @@ namespace IA_InventoryManager
 
         private void ls(string[] cmdLine)
         {
+            bool displayType = false;
+            bool displayItemID = false;
+            bool displayAssetID = false;
+
+            foreach( string option in cmdLine )
+            {
+                if( option.ToLower().Equals("/itemid") )
+                {
+                    displayItemID = true;
+                }
+                if( option.ToLower().Equals("/assetid") )
+                {
+                    displayAssetID = true;
+                }
+                if( option.ToLower().Equals("/type") )
+                {
+                    displayType = true;
+                }
+            }
+
             Console.WriteLine("Contents of: " + curDirectory);
             Console.WriteLine("--------------------------------------------------");
             if (!curDirectory.Equals("/"))
@@ -481,18 +747,49 @@ namespace IA_InventoryManager
                 Console.WriteLine("..");
             }
 
-            InventoryFolder iFolder = AgentInventory.getFolder(curDirectory);
-            foreach (InventoryBase ib in iFolder.alContents)
+            InventoryFolder iFolder = _Client.Inventory.getFolder(curDirectory);
+            iFolder.RequestDownloadContents(false).RequestComplete.WaitOne(15000, false);
+            foreach (InventoryBase ib in iFolder.GetContents())
             {
                 if (ib is InventoryFolder)
                 {
                     InventoryFolder folder = (InventoryFolder)ib;
-                    Console.WriteLine(TYPE_DIR + "<" + folder.FolderID.ToStringHyphenated() + "> " + folder.Name);
+                    StringBuilder output = new StringBuilder("[DIR] ");
+
+                    if( displayItemID )
+                    {
+                        output.Append("<itemid:" + folder.FolderID.ToStringHyphenated() + "> ");
+                    }
+                    if( displayType )
+                    {
+                        output.Append("<type:" + folder.GetDisplayType() + "> ");
+                    }
+
+                    output.Append(folder.Name);
+
+                    Console.WriteLine( output );
                 }
                 else
                 {
                     InventoryItem item = (InventoryItem)ib;
-                    Console.WriteLine(TYPE_ITEM + "<" + item.ItemID.ToStringHyphenated() + "> " + item.Name);
+                    StringBuilder output = new StringBuilder();
+
+                    if (displayItemID)
+                    {
+                        output.Append("<itemid:" + item.ItemID.ToStringHyphenated() + "> ");
+                    }
+                    if (displayAssetID)
+                    {
+                        output.Append("<assetid:" + item.AssetID.ToStringHyphenated() + "> ");
+                    }
+                    if (displayType)
+                    {
+                        output.Append("<type:" + item.GetDisplayType() + "> ");
+                    }
+
+                    output.Append(item.Name);
+
+                    Console.WriteLine(output);
                 }
             }
         }
@@ -510,5 +807,41 @@ namespace IA_InventoryManager
             }
             return rtn.Trim();
         }
+
+        void Network_OnConnected(object sender)
+        {
+            ConnectedSignal.Set();
+        }
+
+        protected bool Connect(string FirstName, string LastName, string Password)
+        {
+            Console.WriteLine("Attempting to connect and login to SecondLife.");
+
+            // Setup Login to Second Life
+            Dictionary<string, object> loginReply = new Dictionary<string, object>();
+
+            // Login
+            if (!_Client.Network.Login(FirstName, LastName, Password, "createnotecard", "static.sprocket@gmail.com"))
+            {
+                // Login failed
+                Console.WriteLine("Error logging in: " + _Client.Network.LoginError);
+                return false;
+            }
+
+            // Login was successful
+            Console.WriteLine("Login was successful.");
+            Console.WriteLine("AgentID:   " + _Client.Network.AgentID);
+            Console.WriteLine("SessionID: " + _Client.Network.SessionID);
+
+            return true;
+        }
+
+        protected void Disconnect()
+        {
+            // Logout of Second Life
+            Console.WriteLine("Request logout");
+            _Client.Network.Logout();
+        }
+
     }
 }

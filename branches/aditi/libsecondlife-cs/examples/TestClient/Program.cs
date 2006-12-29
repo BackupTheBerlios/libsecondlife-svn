@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using CommandLine.Utility;
 
 namespace libsecondlife.TestClient
 {
@@ -9,29 +10,33 @@ namespace libsecondlife.TestClient
         private static void Usage()
         {
             Console.WriteLine("Usage: " + Environment.NewLine +
-                    "TestClient.exe firstname lastname password [master name]" + Environment.NewLine +
-                    "TestClient.exe --file filename [master name]");
+                    "TestClient.exe --first firstname --last lastname --pass password [--master \"master name\"]" + 
+                    Environment.NewLine + "TestClient.exe --file filename [--master \"master name\"]");
         }
 
         static void Main(string[] args)
         {
-            if (args.Length < 2 || args.Length > 5)
-            {
-                Usage();
-                return;
-            }
+            Arguments arguments = new Arguments(args);
 
-            TestClient tester;
+            ClientManager manager;
             List<LoginDetails> accounts = new List<LoginDetails>();
             LoginDetails account;
             string master = "";
+            string file = "";
 
-            if (args[0] == "--file")
+            if (arguments["master"] != null)
             {
+                master = arguments["master"];
+            }
+
+            if (arguments["file"] != null)
+            {
+                file = arguments["file"];
+
                 // Loading names from a file
                 try
                 {
-                    using (StreamReader reader = new StreamReader(args[1]))
+                    using (StreamReader reader = new StreamReader(file))
                     {
                         string line;
                         int lineNumber = 0;
@@ -41,7 +46,7 @@ namespace libsecondlife.TestClient
                             lineNumber++;
                             string[] tokens = line.Trim().Split(new char[] { ' ', ',' });
 
-                            if (tokens.Length == 3)
+                            if (tokens.Length >= 3)
                             {
                                 account = new LoginDetails();
                                 account.FirstName = tokens[0];
@@ -49,6 +54,15 @@ namespace libsecondlife.TestClient
                                 account.Password = tokens[2];
 
                                 accounts.Add(account);
+
+                                // Leaving this out until we have per-account masters (if that
+                                // is desirable). For now the command-line option can 
+                                // specify the single master that TestClient supports
+                                
+                                //if (tokens.Length == 5)
+                                //{
+                                //    master = tokens[3] + " " + tokens[4];
+                                //}
                             }
                             else
                             {
@@ -58,42 +72,38 @@ namespace libsecondlife.TestClient
                         }
                     }
                 }
-                catch (Exception)
-                {
-                    Console.WriteLine("Error reading from " + args[1]);
-                    return;
-                }
-
-                if (args.Length == 4)
-                {
-                    master = args[2] + " " + args[3];
-                }
-            }
-            else if (args.Length == 3 || args.Length == 5)
-            {
-                // Taking a single login off the command-line
-                account = new LoginDetails();
-                account.FirstName = args[0];
-                account.LastName = args[1];
-                account.Password = args[2];
-
-                if (args.Length == 5)
-                {
-                    master = args[3] + " " + args[4];
-                }
-
-                accounts.Add(account);
+				catch (Exception e)
+				{
+				    Console.WriteLine("Error reading from " + args[1]);
+					Console.WriteLine(e.ToString());
+				    return;
+				}
             }
             else
             {
-                Usage();
-                return;
+                if (arguments["first"] != null && arguments["last"] != null && arguments["pass"] != null)
+                {
+                    // Taking a single login off the command-line
+                    account = new LoginDetails();
+                    account.FirstName = arguments["first"];
+                    account.LastName = arguments["last"];
+                    account.Password = arguments["pass"];
+
+                    accounts.Add(account);
+                }
+                else
+                {
+                    Usage();
+                    return;
+                }
             }
 
+			foreach (LoginDetails a in accounts)
+				a.Master = master;
+
             // Login the accounts and run the input loop
-            tester = new TestClient(accounts);
-            tester.Master = master;
-            tester.Run();
+            manager = new ClientManager(accounts);
+			manager.Run();
         }
     }
 }

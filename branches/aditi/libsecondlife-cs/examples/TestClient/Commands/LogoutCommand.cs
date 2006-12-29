@@ -8,28 +8,22 @@ namespace libsecondlife.TestClient
 {
     public class LogoutCommand : Command
     {
-        public LogoutCommand()
+        SecondLife Client;
+
+        public LogoutCommand(TestClient testClient)
         {
+            TestClient = testClient;
+            Client = (SecondLife)TestClient;
+
             Name = "logout";
             Description = "Log this avatar out";
         }
 
-        public override string Execute(SecondLife Client, string[] args, LLUUID fromAgentID)
+        public override string Execute(string[] args, LLUUID fromAgentID)
         {
             string name = Client.ToString();
-            TestClient.Clients.Remove(Client.Network.AgentID);
-            Client.Network.Logout();
-            Client = null;
-
-            if (TestClient.Clients.Count > 0)
-            {
-                return "Logged " + name + " out";
-            }
-            else
-            {
-                TestClient.Running = false;
-                return "All avatars logged out";
-            }
+			TestClient.ClientManager.Logout(TestClient);
+            return "Logged " + name + " out";
         }
     }
 }

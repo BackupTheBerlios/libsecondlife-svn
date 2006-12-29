@@ -91,6 +91,7 @@
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="AssetSystem\AppearanceManager.cs" />
     <Compile Include="AssetSystem\Asset.cs" />
     <Compile Include="AssetSystem\AssetImage.cs" />
     <Compile Include="AssetSystem\AssetManager.cs" />
@@ -98,14 +99,20 @@
     <Compile Include="AssetSystem\AssetPacketHelpers.cs" />
     <Compile Include="AssetSystem\AssetRequestDownload.cs" />
     <Compile Include="AssetSystem\AssetRequestUpload.cs" />
-    <Compile Include="AssetSystem\BodyPart.cs" />
-    <Compile Include="AssetSystem\BodyShape\_BodyShapeParams_.cs" />
+    <Compile Include="AssetSystem\AssetWearable.cs" />
+    <Compile Include="AssetSystem\AssetWearable_Body.cs" />
+    <Compile Include="AssetSystem\AssetWearable_Clothing.cs" />
+    <Compile Include="AssetSystem\_BodyShapeParams_.cs" />
     <Compile Include="AssetSystem\ImageManager.cs" />
     <Compile Include="AssetSystem\ImagePacketHelpers.cs" />
     <Compile Include="Avatar.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="AvatarManager.cs" />
+    <Compile Include="InventorySystem\DownloadRequest_Folder.cs" />
+    <Compile Include="InventorySystem\InventoryWearable.cs" />
+    <Compile Include="MainAvatarStatus.cs" />
+    <Compile Include="MainAvatar.cs" />
     <Compile Include="EstateTools.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -157,6 +164,8 @@
     <Compile Include="SecondLife.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="SerializableDictionary.cs" />
+    <Compile Include="Settings.cs" />
     <Compile Include="Textures.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -166,6 +175,7 @@
     <Compile Include="XmlRpcCS\Logger.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="XmlRpcCS\SimpleHttpRequest.cs" />
     <Compile Include="XmlRpcCS\XmlRpcDeserializer.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -175,6 +185,7 @@
     <Compile Include="XmlRpcCS\XmlRpcException.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="XmlRpcCS\XmlRpcExposedAttribute.cs" />
     <Compile Include="XmlRpcCS\XmlRpcRequest.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -184,6 +195,7 @@
     <Compile Include="XmlRpcCS\XmlRpcRequestSerializer.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="XmlRpcCS\XmlRpcResponder.cs" />
     <Compile Include="XmlRpcCS\XmlRpcResponse.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -196,6 +208,8 @@
     <Compile Include="XmlRpcCS\XmlRpcSerializer.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="XmlRpcCS\XmlRpcServer.cs" />
+    <Compile Include="XmlRpcCS\XmlRpcSystemObject.cs" />
     <Compile Include="XmlRpcCS\XmlRpcXmlTokens.cs">
       <SubType>Code</SubType>
     </Compile>

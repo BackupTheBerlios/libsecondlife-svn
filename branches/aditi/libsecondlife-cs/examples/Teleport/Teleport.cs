@@ -83,7 +83,7 @@ namespace Teleport
             Console.WriteLine("Attempting to connect and login to Second Life.");
 
             // Setup Login to Second Life
-            Dictionary<string, object> loginParams = NetworkManager.DefaultLoginValues(FirstName, 
+            Dictionary<string, object> loginParams = Client.Network.DefaultLoginValues(FirstName, 
                 LastName, Password, "00:00:00:00:00:00", "last", "Win", "0", "createnotecard", 
                 "static.sprocket@gmail.com");
             Dictionary<string, object> loginReply = new Dictionary<string,object>();
@@ -136,7 +136,7 @@ namespace Teleport
                 }
             }
 
-            Client.Self.OnTeleport += new TeleportCallback(Avatar_OnTeleportMessage);
+            Client.Self.OnTeleport += new MainAvatar.TeleportCallback(Self_OnTeleport);
 
             DoneTeleporting = false;
             Client.Self.Teleport(RegionHandle, coords);
@@ -147,11 +147,11 @@ namespace Teleport
             }
         }
 
-        private void Avatar_OnTeleportMessage(string message, TeleportStatus status)
+        void Self_OnTeleport(Simulator currentSim, string message, MainAvatar.TeleportStatus status)
         {
             Console.WriteLine(message);
 
-            if (status == TeleportStatus.Finished || status == TeleportStatus.Failed)
+            if (status == MainAvatar.TeleportStatus.Finished || status == MainAvatar.TeleportStatus.Failed)
             {
                 DoneTeleporting = true;
             }

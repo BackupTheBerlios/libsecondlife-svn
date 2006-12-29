@@ -8,22 +8,37 @@ namespace libsecondlife.TestClient
 {
     public class SayCommand: Command
     {
-		public SayCommand()
+        SecondLife Client;
+
+        public SayCommand(TestClient testClient)
 		{
+            TestClient = testClient;
+            Client = (SecondLife)TestClient;
+
 			Name = "say";
-			Description = "Say something.";
+			Description = "Say something.  (usage: say (optional channel) whatever)";
 		}
 
-        public override string Execute(SecondLife Client, string[] args, LLUUID fromAgentID)
+        public override string Execute(string[] args, LLUUID fromAgentID)
 		{
-			if (args.Length < 1)
-                return "usage: say whatever";
+            int channel = 0;
+            int startIndex = 0;
+            string message = String.Empty;
+            if (args.Length < 1)
+            {
+                return "usage: say (optional channel) whatever";
+            }
+            else if (args.Length > 1)
+            {
+                if (Int32.TryParse(args[0], out channel))
+					startIndex = 1;
+            }
+            
+			for (int i = startIndex; i < args.Length; i++) {
+				message += args[i] + " ";
+            }
 
-			string message = String.Empty;
-			foreach (string s in args)
-				message += s + " ";
-
-			Client.Self.Chat(message, 0, MainAvatar.ChatType.Normal);
+			Client.Self.Chat(message, channel, MainAvatar.ChatType.Normal);
 
             return "Said " + message;
 		}

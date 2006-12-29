@@ -26,6 +26,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Xml.Serialization;
 using System.Text;
 using libsecondlife.Packets;
 
@@ -109,6 +110,12 @@ namespace libsecondlife
         /// 
         /// </summary>
         /// <param name="simulator"></param>
+        /// <param name="properties"></param>
+        public delegate void ObjectPropertiesFamilyCallback(Simulator simulator, ObjectProperties properties);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="simulator"></param>
         /// <param name="avatar"></param>
         /// <param name="regionHandle"></param>
         /// <param name="timeDilation"></param>
@@ -147,6 +154,13 @@ namespace libsecondlife
         /// <param name="simulator"></param>
         /// <param name="objectID"></param>
         public delegate void KillObjectCallback(Simulator simulator, uint objectID);
+        /// <summary>
+        /// Called whenever the client avatar sits down or stands up
+        /// </summary>
+        /// <param name="simulator">Simulator the packet was received from</param>
+        /// <param name="sittingOn">The local ID of the object that is being sat
+        /// on. If this is zero the avatar is not sitting on an object</param>
+        public delegate void AvatarSitChanged(Simulator simulator, uint sittingOn);
 
         /// <summary>
         /// 
@@ -383,15 +397,27 @@ namespace libsecondlife
         /// </summary>
         public event AvatarMovedCallback OnAvatarMoved;
         /// <summary>
+        /// This event will be raised when the main avatar sits on an 
+        /// object or stands up, with a local ID of the current seat or
+        /// zero.
+        /// </summary>
+        public event AvatarSitChanged OnAvatarSitChanged;
+        /// <summary>
         /// This event will be raised when an object is removed from a 
         /// simulator.
         /// </summary>
         public event KillObjectCallback OnObjectKilled;
         /// <summary>
+        /// Thie event will be raised when an object's properties are recieved
+        /// from the simulator
+        /// </summary>
+        public event ObjectPropertiesFamilyCallback OnObjectProperties;
+        /// <summary>
         /// If true, when a cached object check is received from the server 
         /// the full object info will automatically be requested.
         /// </summary>
-        public bool RequestAllObjects = false;
+        /// 
+        public bool RequestAllObjects = false;        
 
         private SecondLife Client;
 
@@ -409,6 +435,7 @@ namespace libsecondlife
             Client.Network.RegisterCallback(PacketType.ObjectUpdateCompressed, new NetworkManager.PacketCallback(CompressedUpdateHandler));
             Client.Network.RegisterCallback(PacketType.ObjectUpdateCached, new NetworkManager.PacketCallback(CachedUpdateHandler));
             Client.Network.RegisterCallback(PacketType.KillObject, new NetworkManager.PacketCallback(KillObjectHandler));
+            Client.Network.RegisterCallback(PacketType.ObjectPropertiesFamily, new NetworkManager.PacketCallback(ObjectPropertiesFamilyHandler));
         }
 
         /// <summary>
@@ -464,8 +491,7 @@ namespace libsecondlife
         /// </summary>
         /// <param name="simulator">The target simulator</param>
         /// <param name="prim">The prim object to rez</param>
-        /// <param name="nearPosition">An approximation of the position to rez
-        /// the prim at</param>
+        /// <param name="position">An approximation of the position at which to rez the prim</param>
         /// <remarks>Due to the way client prim rezzing is done on the server,
         /// the requested position for an object is only close to where the prim
         /// actually ends up. If you desire exact placement you'll need to 
@@ -580,6 +606,101 @@ namespace libsecondlife
             add.ObjectData.State = (byte)grassType;
 
             Client.Network.SendPacket(add, simulator);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="simulator"></param>
+        /// <param name="localID"></param>
+        /// <param name="textures"></param>
+        public void SetTextures(Simulator simulator, uint localID, TextureEntry textures)
+        {
+            SetTextures(simulator, localID, textures, String.Empty);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="simulator"></param>
+        /// <param name="localID"></param>
+        /// <param name="textures"></param>
+        /// <param name="mediaUrl"></param>
+        public void SetTextures(Simulator simulator, uint localID, TextureEntry textures, string mediaUrl)
+        {
+            ObjectImagePacket image = new ObjectImagePacket();
+
+            image.AgentData.AgentID = Client.Network.AgentID;
+            image.AgentData.SessionID = Client.Network.SessionID;
+            image.ObjectData = new ObjectImagePacket.ObjectDataBlock[1];
+            image.ObjectData[0] = new ObjectImagePacket.ObjectDataBlock();
+            image.ObjectData[0].ObjectLocalID = localID;
+            image.ObjectData[0].TextureEntry = textures.ToBytes();
+            image.ObjectData[0].MediaURL = Helpers.StringToField(mediaUrl);
+
+            Client.Network.SendPacket(image, simulator);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="simulator"></param>
+        /// <param name="localID"></param>
+        /// <param name="light"></param>
+        public void SetLight(Simulator simulator, uint localID, PrimLightData light)
+        {
+            ObjectExtraParamsPacket extra = new ObjectExtraParamsPacket();
+
+            extra.AgentData.AgentID = Client.Network.AgentID;
+            extra.AgentData.SessionID = Client.Network.SessionID;
+            extra.ObjectData = new ObjectExtraParamsPacket.ObjectDataBlock[1];
+            extra.ObjectData[0] = new ObjectExtraParamsPacket.ObjectDataBlock();
+            extra.ObjectData[0].ObjectLocalID = localID;
+            extra.ObjectData[0].ParamType = (byte)ExtraParamType.Light;
+            if (light == null)
+            {
+                extra.ObjectData[0].ParamInUse = false;
+                extra.ObjectData[0].ParamData = new byte[0];
+            }
+            else
+            {
+                extra.ObjectData[0].ParamInUse = true;
+                extra.ObjectData[0].ParamData = light.GetBytes();
+            }
+            extra.ObjectData[0].ParamSize = (uint)extra.ObjectData[0].ParamData.Length;
+
+            Client.Network.SendPacket(extra, simulator);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="simulator"></param>
+        /// <param name="localID"></param>
+        /// <param name="flexible"></param>
+        public void SetFlexible(Simulator simulator, uint localID, PrimFlexibleData flexible)
+        {
+            ObjectExtraParamsPacket extra = new ObjectExtraParamsPacket();
+
+            extra.AgentData.AgentID = Client.Network.AgentID;
+            extra.AgentData.SessionID = Client.Network.SessionID;
+            extra.ObjectData = new ObjectExtraParamsPacket.ObjectDataBlock[1];
+            extra.ObjectData[0] = new ObjectExtraParamsPacket.ObjectDataBlock();
+            extra.ObjectData[0].ObjectLocalID = localID;
+            extra.ObjectData[0].ParamType = (byte)ExtraParamType.Flexible;
+            if (flexible == null)
+            {
+                extra.ObjectData[0].ParamInUse = false;
+                extra.ObjectData[0].ParamData = new byte[0];
+            }
+            else
+            {
+                extra.ObjectData[0].ParamInUse = true;
+                extra.ObjectData[0].ParamData = flexible.GetBytes();
+            }
+            extra.ObjectData[0].ParamSize = (uint)extra.ObjectData[0].ParamData.Length;
+
+            Client.Network.SendPacket(extra, simulator);
         }
 
         /// <summary>
@@ -729,6 +850,22 @@ namespace libsecondlife
             Client.Network.SendPacket(packet, simulator);
         }
 
+        /// <summary>
+        /// Request additional properties for an object
+        /// </summary>
+        /// <param name="simulator"></param>
+        /// <param name="objectID"></param>
+        public void RequestObjectPropertiesFamily(Simulator simulator, LLUUID objectID)
+        {
+            RequestObjectPropertiesFamilyPacket properties = new RequestObjectPropertiesFamilyPacket();
+            properties.AgentData.AgentID = Client.Network.AgentID;
+            properties.AgentData.SessionID = Client.Network.SessionID;
+            properties.ObjectData.ObjectID = objectID;
+            properties.ObjectData.RequestFlags = 0;
+
+            Client.Network.SendPacket(properties, simulator);
+        }
+
         private void ParseAvName(string name, ref string firstName, ref string lastName, ref string groupName)
         {
             // FIXME: This needs to be reworked completely. It fails on anything containing unicode
@@ -774,10 +911,11 @@ namespace libsecondlife
                             string name = Helpers.FieldToString(block.NameValue);
 
                             // New prim spotted
-                            PrimObject prim = new PrimObject(Client);
+                            PrimObject prim = new PrimObject();
 
                             prim.Name = name;
 
+							prim.RegionHandle = update.RegionData.RegionHandle;
                             prim.Position = new LLVector3(block.ObjectData, 0);
                             prim.Rotation = new LLQuaternion(block.ObjectData, 36, true);
                             // TODO: Parse the rest of the ObjectData byte array fields
@@ -806,6 +944,7 @@ namespace libsecondlife
                             prim.ProfileBegin = PrimObject.ProfileBeginFloat(block.ProfileBegin);
                             prim.ProfileEnd = PrimObject.ProfileEndFloat(block.ProfileEnd);
                             prim.ProfileHollow = block.ProfileHollow;
+
 
                             //block.Data ?
                             prim.Text = ASCIIEncoding.ASCII.GetString(block.Text);
@@ -847,6 +986,27 @@ namespace libsecondlife
 
                             break;
                         case (byte)PCode.Avatar:
+                            // Update some internals if this is our avatar
+                            if (block.FullID == Client.Network.AgentID)
+                            {
+                                // Update our current position information
+                                Client.Self.LocalID = block.ID;
+                                //avatar.CollisionPlane = new LLQuaternion(block.ObjectData, 0);
+                                Client.Self.Position = new LLVector3(block.ObjectData, 16);
+                                Client.Self.Rotation = new LLQuaternion(block.ObjectData, 52, true);
+                                // TODO: Parse the rest of the ObjectData byte array fields
+
+                                // Detect if we are sitting or standing
+                                uint oldSittingOn = Client.Self.sittingOn;
+                                Client.Self.sittingOn = block.ParentID;
+
+                                // Fire the callback for our sitting orientation changing
+                                if (Client.Self.sittingOn != oldSittingOn && OnAvatarSitChanged != null)
+                                {
+                                    OnAvatarSitChanged(simulator, Client.Self.sittingOn);
+                                }
+                            }
+
                             if (OnNewAvatar != null)
                             {
                                 Avatar avatar = new Avatar();
@@ -858,8 +1018,9 @@ namespace libsecondlife
                                 //avatar.CollisionPlane = new LLQuaternion(block.ObjectData, 0);
                                 avatar.Position = new LLVector3(block.ObjectData, 16);
                                 avatar.Rotation = new LLQuaternion(block.ObjectData, 52, true);
-
                                 // TODO: Parse the rest of the ObjectData byte array fields
+
+                                avatar.sittingOn = block.ParentID;
 
                                 ParseAvName(Helpers.FieldToString(block.NameValue), ref FirstName, ref LastName, ref GroupName);
 
@@ -872,19 +1033,9 @@ namespace libsecondlife
 
                                 avatar.Textures = new TextureEntry(block.TextureEntry, 0, block.TextureEntry.Length);
 
-                                if (FirstName == Client.Self.FirstName && LastName == Client.Self.LastName)
+                                if (OnNewAvatar != null)
                                 {
-                                    // Update our avatar
-                                    Client.Self.LocalID = avatar.LocalID;
-                                    Client.Self.Position = avatar.Position;
-                                    Client.Self.Rotation = avatar.Rotation;
-                                }
-                                else
-                                {
-                                    if (OnNewAvatar != null)
-                                    {
-                                        OnNewAvatar(simulator, avatar, update.RegionData.RegionHandle, update.RegionData.TimeDilation);
-                                    }
+                                    OnNewAvatar(simulator, avatar, update.RegionData.RegionHandle, update.RegionData.TimeDilation);
                                 }
                             }
                             break;
@@ -903,7 +1054,7 @@ namespace libsecondlife
         {
             float x, y, z, w;
             uint localid;
-            LLVector4 CollisionPlane = null;
+            LLVector4 CollisionPlane = LLVector4.Zero;
             LLVector3 Position;
             LLVector3 Velocity;
             LLVector3 Acceleration;
@@ -1023,6 +1174,8 @@ namespace libsecondlife
             }
         }
 
+#pragma warning disable 0219 // disable "value assigned but never used" while this function is incomplete
+
         private void CompressedUpdateHandler(Packet packet, Simulator simulator)
         {
             if (OnNewPrim != null || OnNewAvatar != null || OnNewAttachment != null || OnNewFoliage != null)
@@ -1033,7 +1186,7 @@ namespace libsecondlife
                 foreach (ObjectUpdateCompressedPacket.ObjectDataBlock block in update.ObjectData)
                 {
                     int i = 0;
-                    prim = new PrimObject(Client);
+                    prim = new PrimObject();
 
                     prim.Flags = (ObjectFlags)block.UpdateFlags;
 
@@ -1256,6 +1409,7 @@ namespace libsecondlife
                 }
             }
         }
+#pragma warning restore 0219
 
         private void CachedUpdateHandler(Packet packet, Simulator simulator)
         {
@@ -1303,6 +1457,33 @@ namespace libsecondlife
             float range = upper - lower;
             float QF = range / 65536.0F;
             return (float)((QV * QF - (0.5F * range)) + QF);
+        }
+
+        private void ObjectPropertiesFamilyHandler(Packet p, Simulator sim)
+        {
+            if (OnObjectProperties != null)
+            {
+                ObjectPropertiesFamilyPacket op = (ObjectPropertiesFamilyPacket)p;
+                ObjectProperties props = new ObjectProperties();
+
+                props.BaseMask = op.ObjectData.BaseMask;
+                props.Category = op.ObjectData.Category;
+                props.Description = Helpers.FieldToString(op.ObjectData.Description);
+                props.EveryoneMask = op.ObjectData.EveryoneMask;
+                props.GroupID = op.ObjectData.GroupID;
+                props.GroupMask = op.ObjectData.GroupMask;
+                props.LastOwnerID = op.ObjectData.LastOwnerID;
+                props.Name = Helpers.FieldToString(op.ObjectData.Name);
+                props.NextOwnerMask = op.ObjectData.NextOwnerMask;
+                props.ObjectID = op.ObjectData.ObjectID;
+                props.OwnerID = op.ObjectData.OwnerID;
+                props.OwnerMask = op.ObjectData.OwnerMask;
+                props.OwnershipCost = op.ObjectData.OwnershipCost;
+                props.SalePrice = op.ObjectData.SalePrice;
+                props.SaleType = op.ObjectData.SaleType;
+
+                OnObjectProperties(sim, props);
+            }
         }
     }
 }

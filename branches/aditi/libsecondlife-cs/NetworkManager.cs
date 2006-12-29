@@ -26,13 +26,14 @@
 
 using System;
 using System.Timers;
+using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Globalization;
 using Nwc.XmlRpc;
 using Nii.JSON;
 using libsecondlife.Packets;
-using System.Globalization;
 
 namespace libsecondlife
 {
@@ -41,21 +42,6 @@ namespace libsecondlife
     /// without a network connection.
     /// </summary>
     public class NotConnectedException : ApplicationException { }
-
-	internal class AcceptAllCertificatePolicy : ICertificatePolicy
-	{
-		public AcceptAllCertificatePolicy()
-		{
-		}
-
-		public bool CheckValidationResult(ServicePoint sPoint, 
-			System.Security.Cryptography.X509Certificates.X509Certificate cert, 
-			WebRequest wRequest,int certProb)
-		{
-			// Always accept
-			return true;
-		}
-	}
 
     /// <summary>
     /// Simulator is a wrapper for a network connection to a simulator and the
@@ -67,12 +53,14 @@ namespace libsecondlife
         /// is attached to</summary>
         public SecondLife Client;
 
-        /// <summary>The maximum size of the sequence number inbox, used to 
-        /// check for resent and/or duplicate packets</summary>
-        public const int INBOX_SIZE = 10000;
-
         /// <summary>The Region class that this Simulator wraps</summary>
         public Region Region;
+
+        /// <summary>
+        /// Used internally to track sim disconnections, do not modify this 
+        /// variable.
+        /// </summary>
+        public bool DisconnectCandidate = false;
 
         /// <summary>
         /// The ID number associated with this particular connection to the 
@@ -102,35 +90,28 @@ namespace libsecondlife
             get { return connected; }
         }
 
-        /// <summary>
-        /// Used internally to track sim disconnections, do not modify this 
-        /// variable.
-        /// </summary>
-        public bool DisconnectCandidate = false;
-
         private NetworkManager Network;
         private Dictionary<PacketType, List<NetworkManager.PacketCallback>> Callbacks;
-        private ushort Sequence = 0;
-        private byte[] RecvBuffer = new byte[4092];
-        private byte[] ZeroBuffer = new byte[4092];
-        private byte[] ZeroOutBuffer = new byte[4092];
+        private uint Sequence = 0;
+        private byte[] RecvBuffer = new byte[4096];
+        private byte[] ZeroBuffer = new byte[8192];
+        private byte[] ZeroOutBuffer = new byte[4096];
         private Socket Connection = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
         private AsyncCallback ReceivedData;
-        private Dictionary<int, Packet> NeedAck = new Dictionary<int, Packet>();
-        private Queue<ushort> Inbox = new Queue<ushort>(INBOX_SIZE);
-        private List<uint> PendingAcks = new List<uint>();
+        // Packets we sent out that need ACKs from the simulator
+        private Dictionary<uint, Packet> NeedAck = new Dictionary<uint, Packet>();
+        // Sequence numbers of packets we've received from the simulator
+        private Queue<uint> Inbox;
+        // ACKs that are queued up to be sent to the simulator
+        private Dictionary<uint, uint> PendingAcks = new Dictionary<uint, uint>();
         private bool connected = false;
         private uint circuitCode;
         private IPEndPoint ipEndPoint;
         private EndPoint endPoint;
         private System.Timers.Timer AckTimer;
-        // Every tick, all ACKs are sent out and the age of unACKed packets is checked
-        private int TickLength = 500;
-        // Number of milliseconds before a packet is assumed lost and resent
-        private int ResendTimeout = 4000;
 
         /// <summary>
-        /// 
+        /// Constructor for Simulator
         /// </summary>
         /// <param name="client"></param>
         /// <param name="callbacks"></param>
@@ -145,7 +126,8 @@ namespace libsecondlife
             Callbacks = callbacks;
             Region = new Region(client);
             circuitCode = circuit;
-            AckTimer = new System.Timers.Timer(TickLength);
+            Inbox = new Queue<uint>(Client.Settings.INBOX_SIZE);
+            AckTimer = new System.Timers.Timer(Client.Settings.NETWORK_TICK_LENGTH);
             AckTimer.Elapsed += new ElapsedEventHandler(AckTimer_Elapsed);
 
             // Initialize the callback for receiving a new packet
@@ -181,7 +163,7 @@ namespace libsecondlife
 
                 while (true)
                 {
-                    if (connected || Environment.TickCount - start > 8000)
+                    if (connected || Environment.TickCount - start > Client.Settings.SIMULATOR_TIMEOUT)
                     {
                         return;
                     }
@@ -190,47 +172,52 @@ namespace libsecondlife
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.ToString());
                 Client.Log(e.ToString(), Helpers.LogLevel.Error);
             }
         }
 
         /// <summary>
-        /// 
+        /// Disconnect a Simulator
         /// </summary>
         public void Disconnect()
         {
-            // Send the CloseCircuit notice
-            CloseCircuitPacket close = new CloseCircuitPacket();
+            if (connected)
+            {
+                connected = false;
+                AckTimer.Stop();
 
-            try
-            {
-                Connection.Send(close.ToBytes());
-            }
-            catch (SocketException)
-            {
-                // There's a high probability of this failing if the network is
-                // disconnected, so don't even bother logging the error
-            }
+                // Send the CloseCircuit notice
+                CloseCircuitPacket close = new CloseCircuitPacket();
 
-            try
-            {
-                // Shut the socket communication down
-                Connection.Shutdown(SocketShutdown.Both);
-            }
-            catch (SocketException e)
-            {
-                Client.Log(e.ToString(), Helpers.LogLevel.Error);
-            }
+                if (Connection.Connected)
+                {
+                    try
+                    {
+                        Connection.Send(close.ToBytes());
+                    }
+                    catch (SocketException)
+                    {
+                        // There's a high probability of this failing if the network is
+                        // disconnecting, so don't even bother logging the error
+                    }
+                }
 
-            connected = false;
+                try
+                {
+                    // Shut the socket communication down
+                    Connection.Shutdown(SocketShutdown.Both);
+                }
+                catch (SocketException)
+                {
+                }
+            }
         }
 
         /// <summary>
-        /// 
+        /// Sends a packet
         /// </summary>
-        /// <param name="packet"></param>
-        /// <param name="incrementSequence"></param>
+        /// <param name="packet">Packet to be sent</param>
+        /// <param name="incrementSequence">Increment sequence number?</param>
         public void SendPacket(Packet packet, bool incrementSequence)
         {
             byte[] buffer;
@@ -239,9 +226,9 @@ namespace libsecondlife
             if (!connected && packet.Type != PacketType.UseCircuitCode)
             {
                 Client.Log("Trying to send a " + packet.Type.ToString() + " packet when the socket is closed",
-                    Helpers.LogLevel.Warning);
+                    Helpers.LogLevel.Info);
 
-                throw new NotConnectedException();
+                return;
             }
 
             if (packet.Header.AckList.Length > 0)
@@ -251,20 +238,20 @@ namespace libsecondlife
             }
             packet.Header.AppendedAcks = false;
 
+            // Keep track of when this packet was sent out
+            packet.TickCount = Environment.TickCount;
+
             if (incrementSequence)
             {
                 // Set the sequence number
-                if (Sequence == ushort.MaxValue)
-                    Sequence = 0;
+                if (Sequence > Client.Settings.MAX_SEQUENCE)
+                    Sequence = 1;
                 else
                     Sequence++;
                 packet.Header.Sequence = Sequence;
 
                 if (packet.Header.Reliable)
                 {
-                    // Keep track of when this packet was sent out
-                    packet.TickCount = Environment.TickCount;
-
                     lock (NeedAck)
                     {
                         if (!NeedAck.ContainsKey(packet.Header.Sequence))
@@ -279,24 +266,30 @@ namespace libsecondlife
                         }
                     }
 
-                    // Append any ACKs that need to be sent out to this packet
-                    lock (PendingAcks)
+                    // Don't append ACKs to resent packets, in case that's what was causing the
+                    // delivery to fail
+                    if (!packet.Header.Resent)
                     {
-                        if (PendingAcks.Count > 0 && packet.Type != PacketType.PacketAck &&
-                            packet.Type != PacketType.LogoutRequest)
+                        // Append any ACKs that need to be sent out to this packet
+                        lock (PendingAcks)
                         {
-                            packet.Header.AckList = new uint[PendingAcks.Count];
-
-                            int i = 0;
-
-                            foreach (uint ack in PendingAcks)
+                            if (PendingAcks.Count > 0 && PendingAcks.Count < Client.Settings.MAX_APPENDED_ACKS &&
+                                packet.Type != PacketType.PacketAck &&
+                                packet.Type != PacketType.LogoutRequest)
                             {
-                                packet.Header.AckList[i] = ack;
-                                i++;
-                            }
+                                packet.Header.AckList = new uint[PendingAcks.Count];
 
-                            PendingAcks.Clear();
-                            packet.Header.AppendedAcks = true;
+                                int i = 0;
+
+                                foreach (uint ack in PendingAcks.Values)
+                                {
+                                    packet.Header.AckList[i] = ack;
+                                    i++;
+                                }
+
+                                PendingAcks.Clear();
+                                packet.Header.AppendedAcks = true;
+                            }
                         }
                     }
                 }
@@ -322,18 +315,19 @@ namespace libsecondlife
                     Connection.Send(buffer, bytes, SocketFlags.None);
                 }
             }
-            catch (SocketException e)
+            catch (SocketException)
             {
-                Client.Log(e.ToString(), Helpers.LogLevel.Error);
+                Client.Log("Tried to send a " + packet.Type.ToString() + " on a closed socket", 
+                    Helpers.LogLevel.Warning);
 
-                // FIXME: Assume this socket is dead and Disconnect()
+                Disconnect();
             }
         }
 
         /// <summary>
-        /// 
+        /// Send Packet. Bytes !
         /// </summary>
-        /// <param name="payload"></param>
+        /// <param name="payload">payload</param>
         public void SendPacket(byte[] payload)
         {
             if (!connected)
@@ -350,13 +344,16 @@ namespace libsecondlife
                 Client.Log(e.ToString(), Helpers.LogLevel.Error);
             }
         }
-
+        /// <summary>
+        /// Returns Simulator Name as a String
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             return Region.Name + " (" + ipEndPoint.ToString() + ")";
         }
 
-        private void SendAck(ushort id)
+/*        private void SendAck(uint id)
         {
             PacketAckPacket ack = new PacketAckPacket();
 
@@ -367,26 +364,35 @@ namespace libsecondlife
 
             lock (PendingAcks)
             {
-                if (PendingAcks.Contains(id))
+                if (PendingAcks.ContainsKey(id))
                 {
                     PendingAcks.Remove(id);
                 }
             }
 
             SendPacket(ack, true);
-        }
-
+        } */
+        /// <summary>
+        /// Sends out pending acknowledgements
+        /// </summary>
         private void SendAcks()
         {
             lock (PendingAcks)
             {
-                if (PendingAcks.Count > 0)
+                if (connected && PendingAcks.Count > 0)
                 {
+                    if (PendingAcks.Count > 250)
+                    {
+                        // FIXME: Handle the odd case where we have too many pending ACKs queued up
+                        Client.Log("Too many ACKs queued up!", Helpers.LogLevel.Error);
+                        return;
+                    }
+
                     int i = 0;
                     PacketAckPacket acks = new PacketAckPacket();
                     acks.Packets = new PacketAckPacket.PacketsBlock[PendingAcks.Count];
 
-                    foreach (uint ack in PendingAcks)
+                    foreach (uint ack in PendingAcks.Values)
                     {
                         acks.Packets[i] = new PacketAckPacket.PacketsBlock();
                         acks.Packets[i].ID = ack;
@@ -400,27 +406,35 @@ namespace libsecondlife
                 }
             }
         }
-
+        /// <summary>
+        /// Resend unacknowledged packets
+        /// </summary>
         private void ResendUnacked()
         {
-            int now = Environment.TickCount;
-
-            lock (NeedAck)
+            if (connected)
             {
-                foreach (Packet packet in NeedAck.Values)
-                {
-                    if (now - packet.TickCount > ResendTimeout)
-                    {
-                        Client.Log("Resending " + packet.Type.ToString() + " packet, " + 
-                            (now - packet.TickCount) + "ms have passed", Helpers.LogLevel.Info);
+                int now = Environment.TickCount;
 
-                        packet.Header.Resent = true;
-                        SendPacket(packet, false);
+                lock (NeedAck)
+                {
+                    foreach (Packet packet in NeedAck.Values)
+                    {
+                        if (now - packet.TickCount > Client.Settings.RESEND_TIMEOUT)
+                        {
+                            Client.Log("Resending " + packet.Type.ToString() + " packet, " +
+                                (now - packet.TickCount) + "ms have passed", Helpers.LogLevel.Info);
+
+                            packet.Header.Resent = true;
+                            SendPacket(packet, false);
+                        }
                     }
                 }
             }
         }
-
+        /// <summary>
+        /// Callback handler for incomming data
+        /// </summary>
+        /// <param name="result"></param>
         private void OnReceivedData(IAsyncResult result)
         {
             Packet packet = null;
@@ -465,7 +479,7 @@ namespace libsecondlife
             // Track the sequence number for this packet if it's marked as reliable
             if (packet.Header.Reliable)
             {
-                if (PendingAcks.Count > 10)
+                if (PendingAcks.Count > Client.Settings.MAX_PENDING_ACKS)
                 {
                     SendAcks();
                 }
@@ -479,7 +493,14 @@ namespace libsecondlife
                         Helpers.LogLevel.Info);
 
                     // Send an ACK for this packet immediately
-                    SendAck(packet.Header.Sequence);
+                    //SendAck(packet.Header.Sequence);
+
+                    // TESTING: Try just queuing up ACKs for resent packets instead of immediately triggering an ACK
+                    lock (PendingAcks)
+                    {
+                        uint sequence = (uint)packet.Header.Sequence;
+                        if (!PendingAcks.ContainsKey(sequence)) { PendingAcks[sequence] = sequence; }
+                    }
 
                     // Avoid firing a callback twice for the same packet
                     return;
@@ -488,7 +509,8 @@ namespace libsecondlife
                 {
                     lock (PendingAcks)
                     {
-                        PendingAcks.Add((uint)packet.Header.Sequence);
+                        uint sequence = (uint)packet.Header.Sequence;
+                        if (!PendingAcks.ContainsKey(sequence)) { PendingAcks[sequence] = sequence; }
                     }
                 }
             }
@@ -496,7 +518,7 @@ namespace libsecondlife
             // Add this packet to our inbox
             lock (Inbox)
             {
-                if (Inbox.Count >= INBOX_SIZE)
+                while (Inbox.Count >= Client.Settings.INBOX_SIZE)
                 {
                     Inbox.Dequeue();
                 }
@@ -508,7 +530,7 @@ namespace libsecondlife
             {
                 lock (NeedAck)
                 {
-                    foreach (ushort ack in packet.Header.AckList)
+                    foreach (uint ack in packet.Header.AckList)
                     {
                         NeedAck.Remove(ack);
                     }
@@ -524,7 +546,7 @@ namespace libsecondlife
                 {
                     foreach (PacketAckPacket.PacketsBlock block in ackPacket.Packets)
                     {
-                        NeedAck.Remove((ushort)block.ID);
+                        NeedAck.Remove(block.ID);
                     }
                 }
             }
@@ -645,7 +667,7 @@ namespace libsecondlife
         /// The complete dictionary of all the login values returned by the 
         /// RPC login server, converted to native data types wherever possible
         /// </summary>
-        public Dictionary<string, object> LoginValues;
+        public Dictionary<string, object> LoginValues = new Dictionary<string,object>();
         /// <summary>
         /// Shows whether the network layer is logged in to the grid or not
         /// </summary>
@@ -653,22 +675,26 @@ namespace libsecondlife
         {
             get { return connected; }
         }
+
         /// <summary>
         /// An event for the connection to a simulator other than the currently
         /// occupied one disconnecting
         /// </summary>
-        public SimDisconnectCallback OnSimDisconnected;
+        public event SimDisconnectCallback OnSimDisconnected;
         /// <summary>
         /// An event for being logged out either through client request, server
         /// forced, or network error
         /// </summary>
-        public DisconnectCallback OnDisconnected;
+        public event DisconnectCallback OnDisconnected;
 
-        private Dictionary<PacketType, List<PacketCallback>> Callbacks;
         private SecondLife Client;
-        private List<Simulator> Simulators;
+        private Dictionary<PacketType, List<PacketCallback>> Callbacks = new Dictionary<PacketType,List<PacketCallback>>();
+        private List<Simulator> Simulators = new List<Simulator>();
         private System.Timers.Timer DisconnectTimer;
         private bool connected;
+
+        private const int NetworkTrafficTimeout = 15000;
+        private const int LoginTimeout = 60000;
 
         /// <summary>
         /// 
@@ -677,10 +703,7 @@ namespace libsecondlife
         public NetworkManager(SecondLife client)
         {
             Client = client;
-            Simulators = new List<Simulator>();
-            Callbacks = new Dictionary<PacketType, List<PacketCallback>>();
             CurrentSim = null;
-            LoginValues = null;
 
             // Register the internal callbacks
             RegisterCallback(PacketType.RegionHandshake, new PacketCallback(RegionHandshakeHandler));
@@ -690,7 +713,7 @@ namespace libsecondlife
             RegisterCallback(PacketType.KickUser, new PacketCallback(KickUserHandler));
 
             // Disconnect a sim if no network traffic has been received for 15 seconds
-            DisconnectTimer = new System.Timers.Timer(15000);
+            DisconnectTimer = new System.Timers.Timer(NetworkTrafficTimeout);
             DisconnectTimer.Elapsed += new ElapsedEventHandler(DisconnectTimer_Elapsed);
         }
 
@@ -777,6 +800,7 @@ namespace libsecondlife
                 throw new NotConnectedException();
             }
         }
+
         /// <summary>
         /// Use this if you want to login to a specific location
         /// </summary>
@@ -785,7 +809,6 @@ namespace libsecondlife
         /// <param name="y"></param>
         /// <param name="z"></param>
         /// <returns>string with a value that can be used in the start field in .DefaultLoginValues()</returns>
-
         public static string StartLocation(string sim, int x, int y, int z)
         {
             //uri:sim&x&y&z
@@ -801,8 +824,8 @@ namespace libsecondlife
         /// <param name="userAgent"></param>
         /// <param name="author"></param>
         /// <returns></returns>
-        public static Dictionary<string, object> DefaultLoginValues(
-            string firstName, string lastName, string password, string userAgent, string author)
+        public Dictionary<string, object> DefaultLoginValues(string firstName, string lastName, 
+            string password, string userAgent, string author)
         {
             return DefaultLoginValues(firstName, lastName, password, "00:00:00:00:00:00", "last",
                 1, 50, 50, 50, "Win", "0", userAgent, author, false);
@@ -817,9 +840,8 @@ namespace libsecondlife
         /// <param name="userAgent"></param>
         /// <param name="author"></param>
         /// <returns></returns>
-        public static Dictionary<string, object> DefaultLoginValues(
-            string firstName, string lastName, string password, string startLocation, string userAgent, string author,
-            bool md5pass)
+        public Dictionary<string, object> DefaultLoginValues(string firstName, string lastName, 
+            string password, string startLocation, string userAgent, string author, bool md5pass)
         {
             return DefaultLoginValues(firstName, lastName, password, "00:00:00:00:00:00", startLocation,
                 1, 50, 50, 50, "Win", "0", userAgent, author, md5pass);
@@ -838,8 +860,8 @@ namespace libsecondlife
         /// <param name="userAgent"></param>
         /// <param name="author"></param>
         /// <returns></returns>
-        public static Dictionary<string, object> DefaultLoginValues(string firstName,
-            string lastName, string password, string mac, string startLocation, string platform,
+        public Dictionary<string, object> DefaultLoginValues(string firstName, string lastName, 
+            string password, string mac, string startLocation, string platform, 
             string viewerDigest, string userAgent, string author)
         {
             return DefaultLoginValues(firstName, lastName, password, mac, startLocation,
@@ -863,9 +885,10 @@ namespace libsecondlife
         /// <param name="userAgent"></param>
         /// <param name="author"></param>
         /// <returns></returns>
-        public static Dictionary<string, object> DefaultLoginValues(string firstName,
-            string lastName, string password, string mac, string startLocation, int major, int minor,
-            int patch, int build, string platform, string viewerDigest, string userAgent, string author, bool md5pass)
+        public Dictionary<string, object> DefaultLoginValues(string firstName, string lastName, 
+            string password, string mac, string startLocation, int major, int minor, int patch, 
+            int build, string platform, string viewerDigest, string userAgent, string author, 
+            bool md5pass)
         {
             Dictionary<string, object> values = new Dictionary<string, object>();
 
@@ -882,7 +905,7 @@ namespace libsecondlife
             values["agree_to_tos"] = "true";
             values["read_critical"] = "true";
             values["viewer_digest"] = viewerDigest;
-            values["user-agent"] = userAgent + " (" + Helpers.VERSION + ")";
+            values["user-agent"] = userAgent + " (" + Client.Settings.VERSION + ")";
             values["author"] = author;
 
             // Build the options array
@@ -930,16 +953,27 @@ namespace libsecondlife
         /// <returns></returns>
         public bool Login(string firstName, string lastName, string password, string userAgent, string author)
         {
-            Dictionary<string, object> loginParams = NetworkManager.DefaultLoginValues(firstName, lastName,
+            Dictionary<string, object> loginParams = DefaultLoginValues(firstName, lastName,
                 password, "last", userAgent, author, false);
             return Login(loginParams);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="firstName"></param>
+        /// <param name="lastName"></param>
+        /// <param name="password"></param>
+        /// <param name="userAgent"></param>
+        /// <param name="start"></param>
+        /// <param name="author"></param>
+        /// <param name="md5pass"></param>
+        /// <returns></returns>
         public bool Login(string firstName, string lastName, string password, string userAgent, string start,
             string author, bool md5pass)
         {
-            Dictionary<string, object> loginParams = NetworkManager.DefaultLoginValues(firstName, lastName,
-                password, userAgent, start, author, md5pass);
+            Dictionary<string, object> loginParams = DefaultLoginValues(firstName, lastName,
+                password, start, userAgent, author, md5pass);
             return Login(loginParams);
         }
 
@@ -950,7 +984,7 @@ namespace libsecondlife
         /// <returns></returns>
         public bool Login(Dictionary<string, object> loginParams)
         {
-            return Login(loginParams, SecondLife.LOGIN_SERVER);
+            return Login(loginParams, Client.Settings.LOGIN_SERVER);
         }
 
         /// <summary>
@@ -961,20 +995,40 @@ namespace libsecondlife
         /// <returns></returns>
         public bool Login(Dictionary<string, object> loginParams, string url)
         {
+            // Rebuild the Dictionary<> in to a Hashtable for compatibility with XmlRpcCS
+            Hashtable loginValues = new Hashtable(loginParams.Count);
+            foreach (KeyValuePair<string, object> kvp in loginParams)
+            {
+                if (kvp.Value is IList)
+                {
+                    IList list = ((IList)kvp.Value);
+                    ArrayList array = new ArrayList(list.Count);
+                    foreach (object obj in list)
+                    {
+                        array.Add(obj);
+                    }
+                    loginValues[kvp.Key] = array;
+                }
+                else
+                {
+                    loginValues[kvp.Key] = kvp.Value;
+                }
+            }
+
             XmlRpcResponse result;
             XmlRpcRequest xmlrpc = new XmlRpcRequest();
             xmlrpc.MethodName = "login_to_simulator";
             xmlrpc.Params.Clear();
-            xmlrpc.Params.Add(loginParams);
+            xmlrpc.Params.Add(loginValues);
 
             try
             {
-                result = (XmlRpcResponse)xmlrpc.Send(url);
+                result = (XmlRpcResponse)xmlrpc.Send(url, LoginTimeout);
             }
             catch (Exception e)
             {
                 LoginError = "XML-RPC Error: " + e.Message;
-                LoginValues = null;
+                LoginValues.Clear();
                 return false;
             }
 
@@ -982,11 +1036,15 @@ namespace libsecondlife
             {
                 Client.Log("Fault " + result.FaultCode + ": " + result.FaultString, Helpers.LogLevel.Error);
                 LoginError = "XML-RPC Fault: " + result.FaultCode + ": " + result.FaultString;
-                LoginValues = null;
+                LoginValues.Clear();
                 return false;
             }
 
-            LoginValues = (Dictionary<string, object>)result.Value;
+            Hashtable values = (Hashtable)result.Value;
+            foreach (DictionaryEntry entry in values)
+            {
+                LoginValues[(string)entry.Key] = entry.Value;
+            }
 
             if ((string)LoginValues["login"] == "indeterminate")
             {
@@ -1009,9 +1067,9 @@ namespace libsecondlife
                 new System.Text.RegularExpressions.Regex(@"('|r([0-9])|r(\-))");
             string json;
             Dictionary<string, object> jsonObject = null;
-            LLVector3 vector = null;
-            LLVector3 posVector = null;
-            LLVector3 lookatVector = null;
+            LLVector3 vector = LLVector3.Zero;
+            LLVector3 posVector = LLVector3.Zero;
+            LLVector3 lookatVector = LLVector3.Zero;
             ulong regionHandle = 0;
 
             try
@@ -1088,11 +1146,19 @@ namespace libsecondlife
                 this.AgentID = new LLUUID((string)LoginValues["agent_id"]);
                 this.SessionID = new LLUUID((string)LoginValues["session_id"]);
                 Client.Self.ID = this.AgentID;
-                Client.Self.FirstName = (string)LoginValues["first_name"];
-                Client.Self.LastName = (string)LoginValues["last_name"];
+                // Names are wrapped in quotes now, have to strip those
+                Client.Self.FirstName = ((string)LoginValues["first_name"]).Trim(new char[] { '"' });
+                Client.Self.LastName = ((string)LoginValues["last_name"]).Trim(new char[] { '"' });
                 Client.Self.LookAt = vector;
                 Client.Self.HomePosition = posVector;
                 Client.Self.HomeLookAt = lookatVector;
+
+                // Get Inventory Root Folder
+                Client.Log("Pulling root folder UUID from login data.", Helpers.LogLevel.Debug);
+                ArrayList alInventoryRoot = (ArrayList)LoginValues["inventory-root"];
+                Hashtable htInventoryRoot = (Hashtable)alInventoryRoot[0];
+                Client.Self.InventoryRootFolderUUID = new LLUUID((string)htInventoryRoot["folder_id"]);
+
 
                 // Connect to the sim given in the login reply
                 Simulator simulator = new Simulator(Client, this.Callbacks, (uint)(int)LoginValues["circuit_code"],
@@ -1199,17 +1265,24 @@ namespace libsecondlife
         /// <param name="sim"></param>
         public void DisconnectSim(Simulator sim)
         {
-            sim.Disconnect();
-
-            // Fire the SimDisconnected event if a handler is registered
-            if (OnSimDisconnected != null)
+            if (sim != null)
             {
-                OnSimDisconnected(sim, DisconnectType.NetworkTimeout);
+                sim.Disconnect();
+
+                // Fire the SimDisconnected event if a handler is registered
+                if (OnSimDisconnected != null)
+                {
+                    OnSimDisconnected(sim, DisconnectType.NetworkTimeout);
+                }
+
+                lock (Simulators)
+                {
+                    Simulators.Remove(sim);
+                }
             }
-
-            lock (Simulators)
+            else
             {
-                Simulators.Remove(sim);
+                Client.Log("DisconnectSim() called with a null Simulator reference", Helpers.LogLevel.Warning);
             }
         }
 
@@ -1227,9 +1300,9 @@ namespace libsecondlife
                 foreach (Simulator simulator in Simulators)
                 {
                     // Don't disconnect the current sim, we'll use LogoutRequest for that
-                    if (simulator != CurrentSim)
+                    if (simulator != null && simulator != CurrentSim)
                     {
-                        simulator.Disconnect();
+                        DisconnectSim(simulator);
 
                         // Fire the SimDisconnected event if a handler is registered
                         if (OnSimDisconnected != null)
@@ -1242,8 +1315,11 @@ namespace libsecondlife
                 Simulators.Clear();
             }
 
-            CurrentSim.Disconnect();
-            CurrentSim = null;
+            if (CurrentSim != null)
+            {
+                DisconnectSim(CurrentSim);
+                CurrentSim = null;
+            }
         }
 
         private void SendInitialPackets()
@@ -1251,10 +1327,10 @@ namespace libsecondlife
             // Request the economy data
             SendPacket(new EconomyDataRequestPacket());
 
-            // TODO: We should be setting the initial avatar height/width around here 
+            // TODO: Should the appearance manager be handling this?
             //Client.Avatar.SetHeightWidth(676, 909);
 
-            // Set the initial avatar camera position
+            // TODO: A movement class should be handling this
             Avatar.AgentUpdateFlags controlFlags = Avatar.AgentUpdateFlags.AGENT_CONTROL_FINISH_ANIM;
             LLVector3 position = new LLVector3(128, 128, 32);
             LLVector3 forwardAxis = new LLVector3(0, 0.999999f, 0);
@@ -1263,98 +1339,80 @@ namespace libsecondlife
             Client.Self.UpdateCamera(controlFlags, position, forwardAxis, leftAxis, upAxis, LLQuaternion.Identity,
                 LLQuaternion.Identity, 384.0f, true);
 
-            // TODO: Do we ever want to set this to true?
-            SetAlwaysRunPacket run = new SetAlwaysRunPacket();
-            run.AgentData.AgentID = AgentID;
-            run.AgentData.SessionID = SessionID;
-            run.AgentData.AlwaysRun = false;
-            SendPacket(run);
-
-            // TODO: This information is currently unused
-            MuteListRequestPacket mute = new MuteListRequestPacket();
-            mute.AgentData.AgentID = AgentID;
-            mute.AgentData.SessionID = SessionID;
-            mute.MuteData.MuteCRC = 0;
-            SendPacket(mute);
-
-            // Get the current avatar balance
-            MoneyBalanceRequestPacket money = new MoneyBalanceRequestPacket();
-            money.AgentData.AgentID = AgentID;
-            money.AgentData.SessionID = SessionID;
-            money.MoneyData.TransactionID = LLUUID.Zero;
-            SendPacket(money);
-
-            // FIXME: MainAvatar can request the info if it wants to use it
-            //AgentDataUpdateRequestPacket update = new AgentDataUpdateRequestPacket();
-            //update.AgentData.AgentID = AgentID;
-            //update.AgentData.SessionID = SessionID;
-            //SendPacket(update);
+            // TODO: A movement class should be handling this
+            Client.Self.SetAlwaysRun(false);
         }
 
         private void DisconnectTimer_Elapsed(object sender, ElapsedEventArgs ev)
         {
-            if (CurrentSim == null)
+            if (connected)
             {
-                DisconnectTimer.Stop();
-                connected = false;
-                return;
-            }
-
-            // If the current simulator is disconnected, shutdown+callback+return
-            if (CurrentSim.DisconnectCandidate)
-            {
-                Client.Log("Network timeout for the current simulator (" +
-                    CurrentSim.Region.Name + "), logging out", Helpers.LogLevel.Warning);
-
-                DisconnectTimer.Stop();
-                connected = false;
-
-                // Shutdown the network layer
-                Shutdown();
-
-                if (OnDisconnected != null)
+                if (CurrentSim == null)
                 {
-                    OnDisconnected(DisconnectType.NetworkTimeout, "");
+                    DisconnectTimer.Stop();
+                    connected = false;
+                    return;
                 }
 
-                // We're completely logged out and shut down, leave this function
-                return;
-            }
-
-            List<Simulator> disconnectedSims = null;
-
-            // Check all of the connected sims for disconnects
-            lock (Simulators)
-            {
-                foreach (Simulator sim in Simulators)
+                // If the current simulator is disconnected, shutdown+callback+return
+                if (CurrentSim.DisconnectCandidate)
                 {
-                    if (sim.DisconnectCandidate)
+                    Client.Log("Network timeout for the current simulator (" +
+                        CurrentSim.Region.Name + "), logging out", Helpers.LogLevel.Warning);
+
+                    DisconnectTimer.Stop();
+                    connected = false;
+
+                    // Shutdown the network layer
+                    Shutdown();
+
+                    if (OnDisconnected != null)
                     {
-                        if (disconnectedSims == null)
+                        OnDisconnected(DisconnectType.NetworkTimeout, "");
+                    }
+
+                    // We're completely logged out and shut down, leave this function
+                    return;
+                }
+
+                List<Simulator> disconnectedSims = null;
+
+                // Check all of the connected sims for disconnects
+                lock (Simulators)
+                {
+                    foreach (Simulator sim in Simulators)
+                    {
+                        if (sim.DisconnectCandidate)
                         {
-                            disconnectedSims = new List<Simulator>();
-                        }
+                            if (disconnectedSims == null)
+                            {
+                                disconnectedSims = new List<Simulator>();
+                            }
 
-                        disconnectedSims.Add(sim);
-                    }
-                    else
-                    {
-                        sim.DisconnectCandidate = true;
+                            disconnectedSims.Add(sim);
+                        }
+                        else
+                        {
+                            sim.DisconnectCandidate = true;
+                        }
                     }
                 }
-            }
 
-            // Actually disconnect each sim we detected as disconnected
-            if (disconnectedSims != null)
-            {
-                foreach (Simulator sim in disconnectedSims)
+                // Actually disconnect each sim we detected as disconnected
+                if (disconnectedSims != null)
                 {
-                    // This sim hasn't received any network traffic since the 
-                    // timer last elapsed, consider it disconnected
-                    Client.Log("Network timeout for simulator " + sim.Region.Name +
-                        ", disconnecting", Helpers.LogLevel.Warning);
+                    foreach (Simulator sim in disconnectedSims)
+                    {
+                        if (sim != null)
+                        {
+                            // This sim hasn't received any network traffic since the 
+                            // timer last elapsed, consider it disconnected
+                            Client.Log("Network timeout for simulator " + sim.Region.Name +
+                                ", disconnecting", Helpers.LogLevel.Warning);
 
-                    DisconnectSim(sim);
+                            DisconnectSim(sim);
+                        }
+                    }
                 }
             }
         }
@@ -1385,7 +1443,7 @@ namespace libsecondlife
 
             simulator.Region.ID = handshake.RegionInfo.CacheID;
 
-            // FIXME:
+            // TODO: What do we need these for? RegionFlags probably contains good stuff
             //handshake.RegionInfo.BillableFactor;
             //handshake.RegionInfo.RegionFlags;
             //handshake.RegionInfo.SimAccess;
@@ -1426,8 +1484,8 @@ namespace libsecondlife
 
                 if (simulator.Region.ParcelOverlaysReceived > 3)
                 {
-                    Client.Log("Finished building the " + simulator.Region.Name + " parcel overlay",
-                        Helpers.LogLevel.Info);
+                    // TODO: ParcelOverlaysReceived should become internal, and reset to zero every 
+                    // time it hits four. Also need a callback here
                 }
             }
             else
@@ -1463,7 +1521,8 @@ namespace libsecondlife
     }
 
     /// <summary>
-    /// 
+    /// Throttles the network traffic for various different traffic types.
+    /// Access this class through SecondLife.Throttle
     /// </summary>
     public class AgentThrottle
     {
@@ -1584,5 +1643,4 @@ namespace libsecondlife
             return data;
         }
     }
-
 }

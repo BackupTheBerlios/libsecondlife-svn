@@ -45,7 +45,7 @@ namespace libsecondlife.AssetSystem
         /// <param name="asset"></param>
         public static Packet AssetUploadRequest(Asset asset, LLUUID TransactionID)
 		{
-            if (asset.AssetData.Length > 1000)
+            if (asset._AssetData.Length > 1000)
             {
                 throw new Exception("Asset too large to use AssetUploadRequest, use AssetUploadRequestHaderOnly() instead.");
             }
@@ -54,7 +54,7 @@ namespace libsecondlife.AssetSystem
             p.AssetBlock.TransactionID = TransactionID;
             p.AssetBlock.Type          = asset.Type;
             p.AssetBlock.Tempfile      = asset.Tempfile;
-            p.AssetBlock.AssetData     = asset.AssetData;
+            p.AssetBlock.AssetData     = asset._AssetData;
             p.AssetBlock.StoreLocal    = false;
 
             return p;
@@ -113,7 +113,7 @@ namespace libsecondlife.AssetSystem
         /// <param name="item"></param>
         public static Packet TransferRequest(LLUUID SessionID, LLUUID AgentID, LLUUID TransferID, InventoryItem item)
 		{
-            if (item.Asset.Type != 7)
+            if (item.Type != 7)
             {
                 Console.WriteLine("Warning: TransferRequest may not work for items other then notecards of type 7");
             }
@@ -152,20 +152,18 @@ namespace libsecondlife.AssetSystem
             return p;
         }
 
-        public static Packet TransferRequest4BodyShape(LLUUID SessionID, LLUUID AgentID, LLUUID TransferID, Asset asset)
+        /**
+         * This doesn't seem to work for all asset types... Last noted not working was Notecards
+         **/
+        public static Packet TransferRequestDirect(LLUUID SessionID, LLUUID AgentID, LLUUID TransferID, LLUUID AssetID, sbyte Type)
         {
-            if (asset.Type != 13)
-            {
-                Console.WriteLine("Warning: TransferRequest4BodyShape may not work for items of types other then 13");
-            }
-
             byte[] param = new byte[20];
             int pos = 0;
 
-            Array.Copy(asset.AssetID.Data, 0, param, pos, 16);
+            Array.Copy(AssetID.Data, 0, param, pos, 16);
             pos += 16;
 
-            param[pos] = (byte)asset.Type;
+            param[pos] = (byte)Type;
             pos += 1;
 
 

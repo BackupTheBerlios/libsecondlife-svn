@@ -8,20 +8,21 @@ namespace libsecondlife.TestClient
 {
     public class QuitCommand: Command
     {
-		public QuitCommand()
+        SecondLife Client;
+
+        public QuitCommand(TestClient testClient)
 		{
+            TestClient = testClient;
+            Client = (SecondLife)TestClient;
+
 			Name = "quit";
 			Description = "Log all avatars out and shut down";
 		}
 
-        public override string Execute(SecondLife Client, string[] args, LLUUID fromAgentID)
+        public override string Execute(string[] args, LLUUID fromAgentID)
 		{
-            foreach (SecondLife client in TestClient.Clients.Values)
-            {
-                client.Network.Logout();
-            }
-
-            TestClient.Running = false;
+			TestClient.ClientManager.LogoutAll();
+            TestClient.ClientManager.Running = false;
             return "All avatars logged out";
 		}
     }

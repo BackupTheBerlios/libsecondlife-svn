@@ -95,8 +95,12 @@ namespace libsecondlife
         public event GridRegionCallback OnRegionAdd;
 
         /// <summary>A dictionary of all the regions, indexed by region ID</summary>
-		public Dictionary<string, GridRegion> Regions;
-        /// <summary>Current direction of the sun</summary>
+		public Dictionary<string, GridRegion> Regions = new Dictionary<string, GridRegion>();
+
+		/// <summary>A dictionary of all the regions, indexed by region handle</summary>
+		public Dictionary<ulong, GridRegion> RegionsByHandle = new Dictionary<ulong,GridRegion>();
+
+		/// <summary>Current direction of the sun</summary>
         public LLVector3 SunDirection;
 
 		private SecondLife Client;
@@ -111,7 +115,6 @@ namespace libsecondlife
 		public GridManager(SecondLife client)
 		{
 			Client = client;
-			Regions = new Dictionary<string, GridRegion>();
             SunDirection = LLVector3.Zero;
 
             Client.Network.RegisterCallback(PacketType.MapBlockReply, new NetworkManager.PacketCallback(MapBlockReplyHandler));
@@ -186,7 +189,7 @@ namespace libsecondlife
 		}
 
         /// <summary>
-        /// 
+        /// Begin process to get information for a Region
         /// </summary>
         /// <param name="name">Region Name you're requesting data for</param>
         /// <param name="grc">CallBack being used to process the response</param>
@@ -250,7 +253,7 @@ namespace libsecondlife
         /// Populate Grid info based on data from MapBlockReplyPacket
         /// </summary>
         /// <param name="packet">Incoming MapBlockReplyPacket packet</param>
-        /// <param name="simulator">[UNUSED]</param>
+        /// <param name="simulator">Unused</param>
 		private void MapBlockReplyHandler(Packet packet, Simulator simulator) 
 		{
 			GridRegion region;
@@ -277,6 +280,11 @@ namespace libsecondlife
                         Regions[region.Name.ToLower()] = region;
                     }
 
+					lock (RegionsByHandle)
+					{
+						RegionsByHandle[region.RegionHandle] = region;
+					}
+
                     if (OnRegionAddInternal != null && BeginGetGridRegionName == region.Name.ToLower())
                     {
                         OnRegionAddInternal(region);
@@ -293,7 +301,7 @@ namespace libsecondlife
         /// Get sim time from the appropriate packet
         /// </summary>
         /// <param name="packet">Incoming SimulatorViewerTimeMessagePacket from SL</param>
-        /// <param name="simulator">[UNUSED]</param>
+        /// <param name="simulator">Unused</param>
         private void TimeMessageHandler(Packet packet, Simulator simulator)
         {
             SunDirection = ((SimulatorViewerTimeMessagePacket)packet).TimeInfo.SunDirection;

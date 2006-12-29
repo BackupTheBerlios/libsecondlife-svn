@@ -8,23 +8,38 @@ namespace libsecondlife.TestClient
 {
     public class FollowCommand: Command
     {
-		public FollowCommand()
+        SecondLife Client;
+
+		public FollowCommand(TestClient testClient)
 		{
+            TestClient = testClient;
+            Client = (SecondLife)TestClient;
+
 			Name = "follow";
-			Description = "Follow another avatar. (usage: follow FirstName LastName)";
+			Description = "Follow another avatar. (usage: follow [FirstName LastName])  If no target is set then will follow master.";
 		}
 
-        public override string Execute(SecondLife Client, string[] args, LLUUID fromAgentID)
+        public override string Execute(string[] args, LLUUID fromAgentID)
 		{
 			string target = String.Empty;
-			for (int ct = 0; ct < args.Length;ct++)
+			for (int ct = 0; ct < args.Length; ct++)
 				target = target + args[ct] + " ";
 			target = target.TrimEnd();
-			
-			if (Follow(target))
-				return "Following " + target;
-			else
-				return "Unable to follow " + target + ".  Client may not be able to see that avatar.";
+
+			if (target.Length == 0)
+				target = TestClient.Master;
+
+            if (target.Length > 0)
+            {
+                if (Follow(target))
+                    return "Following " + target;
+                else
+                    return "Unable to follow " + target + ".  Client may not be able to see that avatar.";
+            }
+            else
+            {
+                return "No target specified and no master is set. usage: follow [FirstName LastName])";
+            }
 		}
 
         const float DISTANCE_BUFFER = 3.0f;
@@ -33,7 +48,7 @@ namespace libsecondlife.TestClient
 
         bool Follow(string name)
         {
-            foreach (Avatar av in TestClient.Avatars.Values)
+            foreach (Avatar av in TestClient.AvatarList.Values)
             {
                 if (av.Name == name)
 				{
@@ -48,48 +63,25 @@ namespace libsecondlife.TestClient
 
 		public override void Think(SecondLife Client)
 		{
-            if (vecDist(followAvatar.Position, Client.Self.Position) > DISTANCE_BUFFER)
+            if (Helpers.VecDist(followAvatar.Position, Client.Self.Position) > DISTANCE_BUFFER)
             {
-                if (followAvatar.CurrentRegion.GridRegionData != null)
-                {
-                    // move toward target
-                    ulong x = (ulong)(followAvatar.Position.X + (followAvatar.CurrentRegion.GridRegionData.X * 256));
-                    ulong y = (ulong)(followAvatar.Position.Y + (followAvatar.CurrentRegion.GridRegionData.Y * 256));
-                    Client.Self.AutoPilotLocal(Convert.ToInt32(followAvatar.Position.X), Convert.ToInt32(followAvatar.Position.Y), followAvatar.Position.Z);
-                }
+                //move toward target
+				if (followAvatar.CurrentRegion.GridRegionData != null)
+				{
+					//ulong x = (ulong)(followAvatar.Position.X + (followAvatar.CurrentRegion.GridRegionData.X * 256));
+					//ulong y = (ulong)(followAvatar.Position.Y + (followAvatar.CurrentRegion.GridRegionData.Y * 256));
+					Client.Self.AutoPilotLocal(Convert.ToInt32(followAvatar.Position.X), Convert.ToInt32(followAvatar.Position.Y), followAvatar.Position.Z);
+				}
             }
 			//else
 			//{
 			//    //stop at current position
-			//    LLVector3 myPos = Client.Self.Position;
-			//    Client.Self.AutoPilot((ulong)myPos.X, (ulong)myPos.Y, myPos.Z);
+			//    LLVector3 myPos = client.Self.Position;
+			//    client.Self.AutoPilot((ulong)myPos.x, (ulong)myPos.y, myPos.Z);
 			//}
 
 			base.Think(Client);
 		}
 
-		//void SendAgentUpdate(uint ControlID)
-		//{
-		//    AgentUpdatePacket p = new AgentUpdatePacket();
-		//    p.AgentData.Far = 30.0f;
-		//    p.AgentData.CameraAtAxis = new LLVector3(0, 0, 0);
-		//    p.AgentData.CameraCenter = new LLVector3(0, 0, 0);
-		//    p.AgentData.CameraLeftAxis = new LLVector3(0, 0, 0);
-		//    p.AgentData.CameraUpAxis = new LLVector3(0, 0, 0);
-		//    p.AgentData.HeadRotation = new LLQuaternion(0, 0, 0, 1); ;
-		//    p.AgentData.BodyRotation = new LLQuaternion(0, 0, 0, 1); ;
-		//    p.AgentData.AgentID = client.Network.AgentID;
-		//    p.AgentData.SessionID = client.Network.SessionID;
-		//    p.AgentData.ControlFlags = ControlID;
-		//    client.Network.SendPacket(p);
-		//}
-
-        float vecDist(LLVector3 pointA, LLVector3 pointB)
-        {
-            float xd = pointB.X - pointA.X;
-            float yd = pointB.Y - pointA.Y;
-            float zd = pointB.Z - pointA.Z;
-            return (float)Math.Sqrt(xd * xd + yd * yd + zd * zd);
-        }
     }
 }

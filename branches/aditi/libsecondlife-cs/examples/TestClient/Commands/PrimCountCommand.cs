@@ -8,15 +8,30 @@ namespace libsecondlife.TestClient
 {
     public class PrimCountCommand: Command
     {
-		public PrimCountCommand()
+        SecondLife Client;
+
+        public PrimCountCommand(TestClient testClient)
 		{
+            TestClient = testClient;
+            Client = (SecondLife)TestClient;
+
 			Name = "primCount";
 			Description = "Shows the number of prims that have been received.";
 		}
 
-        public override string Execute(SecondLife Client, string[] args, LLUUID fromAgentID)
+        public override string Execute(string[] args, LLUUID fromAgentID)
 		{
-			return TestClient.Prims.Count.ToString();
+            int count = 0;
+
+            lock (TestClient.SimPrims)
+            {
+                foreach (Dictionary<uint, PrimObject> prims in TestClient.SimPrims.Values)
+                {
+                    count += prims.Count;
+                }
+            }
+
+			return count.ToString();
 		}
     }
 }

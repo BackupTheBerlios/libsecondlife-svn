@@ -6,19 +6,24 @@ using libsecondlife.Packets;
 
 namespace libsecondlife.TestClient
 {
-    public class UptimeCommand: Command
+    public class UptimeCommand : Command
     {
-		public DateTime Created = DateTime.Now;
+        SecondLife Client;
+        public DateTime Created = DateTime.Now;
 
-		public UptimeCommand()
-		{
-			Name = "uptime";
-			Description = "Shows the login time and length of time logged on.";
-		}
+        public UptimeCommand(TestClient testClient)
+        {
+            TestClient = testClient;
+            Client = (SecondLife)TestClient;
 
-        public override string Execute(SecondLife Client, string[] args, LLUUID fromAgentID)
-		{
-			return "Up Since: " + Created + " (" + (DateTime.Now - Created) + ")";
-		}
+            Name = "uptime";
+            Description = "Shows the login name, login time and length of time logged on.";
+        }
+
+        public override string Execute(string[] args, LLUUID fromAgentID)
+        {
+            string name = Client.ToString();
+            return "I am " + name + ", Up Since: " + Created + " (" + (DateTime.Now - Created) + ")";
+        }
     }
 }

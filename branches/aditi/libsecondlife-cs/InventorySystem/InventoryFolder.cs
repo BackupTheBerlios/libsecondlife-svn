@@ -9,6 +9,8 @@ namespace libsecondlife.InventorySystem
     /// </summary>
     public class InventoryFolder : InventoryBase
     {
+        public enum FolderUpdateFlag { None, NoRecurse, Recurse };
+
         public string Name
         {
             get { return _Name; }
@@ -33,10 +35,10 @@ namespace libsecondlife.InventorySystem
             set
             {
                 InventoryFolder ifParent = iManager.getFolder(this.ParentID);
-                ifParent.alContents.Remove(this);
+                ifParent._Contents.Remove(this);
 
                 ifParent = iManager.getFolder(value);
-                ifParent.alContents.Add(this);
+                ifParent._Contents.Add(this);
 
                 this._ParentID = value;
 
@@ -50,7 +52,8 @@ namespace libsecondlife.InventorySystem
             get { return _Type; }
         }
 
-        public List<InventoryBase> alContents = new List<InventoryBase>();
+        internal List<InventoryBase> _Contents = new List<InventoryBase>();
+
 
         internal InventoryFolder(InventoryManager manager)
             : base(manager)
@@ -88,6 +91,45 @@ namespace libsecondlife.InventorySystem
             this._Type = sbyte.Parse(htData["type_default"].ToString());
         }
 
+        /// <summary>
+        /// Get the contents of this folder
+        /// </summary>
+        /// <returns>Contents of this folder</returns>
+        public List<InventoryBase> GetContents()
+        {
+            return _Contents;
+        }
+
+        /// <summary>
+        /// Request a download of this folder's content information.
+        /// </summary>
+        /// <param name="Recurse">Indicate if we should recursively download content information.</param>
+        /// <returns>The Request object for this download</returns>
+        public DownloadRequest_Folder RequestDownloadContents(bool recurse)
+        {
+            _Contents.Clear();
+
+            DownloadRequest_Folder dr = new DownloadRequest_Folder(FolderID, recurse);
+            iManager.RequestFolder(dr);
+
+            return dr;
+        }
+
+        /// <summary>
+        /// Request a download of this folder's content information.
+        /// </summary>
+        /// <param name="Recurse">Indicate if we should recursively download content information.</param>
+        /// <param name="Items">Indicate if item data should be downloaded too (true), or only folders(false)</param>
+        /// <returns>The Request object for this download</returns>
+        public DownloadRequest_Folder RequestDownloadContents(bool recurse, bool items)
+        {
+            _Contents.Clear();
+
+            DownloadRequest_Folder dr = new DownloadRequest_Folder(FolderID, recurse, items);
+            iManager.RequestFolder(dr);
+
+            return dr;
+        }
 
         public InventoryFolder CreateFolder(string name)
         {
@@ -96,7 +138,7 @@ namespace libsecondlife.InventorySystem
 
         public void Delete()
         {
-            iManager.getFolder(this.ParentID).alContents.Remove(this);
+            iManager.getFolder(this.ParentID)._Contents.Remove(this);
             iManager.FolderRemove(this);
         }
 
@@ -123,7 +165,7 @@ namespace libsecondlife.InventorySystem
         public List<InventoryBase> GetItemByName(string name)
         {
             List<InventoryBase> items = new List<InventoryBase>();
-            foreach (InventoryBase ib in alContents)
+            foreach (InventoryBase ib in _Contents)
             {
                 if (ib is InventoryFolder)
                 {
@@ -141,6 +183,11 @@ namespace libsecondlife.InventorySystem
             return items;
         }
 
+        public override string GetDisplayType()
+        {
+            return "Folder";
+        }
+
         /// <summary>
         /// Output this folder as XML
         /// </summary>
@@ -155,7 +202,7 @@ namespace libsecondlife.InventorySystem
             output += "Type = '" + Type + "' ";
             output += ">\n";
 
-            foreach (Object oContent in alContents)
+            foreach (Object oContent in _Contents)
             {
                 output += ((InventoryBase)oContent).toXML(outputAssets);
             }

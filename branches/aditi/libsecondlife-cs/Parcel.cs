@@ -91,15 +91,15 @@ namespace libsecondlife
         public int PublicCount;
         /// <summary></summary>
         public int LocalID;
-        /// <summary></summary>
+        /// <summary>Key of land owner</summary>
         public LLUUID OwnerID;
-        /// <summary></summary>
+        /// <summary>Is the land group owned</summary>
         public bool IsGroupOwned;
         /// <summary></summary>
         public uint AuctionID;
-        /// <summary></summary>
-        public bool ReservedNewbie;
-        /// <summary></summary>
+        /// <summary>Presumably for first land</summary>
+//        public bool ReservedNewbie; // FIXME FIXME FIXME
+        /// <summary>Date land was claimed</summary>
         public int ClaimDate;
         /// <summary></summary>
         public int ClaimPrice;
@@ -109,25 +109,25 @@ namespace libsecondlife
         public LLVector3 AABBMin;
         /// <summary></summary>
         public LLVector3 AABBMax;
-        /// <summary></summary>
+        /// <summary>Bitmap describing land layout in 4x4m squares across the entire region</summary>
         public byte[] Bitmap;
-        /// <summary></summary>
+        /// <summary>Total land area</summary>
         public int Area;
         /// <summary></summary>
         public byte Status;
-        /// <summary></summary>
+        /// <summary>Max objects across region</summary>
         public int SimWideMaxObjects;
-        /// <summary></summary>
+        /// <summary>Total objects across region</summary>
         public int SimWideTotalObjects;
-        /// <summary></summary>
+        /// <summary>Max objects for parcel</summary>
         public int MaxObjects;
-        /// <summary></summary>
+        /// <summary>Total objects in parcel</summary>
         public int TotalObjects;
-        /// <summary></summary>
+        /// <summary>Total objects for owner</summary>
         public int OwnerObjects;
-        /// <summary></summary>
+        /// <summary>Total objects for group</summary>
         public int GroupObjects;
-        /// <summary></summary>
+        /// <summary>Total for other objects</summary>
         public int OtherObjects;
         /// <summary></summary>
         public float ParcelObjectBonus;
@@ -137,29 +137,29 @@ namespace libsecondlife
         public uint ParcelFlags;
         /// <summary></summary>
         public int SalePrice;
-        /// <summary></summary>
+        /// <summary>Parcel Name</summary>
         public string Name;
-        /// <summary></summary>
+        /// <summary>Parcel Description</summary>
         public string Desc;
-        /// <summary></summary>
+        /// <summary>URL For Music Stream</summary>
         public string MusicURL;
-        /// <summary></summary>
+        /// <summary>URL For other Media</summary>
         public string MediaURL;
-        /// <summary></summary>
+        /// <summary>Key to Picture for Media Placeholder</summary>
         public LLUUID MediaID;
         /// <summary></summary>
         public byte MediaAutoScale;
         /// <summary></summary>
         public LLUUID GroupID;
-        /// <summary></summary>
+        /// <summary>Price for a temporary pass</summary>
         public int PassPrice;
-        /// <summary></summary>
+        /// <summary>How long is pass valid for</summary>
         public float PassHours;
         /// <summary></summary>
         public byte Category;
-        /// <summary></summary>
+        /// <summary>Key of authorized buyer</summary>
         public LLUUID AuthBuyerID;
-        /// <summary></summary>
+        /// <summary>Key of parcel snapshot</summary>
         public LLUUID SnapshotID;
         /// <summary></summary>
         public LLVector3 UserLocation;
@@ -347,9 +347,9 @@ namespace libsecondlife
     public class ParcelManager
     {
         private SecondLife Client;
-        private bool ReservedNewbie;
-        private bool ForSale;
-        private bool Auction;
+//        private bool ReservedNewbie; // FIXME FIXME FIXME
+//        private bool ForSale;
+//        private bool Auction;
         private bool Finished;
         private Timer DirLandTimer;
         private bool DirLandTimeout;
@@ -358,7 +358,7 @@ namespace libsecondlife
         private List<DirectoryParcel> ParcelsForSale;
 
         /// <summary>
-        /// 
+        /// Parcel (subdivided simulator lots) Subsystem
         /// </summary>
         /// <param name="client"></param>
         public ParcelManager(SecondLife client)
@@ -448,9 +448,9 @@ namespace libsecondlife
         public int DirLandRequest(bool reservedNewbie, bool forSale, bool auction)
         {
             // Set the class-wide variables so the callback has them
-            ReservedNewbie = reservedNewbie;
-            ForSale = forSale;
-            Auction = auction;
+//            ReservedNewbie = reservedNewbie; // FIXME FIXME FIXME
+//            ForSale = forSale;
+//            Auction = auction;
 
             // Clear the list
             ParcelsForSale.Clear();
@@ -462,11 +462,11 @@ namespace libsecondlife
             DirLandQueryPacket query = new DirLandQueryPacket();
             query.AgentData.AgentID = Client.Network.AgentID;
             query.AgentData.SessionID = Client.Network.SessionID;
-            query.QueryData.Auction = auction;
-            query.QueryData.ForSale = forSale;
+//            query.QueryData.Auction = auction; // FIXME FIXME FIXME
+//            query.QueryData.ForSale = forSale;
             query.QueryData.QueryFlags = 0;
-            query.QueryData.QueryID = LLUUID.GenerateUUID();
-            query.QueryData.ReservedNewbie = reservedNewbie;
+            query.QueryData.QueryID = LLUUID.Random();
+//            query.QueryData.ReservedNewbie = reservedNewbie; // FIXME FIXME FIXME
 
             Client.Network.SendPacket((Packet)query);
 
@@ -572,7 +572,7 @@ namespace libsecondlife
             parcel.OwnerID             = properties.ParcelData.OwnerID;
             parcel.IsGroupOwned        = properties.ParcelData.IsGroupOwned;
             parcel.AuctionID           = properties.ParcelData.AuctionID;
-            parcel.ReservedNewbie      = properties.ParcelData.ReservedNewbie;
+//            parcel.ReservedNewbie      = properties.ParcelData.ReservedNewbie; // FIXME FIXME FIXME
             parcel.ClaimDate           = properties.ParcelData.ClaimDate;
             parcel.ClaimPrice          = properties.ParcelData.ClaimPrice;
             parcel.RentPrice           = properties.ParcelData.RentPrice;
@@ -677,9 +677,9 @@ namespace libsecondlife
 
                 foreach (DirLandReplyPacket.QueryRepliesBlock block in reply.QueryReplies)
                 {
-                    if (block.ReservedNewbie == ReservedNewbie &&
-                        block.Auction == Auction &&
-                        block.ForSale == ForSale)
+//                    if (block.ReservedNewbie == ReservedNewbie &&
+//                        block.Auction == Auction &&
+//                        block.ForSale == ForSale) // FIXME FIXME FIXME
                     {
                         DirectoryParcel parcel = new DirectoryParcel();
 

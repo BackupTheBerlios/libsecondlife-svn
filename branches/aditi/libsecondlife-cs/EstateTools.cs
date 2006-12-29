@@ -29,14 +29,14 @@ using libsecondlife.Packets;
 namespace libsecondlife
 {
 	/// <summary>
-	/// Summary description for EstateTools.
+	/// Estate level administration and utilities
 	/// </summary>
 	public class EstateTools
 	{
 		private SecondLife Client;
 
         /// <summary>
-        /// 
+        /// Constructor for EstateTools class
         /// </summary>
         /// <param name="client"></param>
 		public EstateTools(SecondLife client)
@@ -45,15 +45,15 @@ namespace libsecondlife
 		}
 
         /// <summary>
-        /// 
+        /// Kick an Avatar from an estate
         /// </summary>
-        /// <param name="prey"></param>
+        /// <param name="prey">Key of Avatar to kick</param>
 		public void KickUser(LLUUID prey) 
 		{
             EstateOwnerMessagePacket estate = new EstateOwnerMessagePacket();
             estate.AgentData.AgentID = Client.Network.AgentID;
             estate.AgentData.SessionID = Client.Network.SessionID;
-            estate.MethodData.Invoice = LLUUID.GenerateUUID();
+            estate.MethodData.Invoice = LLUUID.Random();
             estate.MethodData.Method = Helpers.StringToField("kick");
             estate.ParamList = new EstateOwnerMessagePacket.ParamListBlock[2];
             estate.ParamList[0].Parameter = Helpers.StringToField(Client.Network.AgentID.ToStringHyphenated());
@@ -63,9 +63,9 @@ namespace libsecondlife
 		}
 
         /// <summary>
-        /// 
+        /// Ban an Avatar from an estate
         /// </summary>
-        /// <param name="prey"></param>
+        /// <param name="prey">Key of Avatar to ban</param>
 		public void BanUser(LLUUID prey) 
 		{
             // FIXME:
