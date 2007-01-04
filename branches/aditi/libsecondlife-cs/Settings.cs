@@ -36,9 +36,9 @@ namespace libsecondlife
     public class Settings
     {
         /// <summary>The version of libsecondlife (not the SL protocol itself)</summary>
-        public string VERSION = "libsecondlife 0.0.9";
+        public string VERSION = "libsecondlife 0.0.1";
         /// <summary>XML-RPC login server to connect to</summary>
-        public string LOGIN_SERVER = "https://login.agni.lindenlab.com/cgi-bin/login.cgi";
+        public string LOGIN_SERVER = "https://login.aditi.lindenlab.com/cgi-bin/login.cgi";
 
         /// <summary>Millisecond interval between ticks, where all ACKs are 
         /// sent out and the age of unACKed packets is checked</summary>
