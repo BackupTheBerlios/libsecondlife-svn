@@ -20,7 +20,7 @@ namespace libsecondlife
 
 
 		private static void SkipWS(XmlTextReader reader) {
-			while(reader.NodeType == XmlNodeType.Comment || reader.NodeType == XmlNodeType.Whitespace || reader.NodeType == XmlNodeType.SignificantWhitespace) reader.Read();
+			while(reader.NodeType == XmlNodeType.Comment || reader.NodeType == XmlNodeType.Whitespace || reader.NodeType == XmlNodeType.SignificantWhitespace || reader.NodeType == XmlNodeType.XmlDeclaration) reader.Read();
 		}
 
 		public static object LLSDDeserialize(byte[] b) {
@@ -124,12 +124,19 @@ namespace libsecondlife
 			if(reader.NodeType != XmlNodeType.Element) 
 				throw new LLSDParseException("Expected an element");
 			string dtype = reader.LocalName; object ret = null;
+			bool st = false;
 			
 			switch(dtype) {
 				case "undef": {
+					if(reader.IsEmptyElement) {
+						reader.Read(); return null;
+					}
 					reader.Read(); SkipWS(reader); ret = null; break;
 				}
 				case "boolean": {
+					if(reader.IsEmptyElement) {
+						reader.Read(); return false;
+					}
 					reader.Read();
 					string s = reader.ReadString().Trim();
 					if(s == "" || s == "false" || s == "0") {
@@ -142,26 +149,41 @@ namespace libsecondlife
 					break;
 				}
 				case "integer": {
+					if(reader.IsEmptyElement) {
+						reader.Read(); return 0L;
+					}
 					reader.Read();
 					ret = Convert.ToInt64(reader.ReadString().Trim());
 					break;
 				}
 				case "real": {
+					if(reader.IsEmptyElement) {
+						reader.Read(); return 0.0f;
+					}
 					reader.Read();
 					ret = Convert.ToDouble(reader.ReadString().Trim());
 					break;
 				}
 				case "uuid": {
+					if(reader.IsEmptyElement) {
+						reader.Read(); return new LLUUID();
+					}
 					reader.Read();
 					ret = new LLUUID(reader.ReadString().Trim());
 					break;
 				}
 				case "string": {
+					if(reader.IsEmptyElement) {
+						reader.Read(); return String.Empty;
+					}
 					reader.Read();
 					ret = reader.ReadString();
 					break;
 				}
 				case "binary": {
+					if(reader.IsEmptyElement) {
+						reader.Read(); return new byte[0];
+					}
 					if(reader.GetAttribute("encoding") != null &&
 					   reader.GetAttribute("encoding")!="base64")
 						throw new LLSDParseException("Unknown encoding: "+
@@ -196,6 +218,9 @@ namespace libsecondlife
 		public static Hashtable LLSDParseMap(XmlTextReader reader) {
 			if(reader.NodeType != XmlNodeType.Element || reader.LocalName != "map")
 				throw new LLSDParseException("Expected <map>");
+			if(reader.IsEmptyElement) {
+				reader.Read(); return new Hashtable();
+			}
 			reader.Read();
 
 			Hashtable ret = new Hashtable();
@@ -220,6 +245,9 @@ namespace libsecondlife
 		public static ArrayList LLSDParseArray(XmlTextReader reader) {
 			if(reader.NodeType != XmlNodeType.Element || reader.LocalName != "array")
 				throw new LLSDParseException("Expected <array>");
+			if(reader.IsEmptyElement) {
+				reader.Read(); return new ArrayList();
+			}
 			reader.Read();
 
 			ArrayList ret = new ArrayList();

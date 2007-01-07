@@ -27,7 +27,9 @@
 using System;
 using System.Timers;
 using System.Net;
+using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using libsecondlife.Packets;
 
 namespace libsecondlife
@@ -321,6 +323,10 @@ namespace libsecondlife
             Client.Network.RegisterCallback(PacketType.JoinGroupReply, new NetworkManager.PacketCallback(JoinGroupHandler));
             Client.Network.RegisterCallback(PacketType.LeaveGroupReply, new NetworkManager.PacketCallback(LeaveGroupHandler));
             Client.Network.RegisterCallback(PacketType.AgentDropGroup, new NetworkManager.PacketCallback(DropGroupHandler));
+
+
+	    // Event queue callback
+	    Client.Network.RegisterEventCallback(new NetworkManager.EventQueueCallback(EventQueueHandler));
         }
 
         /// <summary>
@@ -1152,6 +1158,34 @@ namespace libsecondlife
             }
         }
 
+	private uint CapToUInt32(byte[] bytes) {
+	    return (uint)(bytes[3] + (bytes[2] << 8) + (bytes[1] << 16) + (bytes[0] << 24));
+	}
+
+	private ulong CapToUInt64(byte[] bytes) {
+	    return (ulong)((ulong)bytes[7] + ((ulong)bytes[6] << 8) + ((ulong)bytes[5] << 16) + ((ulong)bytes[4] << 24) + ((ulong)bytes[3] << 32) + ((ulong)bytes[2] << 40) + ((ulong)
+bytes[1] << 48) + ((ulong)bytes[0] << 56));
+	}
+
+
+	private void EventQueueHandler(string message, object body) {
+	    if(message == "TeleportFinish") {
+		Hashtable tpt = (Hashtable)body;
+		Hashtable info = (Hashtable)tpt["Info"];
+		// FIXME: quick and dirty hack
+		TeleportFinishPacket packet = new TeleportFinishPacket();
+		packet.Info.SimIP = CapToUInt32((byte[])info["SimIP"]);
+		packet.Info.LocationID = CapToUInt32((byte[])info["LocationID"]);
+		packet.Info.TeleportFlags = CapToUInt32((byte[])info["TeleportFlags"]);
+		packet.Info.AgentID = (LLUUID)info["AgentID"];
+		packet.Info.RegionHandle = CapToUInt64((byte[])info["RegionHandle"]);
+		packet.Info.SeedCapability = Helpers.StringToField((string)info["SeedCapability"]);
+		packet.Info.SimPort = (ushort)(long)info["SimPort"];
+		packet.Info.SimAccess = (byte)(long)info["SimAccess"];
+		TeleportHandler(packet,Client.Network.CurrentSim);
+	    }
+	}
+
         /// <summary>
         /// Handler for teleport Requests
         /// </summary>
@@ -1205,8 +1239,9 @@ namespace libsecondlife
                 Simulator previousSim = Client.Network.CurrentSim;
 
                 // Connect to the new sim
+		String seedcaps = Encoding.UTF8.GetString(finish.Info.SeedCapability).Replace("\x00","");
                 Simulator sim = Client.Network.Connect(new IPAddress((long)finish.Info.SimIP), finish.Info.SimPort,
-                    simulator.CircuitCode, true);
+                    simulator.CircuitCode, true, seedcaps);
 
                 if (sim != null)
                 {

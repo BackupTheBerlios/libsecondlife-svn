@@ -26,11 +26,14 @@
 
 using System;
 using System.Timers;
+using System.Threading;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Net;
 using System.Net.Sockets;
 using System.Globalization;
+using System.IO;
 using Nwc.XmlRpc;
 using Nii.JSON;
 using libsecondlife.Packets;
@@ -600,6 +603,90 @@ namespace libsecondlife
         }
     }
 
+    public class Caps {
+        public SecondLife Client;
+        public Region Region;
+	private string seedcaps;
+	private StringDictionary caps = new StringDictionary();
+	private bool dead = false;
+	private Thread eventThread;
+	private List<NetworkManager.EventQueueCallback> Callbacks;
+
+	public Caps(SecondLife client, Region region, string seedcaps, List<NetworkManager.EventQueueCallback> callbacks) {
+	    Client = client; Region = region;
+	    this.seedcaps = seedcaps; Callbacks = callbacks;
+	    ArrayList req = new ArrayList();
+	    req.Add("MapLayer");
+	    req.Add("MapLayerGod");
+	    req.Add("NewAgentInventory");
+	    req.Add("EventQueueGet");
+	    Hashtable resp = (Hashtable)LLSDRequest(seedcaps,req);
+	    foreach(string cap in resp.Keys) {
+		Console.WriteLine("Got cap "+cap+": "+(string)resp[cap]);
+		caps[cap] = (string)resp[cap];
+	    }
+	    if(caps.ContainsKey("EventQueueGet")) {
+		Console.WriteLine("Running event queue");
+		eventThread = new Thread(new ThreadStart(EventQueue));
+		eventThread.Start();
+	    }
+	}
+
+	private void EventQueue() {
+		bool gotresp = false; long ack = 0;
+		string cap = caps["EventQueueGet"];
+		while(!dead) 
+		    try {
+			Hashtable req = new Hashtable();
+			if(gotresp)
+			    req["ack"] = ack;
+			else req["ack"] = null;
+			req["done"] = false;
+			Hashtable resp = (Hashtable)LLSDRequest(cap,req);
+			ack = (long)resp["id"]; gotresp = true;
+			ArrayList events = (ArrayList)resp["events"];
+			foreach (Hashtable evt in events) {
+			    string msg = (string)evt["message"];
+			    object body = (object)evt["body"];
+			    Console.WriteLine("Event "+msg+":\n"+LLSD.LLSDDump(body,0));
+			    if(!dead) {
+				foreach (NetworkManager.EventQueueCallback callback in Callbacks)
+				    callback(msg,body);
+			    }
+			}
+		    } catch(WebException e) {
+			// perfectly normal
+			Console.WriteLine("In EventQueueGet: "+e.ToString());
+		    }
+	} 
+
+	private static object LLSDRequest(string uri, object req) {
+	    byte[] data = LLSD.LLSDSerialize(req);
+	    WebRequest wreq = WebRequest.Create(uri);
+	    wreq.Method = "POST"; wreq.ContentLength = data.Length;
+	    Stream reqStream = wreq.GetRequestStream();
+	    reqStream.Write(data,0,data.Length);
+	    reqStream.Close();
+	    HttpWebResponse wresp = (HttpWebResponse)wreq.GetResponse();
+	    Stream respStream = wresp.GetResponseStream();
+	    int read; int length = 0;
+	    byte[] respBuf = new byte[256];
+	    do {
+		read = respStream.Read(respBuf,length,256);
+		if(read > 0) {
+		    length += read;
+		    Array.Resize(ref respBuf,length+256);
+		}
+	    } while(read > 0);
+	    Array.Resize(ref respBuf,length);
+	    return LLSD.LLSDDeserialize(respBuf);
+	}
+
+	public void Disconnect() {
+		dead = true;
+	}
+    }
+
     /// <summary>
     /// NetworkManager is responsible for managing the network layer of 
     /// libsecondlife. It tracks all the server connections, serializes 
@@ -615,6 +702,12 @@ namespace libsecondlife
         /// <param name="packet"></param>
         /// <param name="simulator"></param>
         public delegate void PacketCallback(Packet packet, Simulator simulator);
+        /// <summary>
+        /// Triggered when an event is received via the EventQueueGet capability;
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="body"></param>
+        public delegate void EventQueueCallback(string message, object body);
         /// <summary>
         /// Triggered when a simulator other than the simulator that is currently
         /// being occupied disconnects for whatever reason
@@ -664,6 +757,10 @@ namespace libsecondlife
         /// </summary>
         public Simulator CurrentSim;
         /// <summary>
+        /// The capabilities for the current simulator
+        /// </summary>
+        public Caps CurrentCaps;
+        /// <summary>
         /// The complete dictionary of all the login values returned by the 
         /// RPC login server, converted to native data types wherever possible
         /// </summary>
@@ -692,6 +789,7 @@ namespace libsecondlife
         private List<Simulator> Simulators = new List<Simulator>();
         private System.Timers.Timer DisconnectTimer;
         private bool connected;
+	private List<EventQueueCallback> EventQueueCallbacks = new List<EventQueueCallback>();
 
         private const int NetworkTrafficTimeout = 15000;
         private const int LoginTimeout = 60000;
@@ -759,6 +857,15 @@ namespace libsecondlife
                     Helpers.LogLevel.Info);
             }
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="callback"></param>
+        public void RegisterEventCallback(EventQueueCallback callback)
+        {
+		EventQueueCallbacks.Add(callback);
+	}
 
         /// <summary>
         /// 
@@ -1175,6 +1282,10 @@ namespace libsecondlife
                 // Simulator is successfully connected, add it to the list and set it as default
                 Simulators.Add(simulator);
 
+		if(LoginValues.ContainsKey("seed_capability") && (string)LoginValues["seed_capability"] != "") {
+			CurrentCaps = new Caps(Client,simulator.Region,(string)LoginValues["seed_capability"], EventQueueCallbacks);
+		}
+
                 // Move our agent in to the sim to complete the connection
                 Client.Self.CompleteAgentMovement(simulator);
 
@@ -1200,7 +1311,7 @@ namespace libsecondlife
         /// <param name="circuitCode"></param>
         /// <param name="setDefault"></param>
         /// <returns></returns>
-        public Simulator Connect(IPAddress ip, ushort port, uint circuitCode, bool setDefault)
+        public Simulator Connect(IPAddress ip, ushort port, uint circuitCode, bool setDefault, string seedcaps)
         {
             Simulator simulator = new Simulator(Client, this.Callbacks, circuitCode, ip, (int)port);
 
@@ -1218,6 +1329,10 @@ namespace libsecondlife
             if (setDefault)
             {
                 CurrentSim = simulator;
+		if(CurrentCaps != null) CurrentCaps.Disconnect();
+		CurrentCaps = null;
+		if(seedcaps != null && seedcaps != "")
+			CurrentCaps = new Caps(Client,simulator.Region,seedcaps,EventQueueCallbacks);
             }
 
             DisconnectTimer.Start();
@@ -1320,6 +1435,9 @@ namespace libsecondlife
                 DisconnectSim(CurrentSim);
                 CurrentSim = null;
             }
+	    if (CurrentCaps != null) {
+		CurrentCaps.Disconnect(); CurrentCaps = null;
+	    }
         }
 
         private void SendInitialPackets()
