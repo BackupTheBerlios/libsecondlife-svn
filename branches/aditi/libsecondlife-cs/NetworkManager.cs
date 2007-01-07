@@ -642,6 +642,7 @@ namespace libsecondlife
 			    req["ack"] = ack;
 			else req["ack"] = null;
 			req["done"] = false;
+
 			Hashtable resp = (Hashtable)LLSDRequest(cap,req);
 			ack = (long)resp["id"]; gotresp = true;
 			ArrayList events = (ArrayList)resp["events"];
@@ -656,7 +657,7 @@ namespace libsecondlife
 			}
 		    } catch(WebException e) {
 			// perfectly normal
-			Console.WriteLine("In EventQueueGet: "+e.ToString());
+			Console.WriteLine("In EventQueueGet: "+e.Message );
 		    }
 	} 
 
